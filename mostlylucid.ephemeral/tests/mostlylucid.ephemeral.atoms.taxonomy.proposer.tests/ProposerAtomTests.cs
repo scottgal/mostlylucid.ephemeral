@@ -1,0 +1,96 @@
+using System.Threading;
+using System.Threading.Tasks;
+using Mostlylucid.Ephemeral;
+using Mostlylucid.Ephemeral.Atoms.Taxonomy;
+using Xunit;
+
+namespace Mostlylucid.Ephemeral.Atoms.Taxonomy.Proposer.Tests;
+
+public class ProposerAtomTests
+{
+    [Fact]
+    public async Task DefaultContractMatchesKind()
+    {
+        var sink = new SignalSink();
+        var typed = new TypedSignalSink<int>(sink);
+
+        await using var atom = new ProposerAtom<int, int>(typed, Handler);
+
+        Assert.Equal(AtomKind.Proposer, atom.Contract.Kind);
+        Assert.Equal(AtomDeterminism.Probabilistic, atom.Contract.Determinism);
+        Assert.Equal(AtomPersistence.PersistableViaEscalation, atom.Contract.Persistence);
+    }
+
+    [Fact]
+    public async Task DefaultOutputSignalMatchesKind()
+    {
+        var sink = new SignalSink();
+        var typed = new TypedSignalSink<int>(sink);
+
+        await using var atom = new ProposerAtom<int, int>(typed, Handler);
+
+        var expected = "atom.proposer.output";
+        Assert.Equal(expected, atom.OutputSignal);
+    }
+
+    [Fact]
+    public async Task RunAsyncEmitsTypedSignalAndReturnsOutput()
+    {
+        var sink = new SignalSink();
+        var typed = new TypedSignalSink<int>(sink);
+        var tcs = new TaskCompletionSource<SignalEvent<int>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        typed.TypedSignalRaised += evt => tcs.TrySetResult(evt);
+
+        await using var atom = new ProposerAtom<int, int>(typed, Handler, outputSignal: "proposer.output");
+        var result = await atom.RunAsync(5);
+
+        Assert.Equal(6, result);
+        var evt = await WaitForSignalAsync(tcs.Task);
+        Assert.Equal("proposer.output", evt.Signal);
+        Assert.Equal(6, evt.Payload);
+    }
+
+    [Fact]
+    public async Task KeySelectorIsUsedForOutputSignals()
+    {
+        var sink = new SignalSink();
+        var typed = new TypedSignalSink<int>(sink);
+        var tcs = new TaskCompletionSource<SignalEvent<int>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        typed.TypedSignalRaised += evt => tcs.TrySetResult(evt);
+
+        await using var atom = new ProposerAtom<int, int>(
+            typed,
+            Handler,
+            outputSignal: "proposer.output",
+            keySelector: value => $"key-{value}");
+
+        await atom.RunAsync(3);
+        var evt = await WaitForSignalAsync(tcs.Task);
+        Assert.Equal("key-3", evt.Key);
+    }
+
+    [Fact]
+    public async Task EmitOutputSignalsFalseSuppressesEmission()
+    {
+        var sink = new SignalSink();
+        var typed = new TypedSignalSink<int>(sink);
+        var tcs = new TaskCompletionSource<SignalEvent<int>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        typed.TypedSignalRaised += evt => tcs.TrySetResult(evt);
+
+        await using var atom = new ProposerAtom<int, int>(typed, Handler, emitOutputSignals: false);
+        await atom.RunAsync(1);
+
+        await Task.Delay(100);
+        Assert.False(tcs.Task.IsCompleted);
+        Assert.Null(atom.OutputSignal);
+    }
+
+    private static Task<int> Handler(int input, CancellationToken _) => Task.FromResult(input + 1);
+
+    private static async Task<T> WaitForSignalAsync<T>(Task<T> task, int timeoutMs = 1000)
+    {
+        var completed = await Task.WhenAny(task, Task.Delay(timeoutMs));
+        Assert.True(completed == task, "Timed out waiting for signal.");
+        return await task;
+    }
+}

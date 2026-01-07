@@ -943,6 +943,19 @@ Small, opinionated wrappers for common patterns:
 | `mostlylucid.ephemeral.atoms.molecules` | Molecules/atom-trigger helpers for signal-driven workflows |
 | `mostlylucid.ephemeral.atoms.scheduledtasks` | Cron/JSON-driven durable tasks using `DurableTaskAtom` + `ScheduledTasksAtom` |
 | `mostlylucid.ephemeral.atoms.echo` | Capture typed "last words" payloads via `OperationEchoMaker` and persist them with `OperationEchoAtom` |
+| `mostlylucid.ephemeral.atoms.escalator` | Promote typed, ephemeral signals into durable sinks for multi-target persistence |
+| `mostlylucid.ephemeral.atoms.taxonomy` | Taxonomy contracts and SignalDrivenAtom base types |
+| `mostlylucid.ephemeral.atoms.taxonomy.sensor` | SensorAtom wrapper for deterministic signal extraction |
+| `mostlylucid.ephemeral.atoms.taxonomy.extractor` | ExtractorAtom wrapper for stable unit segmentation |
+| `mostlylucid.ephemeral.atoms.taxonomy.embedder` | EmbedderAtom wrapper for embedding production |
+| `mostlylucid.ephemeral.atoms.taxonomy.retriever` | RetrieverAtom wrapper for candidate retrieval |
+| `mostlylucid.ephemeral.atoms.taxonomy.proposer` | ProposerAtom wrapper for probabilistic proposals |
+| `mostlylucid.ephemeral.atoms.taxonomy.constrainer` | ConstrainerAtom wrapper for deterministic gating |
+| `mostlylucid.ephemeral.atoms.taxonomy.ranker` | RankerAtom wrapper for rescoring and reordering |
+| `mostlylucid.ephemeral.atoms.taxonomy.renderer` | RendererAtom wrapper for output rendering |
+| `mostlylucid.ephemeral.atoms.taxonomy.coordinator` | CoordinatorAtom wrapper for orchestration |
+| `mostlylucid.ephemeral.atoms.taxonomy.feedback` | FeedbackAtom wrapper for feedback-driven updates |
+| `mostlylucid.ephemeral.atoms.taxonomy.guard` | GuardAtom wrapper for safety and compliance gates |
 | `mostlylucid.ephemeral.atoms.ratelimit` | Token bucket and GCRA rate limiting with signal integration - [GCRA docs](src/mostlylucid.ephemeral.atoms.ratelimit/GCRA.md) |
 
 ### Scheduled tasks
@@ -1028,6 +1041,83 @@ sink.Raise("window.time.set:00:05:00");
 ```
 
 The atom clamps every change through `SignalSink.UpdateWindowSize`, so you can safely wire it to backpressure/event signals without duplicating parsing logic.
+
+### EscalatorAtom
+
+> **Package:** [mostlylucid.ephemeral.atoms.escalator](https://www.nuget.org/packages/mostlylucid.ephemeral.atoms.escalator)
+
+Promote typed, ephemeral signals into durable sinks. EscalatorAtoms are the preferred way to persist outputs from
+short-lived coordinators.
+
+```csharp
+using Mostlylucid.Ephemeral;
+using Mostlylucid.Ephemeral.Atoms.Data.File;
+using Mostlylucid.Ephemeral.Atoms.Escalator;
+
+public sealed record EscalationPayload(string Kind, string? EvidenceId, double Confidence);
+
+var sink = new SignalSink();
+var typed = new TypedSignalSink<EscalationPayload>(sink);
+
+await using var storage = new FileDataStorageAtom<string, EscalationPayload>(
+    sink,
+    new FileDataStorageConfig { DatabaseName = "signals" });
+
+Func<SignalEvent<EscalationPayload>, CancellationToken, Task> audit = (evt, ct) =>
+{
+    Console.WriteLine($"audit: {evt.Signal} {evt.Key}");
+    return Task.CompletedTask;
+};
+
+var targets = new[]
+{
+    new EscalationTarget<EscalationPayload>(
+        "store",
+        (evt, ct) => storage.SaveAsync(evt.Key ?? evt.OperationId.ToString(), evt.Payload, ct)),
+    new EscalationTarget<EscalationPayload>("audit", audit)
+};
+
+await using var escalator = new EscalatorAtom<EscalationPayload>(
+    sink,
+    typed,
+    targets,
+    new EscalatorAtomOptions<EscalationPayload>
+    {
+        EscalateSignalPattern = "escalate.*",
+        EmitOnSuccess = "escalation.persisted",
+        EmitOnFailure = "escalation.failed"
+    });
+
+typed.Raise("escalate.signal", new EscalationPayload("risk", "file-42", 0.81), key: "order-123");
+```
+
+### Taxonomy AtomKinds
+
+> **Packages:**
+> - Base contracts: [mostlylucid.ephemeral.atoms.taxonomy](https://www.nuget.org/packages/mostlylucid.ephemeral.atoms.taxonomy) (includes `MultiTaxonomyAtom`)
+> - Atom kinds: `mostlylucid.ephemeral.atoms.taxonomy.sensor`, `.extractor`, `.embedder`, `.retriever`, `.proposer`,
+>   `.constrainer`, `.ranker`, `.renderer`, `.coordinator`, `.feedback`, `.guard`
+
+Generic atom kinds that align to the taxonomy (sensor, extractor, embedder, retriever, proposer, constrainer, ranker,
+renderer, coordinator, feedback, guard). Each atom emits a typed signal on completion and carries an AtomContract for
+determinism and persistence metadata. Install the specific atom package you need (the example below uses the proposer).
+Use `MultiTaxonomyAtom` from the base package when you need to combine multiple kinds into one contract.
+
+```csharp
+using Mostlylucid.Ephemeral;
+using Mostlylucid.Ephemeral.Atoms.Taxonomy;
+
+public sealed record Proposal(string Text, double Confidence);
+
+var sink = new SignalSink();
+var proposer = new ProposerAtom<string, Proposal>(
+    sink,
+    async (prompt, ct) => new Proposal($"Echo: {prompt}", 0.42),
+    outputSignal: "proposal.created",
+    keySelector: prompt => prompt);
+
+await proposer.EnqueueAsync("hello");
+```
 
 ### Sample: Self-optimizing hot-key cache (EphemeralLruCache)
 
@@ -1336,6 +1426,7 @@ CancelOnSignals / DeferOnSignals (affects intake)
 ### Additional Resources
 
 - [SIGNALS_PATTERN.md](SIGNALS_PATTERN.md) - Deep dive into the three signal models (Pure Notification, Context+Hint, Command)
+- [docs/Taxonomy.md](docs/Taxonomy.md) - Shared taxonomy for substrate, lenses, atoms, molecules, and escalation
 - [CLAUDE.md](CLAUDE.md) - Project architecture and build instructions
 - [demos/mostlylucid.ephemeral.demo/README.md](demos/mostlylucid.ephemeral.demo/README.md) - Interactive demo documentation
 - [REVIEW_FINDINGS.md](REVIEW_FINDINGS.md) - Recent code review results and recommendations

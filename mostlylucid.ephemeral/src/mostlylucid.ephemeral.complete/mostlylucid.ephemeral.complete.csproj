@@ -43,6 +43,19 @@
     <ItemGroup>
         <Compile Include="..\mostlylucid.ephemeral.atoms.batching\*.cs" Link="Atoms\%(Filename)%(Extension)"/>
         <Compile Include="..\mostlylucid.ephemeral.atoms.echo\*.cs" Link="Atoms\%(Filename)%(Extension)"/>
+        <Compile Include="..\mostlylucid.ephemeral.atoms.escalator\*.cs" Link="Atoms\%(Filename)%(Extension)"/>
+        <Compile Include="..\mostlylucid.ephemeral.atoms.taxonomy\*.cs" Link="Atoms\%(Filename)%(Extension)"/>
+        <Compile Include="..\mostlylucid.ephemeral.atoms.taxonomy.sensor\*.cs" Link="Atoms\%(Filename)%(Extension)"/>
+        <Compile Include="..\mostlylucid.ephemeral.atoms.taxonomy.extractor\*.cs" Link="Atoms\%(Filename)%(Extension)"/>
+        <Compile Include="..\mostlylucid.ephemeral.atoms.taxonomy.embedder\*.cs" Link="Atoms\%(Filename)%(Extension)"/>
+        <Compile Include="..\mostlylucid.ephemeral.atoms.taxonomy.retriever\*.cs" Link="Atoms\%(Filename)%(Extension)"/>
+        <Compile Include="..\mostlylucid.ephemeral.atoms.taxonomy.proposer\*.cs" Link="Atoms\%(Filename)%(Extension)"/>
+        <Compile Include="..\mostlylucid.ephemeral.atoms.taxonomy.constrainer\*.cs" Link="Atoms\%(Filename)%(Extension)"/>
+        <Compile Include="..\mostlylucid.ephemeral.atoms.taxonomy.ranker\*.cs" Link="Atoms\%(Filename)%(Extension)"/>
+        <Compile Include="..\mostlylucid.ephemeral.atoms.taxonomy.renderer\*.cs" Link="Atoms\%(Filename)%(Extension)"/>
+        <Compile Include="..\mostlylucid.ephemeral.atoms.taxonomy.coordinator\*.cs" Link="Atoms\%(Filename)%(Extension)"/>
+        <Compile Include="..\mostlylucid.ephemeral.atoms.taxonomy.feedback\*.cs" Link="Atoms\%(Filename)%(Extension)"/>
+        <Compile Include="..\mostlylucid.ephemeral.atoms.taxonomy.guard\*.cs" Link="Atoms\%(Filename)%(Extension)"/>
         <Compile Include="..\mostlylucid.ephemeral.atoms.fixedwork\*.cs" Link="Atoms\%(Filename)%(Extension)"/>
         <Compile Include="..\mostlylucid.ephemeral.atoms.imagesharp\*.cs" Link="Atoms\%(Filename)%(Extension)"/>
         <Compile Include="..\mostlylucid.ephemeral.atoms.keyedsequential\*.cs" Link="Atoms\%(Filename)%(Extension)"/>

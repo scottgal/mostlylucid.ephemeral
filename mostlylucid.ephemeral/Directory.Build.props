@@ -6,11 +6,9 @@
         <PackageVersion Condition="'$(PackageVersion)' != '' And $([System.String]::Copy($(PackageVersion)).StartsWith('v'))">$(PackageVersion.Substring(1))</PackageVersion>
         <Version Condition="'$(Version)' != '' And $([System.String]::Copy($(Version)).StartsWith('v'))">$(Version.Substring(1))</Version>
 
-        <!-- Symbol/Debug packages -->
-        <IncludeSymbols>true</IncludeSymbols>
-        <SymbolPackageFormat>snupkg</SymbolPackageFormat>
-        <EmbedUntrackedSources>true</EmbedUntrackedSources>
+        <!-- Debug info embedded in DLL - no separate symbol package needed -->
         <DebugType>embedded</DebugType>
+        <EmbedUntrackedSources>true</EmbedUntrackedSources>
         <ContinuousIntegrationBuild Condition="'$(CI)' == 'true'">true</ContinuousIntegrationBuild>
     </PropertyGroup>
 

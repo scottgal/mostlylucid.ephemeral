@@ -9,8 +9,8 @@
         <!-- NuGet Package Metadata -->
         <PackageId>mostlylucid.ephemeral.complete</PackageId>
         <Authors>Scott Galloway</Authors>
-        <Description>Complete bundle of all Mostlylucid.Ephemeral functionality in a single DLL - bounded async execution with signals, atoms, and patterns. No additional package dependencies required.</Description>
-        <PackageTags>async;parallel;concurrency;observability;signals;coordination;complete;bundle</PackageTags>
+        <Description>Meta-package that references all Mostlylucid.Ephemeral packages - bounded async execution with signals, atoms, and patterns. Install this single package to get everything.</Description>
+        <PackageTags>async;parallel;concurrency;observability;signals;coordination;complete;bundle;metapackage</PackageTags>
         <PackageLicenseExpression>Unlicense</PackageLicenseExpression>
         <PackageReadmeFile>README.md</PackageReadmeFile>
         <PackageIcon>icon.png</PackageIcon>
@@ -20,116 +20,85 @@
         <Version>2.0.0</Version>
     </PropertyGroup>
 
-    <!-- Core source files -->
+    <!-- Core packages -->
     <ItemGroup>
-        <Compile Include="..\mostlylucid.ephemeral\**\*.cs" Link="Core\%(RecursiveDir)%(Filename)%(Extension)"/>
+        <PackageReference Include="mostlylucid.ephemeral" Version="2.0.0" />
+        <PackageReference Include="mostlylucid.ephemeral.logging" Version="2.0.0" />
+        <PackageReference Include="mostlylucid.ephemeral.attributes" Version="2.0.0" />
     </ItemGroup>
 
+    <!-- Atom packages -->
     <ItemGroup>
-        <Compile Include="..\mostlylucid.ephemeral.logging\*.cs" Link="Logging\%(Filename)%(Extension)"/>
+        <PackageReference Include="Mostlylucid.Ephemeral.Atoms.Batching" Version="2.0.0" />
+        <PackageReference Include="Mostlylucid.Ephemeral.Atoms.BurstDetection" Version="2.0.0" />
+        <PackageReference Include="Mostlylucid.Ephemeral.Atoms.Data" Version="2.0.0" />
+        <PackageReference Include="Mostlylucid.Ephemeral.Atoms.Data.File" Version="2.0.0" />
+        <PackageReference Include="Mostlylucid.Ephemeral.Atoms.Data.Postgres" Version="2.0.0" />
+        <PackageReference Include="Mostlylucid.Ephemeral.Atoms.Data.Sqlite" Version="2.0.0" />
+        <PackageReference Include="Mostlylucid.Ephemeral.Atoms.Echo" Version="2.0.0" />
+        <PackageReference Include="Mostlylucid.Ephemeral.Atoms.EntropyAnalysis" Version="2.0.0" />
+        <PackageReference Include="Mostlylucid.Ephemeral.Atoms.Escalator" Version="2.0.0" />
+        <PackageReference Include="Mostlylucid.Ephemeral.Atoms.FixedWork" Version="2.0.0" />
+        <PackageReference Include="mostlylucid.ephemeral.atoms.imagesharp" Version="2.0.0" />
+        <PackageReference Include="Mostlylucid.Ephemeral.Atoms.KeyedSequential" Version="2.0.0" />
+        <PackageReference Include="Mostlylucid.Ephemeral.Atoms.Molecules" Version="2.0.0" />
+        <PackageReference Include="Mostlylucid.Ephemeral.Atoms.PriorityProcessor" Version="2.0.0" />
+        <PackageReference Include="mostlylucid.ephemeral.atoms.ratelimit" Version="2.0.0" />
+        <PackageReference Include="Mostlylucid.Ephemeral.Atoms.RazorTemplate" Version="2.0.0" />
+        <PackageReference Include="Mostlylucid.Ephemeral.Atoms.Retry" Version="2.0.0" />
+        <PackageReference Include="Mostlylucid.Ephemeral.Atoms.ScheduledTasks" Version="2.0.0" />
+        <PackageReference Include="Mostlylucid.Ephemeral.Atoms.SignalAware" Version="2.0.0" />
+        <PackageReference Include="Mostlylucid.Ephemeral.Atoms.SlidingCache" Version="2.0.0" />
+        <PackageReference Include="Mostlylucid.Ephemeral.Atoms.Smtp" Version="2.0.0" />
+        <PackageReference Include="Mostlylucid.Ephemeral.Atoms.TimeSeriesAnomaly" Version="2.0.0" />
+        <PackageReference Include="Mostlylucid.Ephemeral.Atoms.Volatile" Version="2.0.0" />
+        <PackageReference Include="Mostlylucid.Ephemeral.Atoms.WaveOrchestrator" Version="2.0.0" />
+        <PackageReference Include="mostlylucid.ephemeral.atoms.windowsize" Version="2.0.0" />
     </ItemGroup>
 
+    <!-- Taxonomy packages -->
     <ItemGroup>
-        <Compile Include="..\mostlylucid.ephemeral.attributes\**\*.cs" Link="Attributes\%(RecursiveDir)%(Filename)%(Extension)"/>
-        <Compile Remove="..\mostlylucid.ephemeral.attributes\bin\**\*.cs"/>
-        <Compile Remove="..\mostlylucid.ephemeral.attributes\obj\**\*.cs"/>
-    </ItemGroup>
-
-    <ItemGroup>
-        <Compile Remove="..\mostlylucid.ephemeral\bin\**\*.cs"/>
-        <Compile Remove="..\mostlylucid.ephemeral\obj\**\*.cs"/>
-    </ItemGroup>
-
-    <!-- Atom source files -->
-    <ItemGroup>
-        <Compile Include="..\mostlylucid.ephemeral.atoms.batching\*.cs" Link="Atoms\%(Filename)%(Extension)"/>
-        <Compile Include="..\mostlylucid.ephemeral.atoms.echo\*.cs" Link="Atoms\%(Filename)%(Extension)"/>
-        <Compile Include="..\mostlylucid.ephemeral.atoms.escalator\*.cs" Link="Atoms\%(Filename)%(Extension)"/>
-        <Compile Include="..\mostlylucid.ephemeral.atoms.taxonomy\**\*.cs" Exclude="..\mostlylucid.ephemeral.atoms.taxonomy\bin\**;..\mostlylucid.ephemeral.atoms.taxonomy\obj\**" Link="Atoms\Taxonomy\%(RecursiveDir)%(Filename)%(Extension)"/>
-        <Compile Include="..\mostlylucid.ephemeral.atoms.taxonomy.sensor\*.cs" Link="Atoms\%(Filename)%(Extension)"/>
-        <Compile Include="..\mostlylucid.ephemeral.atoms.taxonomy.extractor\*.cs" Link="Atoms\%(Filename)%(Extension)"/>
-        <Compile Include="..\mostlylucid.ephemeral.atoms.taxonomy.embedder\*.cs" Link="Atoms\%(Filename)%(Extension)"/>
-        <Compile Include="..\mostlylucid.ephemeral.atoms.taxonomy.retriever\*.cs" Link="Atoms\%(Filename)%(Extension)"/>
-        <Compile Include="..\mostlylucid.ephemeral.atoms.taxonomy.proposer\*.cs" Link="Atoms\%(Filename)%(Extension)"/>
-        <Compile Include="..\mostlylucid.ephemeral.atoms.taxonomy.constrainer\*.cs" Link="Atoms\%(Filename)%(Extension)"/>
-        <Compile Include="..\mostlylucid.ephemeral.atoms.taxonomy.ranker\*.cs" Link="Atoms\%(Filename)%(Extension)"/>
-        <Compile Include="..\mostlylucid.ephemeral.atoms.taxonomy.renderer\*.cs" Link="Atoms\%(Filename)%(Extension)"/>
-        <Compile Include="..\mostlylucid.ephemeral.atoms.taxonomy.coordinator\*.cs" Link="Atoms\%(Filename)%(Extension)"/>
-        <Compile Include="..\mostlylucid.ephemeral.atoms.taxonomy.feedback\*.cs" Link="Atoms\%(Filename)%(Extension)"/>
-        <Compile Include="..\mostlylucid.ephemeral.atoms.taxonomy.guard\*.cs" Link="Atoms\%(Filename)%(Extension)"/>
-        <Compile Include="..\mostlylucid.ephemeral.atoms.fixedwork\*.cs" Link="Atoms\%(Filename)%(Extension)"/>
-        <Compile Include="..\mostlylucid.ephemeral.atoms.imagesharp\*.cs" Link="Atoms\%(Filename)%(Extension)"/>
-        <Compile Include="..\mostlylucid.ephemeral.atoms.keyedsequential\*.cs" Link="Atoms\%(Filename)%(Extension)"/>
-        <Compile Include="..\mostlylucid.ephemeral.atoms.molecules\*.cs" Link="Atoms\%(Filename)%(Extension)"/>
-        <Compile Include="..\mostlylucid.ephemeral.atoms.priorityprocessor\*.cs" Link="Atoms\%(Filename)%(Extension)"/>
-        <Compile Include="..\mostlylucid.ephemeral.atoms.ratelimit\*.cs" Link="Atoms\%(Filename)%(Extension)"/>
-        <Compile Include="..\mostlylucid.ephemeral.atoms.retry\*.cs" Link="Atoms\%(Filename)%(Extension)"/>
-        <Compile Include="..\mostlylucid.ephemeral.atoms.scheduledtasks\*.cs" Link="Atoms\%(Filename)%(Extension)"/>
-        <Compile Include="..\mostlylucid.ephemeral.atoms.signalaware\*.cs" Link="Atoms\%(Filename)%(Extension)"/>
-        <Compile Include="..\mostlylucid.ephemeral.atoms.slidingcache\*.cs" Link="Atoms\%(Filename)%(Extension)"/>
-        <Compile Include="..\mostlylucid.ephemeral.atoms.volatile\*.cs" Link="Atoms\%(Filename)%(Extension)"/>
-        <Compile Include="..\mostlylucid.ephemeral.atoms.windowsize\*.cs" Link="Atoms\%(Filename)%(Extension)"/>
-        <Compile Include="..\mostlylucid.ephemeral.atoms.waveorchestrator\*.cs" Link="Atoms\%(Filename)%(Extension)"/>
-        <Compile Include="..\mostlylucid.ephemeral.atoms.entropyanalysis\*.cs" Link="Atoms\%(Filename)%(Extension)"/>
-        <Compile Include="..\mostlylucid.ephemeral.atoms.timeseriesanomaly\*.cs" Link="Atoms\%(Filename)%(Extension)"/>
-        <Compile Include="..\mostlylucid.ephemeral.atoms.burstdetection\*.cs" Link="Atoms\%(Filename)%(Extension)"/>
-        <Compile Include="..\mostlylucid.ephemeral.atoms.smtp\*.cs" Link="Atoms\%(Filename)%(Extension)"/>
-        <Compile Include="..\mostlylucid.ephemeral.atoms.razortemplate\*.cs" Link="Atoms\%(Filename)%(Extension)"/>
-    </ItemGroup>
-
-    <!-- Data Atom source files -->
-    <ItemGroup>
-        <Compile Include="..\mostlylucid.ephemeral.atoms.data\*.cs" Link="Atoms\Data\%(Filename)%(Extension)"/>
-        <Compile Include="..\mostlylucid.ephemeral.atoms.data.file\*.cs" Link="Atoms\Data\%(Filename)%(Extension)"/>
-        <Compile Include="..\mostlylucid.ephemeral.atoms.data.postgres\*.cs" Link="Atoms\Data\%(Filename)%(Extension)"/>
-        <Compile Include="..\mostlylucid.ephemeral.atoms.data.sqlite\*.cs" Link="Atoms\Data\%(Filename)%(Extension)"/>
+        <PackageReference Include="Mostlylucid.Ephemeral.Atoms.Taxonomy" Version="2.0.0" />
+        <PackageReference Include="Mostlylucid.Ephemeral.Atoms.Taxonomy.Constrainer" Version="2.0.0" />
+        <PackageReference Include="Mostlylucid.Ephemeral.Atoms.Taxonomy.Coordinator" Version="2.0.0" />
+        <PackageReference Include="Mostlylucid.Ephemeral.Atoms.Taxonomy.Embedder" Version="2.0.0" />
+        <PackageReference Include="Mostlylucid.Ephemeral.Atoms.Taxonomy.Extractor" Version="2.0.0" />
+        <PackageReference Include="Mostlylucid.Ephemeral.Atoms.Taxonomy.Feedback" Version="2.0.0" />
+        <PackageReference Include="Mostlylucid.Ephemeral.Atoms.Taxonomy.Guard" Version="2.0.0" />
+        <PackageReference Include="Mostlylucid.Ephemeral.Atoms.Taxonomy.Proposer" Version="2.0.0" />
+        <PackageReference Include="Mostlylucid.Ephemeral.Atoms.Taxonomy.Ranker" Version="2.0.0" />
+        <PackageReference Include="Mostlylucid.Ephemeral.Atoms.Taxonomy.Renderer" Version="2.0.0" />
+        <PackageReference Include="Mostlylucid.Ephemeral.Atoms.Taxonomy.Retriever" Version="2.0.0" />
+        <PackageReference Include="Mostlylucid.Ephemeral.Atoms.Taxonomy.Sensor" Version="2.0.0" />
     </ItemGroup>
 
     <!-- SQLite Single Writer -->
     <ItemGroup>
-        <Compile Include="..\mostlylucid.ephemeral.sqlite.singlewriter\*.cs" Link="SQLite\%(Filename)%(Extension)"/>
+        <PackageReference Include="mostlylucid.ephemeral.sqlite.singlewriter" Version="2.0.0" />
     </ItemGroup>
 
-    <!-- Pattern source files -->
+    <!-- Pattern packages -->
     <ItemGroup>
-        <Compile Include="..\mostlylucid.ephemeral.patterns.adaptiverate\*.cs" Link="Patterns\%(Filename)%(Extension)"/>
-        <Compile Include="..\mostlylucid.ephemeral.patterns.anomalydetector\*.cs" Link="Patterns\%(Filename)%(Extension)"/>
-        <Compile Include="..\mostlylucid.ephemeral.patterns.backpressure\*.cs" Link="Patterns\%(Filename)%(Extension)"/>
-        <Compile Include="..\mostlylucid.ephemeral.patterns.circuitbreaker\*.cs" Link="Patterns\%(Filename)%(Extension)"/>
-        <Compile Include="..\mostlylucid.ephemeral.patterns.controlledfanout\*.cs" Link="Patterns\%(Filename)%(Extension)"/>
-        <Compile Include="..\mostlylucid.ephemeral.patterns.dynamicconcurrency\*.cs" Link="Patterns\%(Filename)%(Extension)"/>
-        <Compile Include="..\mostlylucid.ephemeral.patterns.keyedpriorityfanout\*.cs" Link="Patterns\%(Filename)%(Extension)"/>
-        <Compile Include="..\mostlylucid.ephemeral.patterns.longwindowdemo\*.cs" Link="Patterns\%(Filename)%(Extension)"/>
-        <Compile Include="..\mostlylucid.ephemeral.patterns.reactivefanout\*.cs" Link="Patterns\%(Filename)%(Extension)"/>
-        <Compile Include="..\mostlylucid.ephemeral.patterns.signalcoordinatedreads\*.cs" Link="Patterns\%(Filename)%(Extension)"/>
-        <Compile Include="..\mostlylucid.ephemeral.patterns.signalinghttp\*.cs" Link="Patterns\%(Filename)%(Extension)"/>
-        <Compile Include="..\mostlylucid.ephemeral.patterns.signallogwatcher\*.cs" Link="Patterns\%(Filename)%(Extension)"/>
-        <Compile Include="..\mostlylucid.ephemeral.patterns.signalreactionshowcase\*.cs" Link="Patterns\%(Filename)%(Extension)"/>
-        <Compile Include="..\mostlylucid.ephemeral.patterns.telemetry\*.cs" Link="Patterns\%(Filename)%(Extension)"/>
-        <Compile Include="..\mostlylucid.ephemeral.patterns.persistentwindow\*.cs" Link="Patterns\%(Filename)%(Extension)"/>
-    </ItemGroup>
-
-    <!-- Package dependencies -->
-    <ItemGroup>
-        <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="9.0.0"/>
-        <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="9.0.0"/>
-        <PackageReference Include="System.IO.Hashing" Version="8.0.0"/>
-        <PackageReference Include="Microsoft.Data.Sqlite" Version="8.0.0"/>
-        <PackageReference Include="Npgsql" Version="9.0.3"/>
-        <PackageReference Include="System.Threading.RateLimiting" Version="8.0.0"/>
-        <PackageReference Include="Cronos" Version="0.11.1"/>
-        <PackageReference Include="SixLabors.ImageSharp" Version="3.1.8"/>
-        <PackageReference Include="SixLabors.ImageSharp.Drawing" Version="2.1.5"/>
-        <!-- Pin transitive dependency to fix vulnerability -->
-        <PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="9.0.0"/>
-        <PackageReference Include="MailKit" Version="4.9.0"/>
-        <PackageReference Include="RazorLight" Version="2.3.1"/>
-        <PackageReference Include="YamlDotNet" Version="16.3.0"/>
+        <PackageReference Include="Mostlylucid.Ephemeral.Patterns.AdaptiveRate" Version="2.0.0" />
+        <PackageReference Include="Mostlylucid.Ephemeral.Patterns.AnomalyDetector" Version="2.0.0" />
+        <PackageReference Include="Mostlylucid.Ephemeral.Patterns.Backpressure" Version="2.0.0" />
+        <PackageReference Include="Mostlylucid.Ephemeral.Patterns.CircuitBreaker" Version="2.0.0" />
+        <PackageReference Include="Mostlylucid.Ephemeral.Patterns.ControlledFanOut" Version="2.0.0" />
+        <PackageReference Include="Mostlylucid.Ephemeral.Patterns.DynamicConcurrency" Version="2.0.0" />
+        <PackageReference Include="Mostlylucid.Ephemeral.Patterns.KeyedPriorityFanOut" Version="2.0.0" />
+        <PackageReference Include="Mostlylucid.Ephemeral.Patterns.LongWindowDemo" Version="2.0.0" />
+        <PackageReference Include="Mostlylucid.Ephemeral.Patterns.PersistentWindow" Version="2.0.0" />
+        <PackageReference Include="Mostlylucid.Ephemeral.Patterns.ReactiveFanOut" Version="2.0.0" />
+        <PackageReference Include="Mostlylucid.Ephemeral.Patterns.SignalCoordinatedReads" Version="2.0.0" />
+        <PackageReference Include="Mostlylucid.Ephemeral.Patterns.SignalingHttp" Version="2.0.0" />
+        <PackageReference Include="Mostlylucid.Ephemeral.Patterns.SignalLogWatcher" Version="2.0.0" />
+        <PackageReference Include="Mostlylucid.Ephemeral.Patterns.SignalReactionShowcase" Version="2.0.0" />
+        <PackageReference Include="Mostlylucid.Ephemeral.Patterns.Telemetry" Version="2.0.0" />
     </ItemGroup>
 
     <ItemGroup>
-        <None Include="README.md" Pack="true" PackagePath="\"/>
-        <None Include="icon.png" Pack="true" PackagePath="\"/>
+        <None Include="README.md" Pack="true" PackagePath="\" />
+        <None Include="icon.png" Pack="true" PackagePath="\" />
     </ItemGroup>
 
 </Project>

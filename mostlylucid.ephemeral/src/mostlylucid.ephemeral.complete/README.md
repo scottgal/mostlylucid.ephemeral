@@ -2,17 +2,42 @@
 
 [![NuGet](https://img.shields.io/nuget/v/mostlylucid.ephemeral.complete.svg)](https://www.nuget.org/packages/mostlylucid.ephemeral.complete)
 
-
-
-
-**All of Mostlylucid.Ephemeral in a single DLL** - bounded async execution with signal-based coordination.
+**Meta-package that references all Mostlylucid.Ephemeral packages** - bounded async execution with signal-based coordination.
 
 ```bash
 dotnet add package mostlylucid.ephemeral.complete
 ```
 
-This package compiles all core, atom, and pattern code into one assembly. For individual packages, see the links in each
-section below.
+This is a meta-package that brings in all core, atom, and pattern packages as dependencies. You can safely mix this with
+individual package references - NuGet will resolve to a single version with no namespace collisions.
+
+## What's New in 2.0
+
+### Breaking Changes
+
+**SignalSink subscription model changed:**
+```csharp
+// OLD (1.x) - Event-based
+sink.SignalRaised += handler;
+
+// NEW (2.0) - Lock-free Subscribe() returning IDisposable
+using var sub = sink.Subscribe(handler);
+```
+
+**Complete package is now a meta-package:**
+- Previously compiled all source into a single DLL (risked namespace collisions)
+- Now references individual packages as dependencies
+- Safe to mix with individual package references in the same solution
+
+### New Features
+
+- **Detection Ledger System** (`Mostlylucid.Ephemeral.Atoms.Taxonomy.Ledger`)
+  - `DetectionLedger` - Accumulates detector contributions with sigmoid aggregation
+  - `DetectionContribution` - Factory methods: `Bot()`, `Human()`, `Info()`, `VerifiedBot()`, `VerifiedGoodBot()`
+  - `CategoryScore.TotalWeight` property (renamed from `Weight`)
+
+- **Signal Propagation Tracking** - Cycle detection and depth limiting for signal chains
+- **Source Link** - Debug into library source directly from your IDE
 
 See [docs/Taxonomy.md](../../docs/Taxonomy.md) for the shared vocabulary around substrate, lenses, atoms, molecules,
 and escalation.

@@ -190,3 +190,14 @@ Proposers propose. Constrainers decide. Escalators persist. Lenses choose. The s
 Implementation note: `mostlylucid.ephemeral.atoms.taxonomy` provides the shared contracts, shard descriptors, and base
 types (including `MultiTaxonomyAtom`), while each atom kind ships as its own package under
 `mostlylucid.ephemeral.atoms.taxonomy.*`.
+
+The **Ledger** namespace (`Mostlylucid.Ephemeral.Atoms.Taxonomy.Ledger`) provides evidence accumulation types:
+- `DetectionLedger` - Core accumulator for detection systems (BotDetection, ThreatDetection)
+- `DetectionContribution` - Single detector's evidence with factory methods (`Bot()`, `Human()`, `VerifiedBot()`, etc.)
+- `CategoryScore` - Category breakdown with `TotalWeight` for explainability
+- `IEntityLedger` - Generic interface for any entity type (images, documents, requests)
+- `LedgerSignal` - Individual signal with salience and provenance
+
+See the main [README](../README.md#detection-ledger-evidence-accumulation) for usage examples.
+
+Related: [StyloFlow](https://github.com/scottgal/styloflow) - The RAG/ML pipeline built on Ephemeral atoms.

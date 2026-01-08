@@ -6,7 +6,7 @@
 
 **Fire... and Don't *Quite* Forget.**
 
-> 🚨🚨 WARNING 🚨🚨 - Though in the 1.x range of version THINGS WILL STILL BREAK. This is the lab for developing this concept when stabilized it'll becoe the first *stylo*flow release 🚨🚨🚨
+> 🚨🚨 WARNING 🚨🚨 - Though in the 2.x range of version THINGS WILL STILL BREAK. This is the lab for developing this concept when stabilized it'll power *stylo*flow and all my other systems  🚨🚨🚨
 
 A lightweight .NET library for bounded, observable, self-cleaning async execution with signal-based coordination. Targets .NET 6.0, 7.0, 8.0, 9.0, and 10.0.
 
@@ -700,7 +700,7 @@ sink.Raise("stage.ingest");
 ```
 
 The handler raises `stage.ingest.done` automatically, so downstream jobs can be wired in the same way the other signal helpers emit completion signals.
-- Push subscribers: `sink.SignalRaised += evt => ...;` for live tap alongside snapshot APIs.
+- Push subscribers: `using var sub = sink.Subscribe(evt => ...);` for lock-free live tap (preferred over the legacy `SignalRaised` event).
 
 Quick bot-detection flow (stages + quorum + reputation):
 
@@ -939,12 +939,11 @@ Small, opinionated wrappers for common patterns:
 | `mostlylucid.ephemeral.atoms.retry` | Exponential backoff retry with limits |
 | `mostlylucid.ephemeral.atoms.volatile` | Instantly evicts operations that emit a kill signal so high-throughput work stays untracked |
 | `mostlylucid.ephemeral.atoms.windowsize` | Signal-based window/retention adjustments for shared sink windows |
-| `mostlylucid.ephemeral.atoms.windowsize` | Signals can grow/shrink the signal window/retention (window size atom) |
 | `mostlylucid.ephemeral.atoms.molecules` | Molecules/atom-trigger helpers for signal-driven workflows |
 | `mostlylucid.ephemeral.atoms.scheduledtasks` | Cron/JSON-driven durable tasks using `DurableTaskAtom` + `ScheduledTasksAtom` |
 | `mostlylucid.ephemeral.atoms.echo` | Capture typed "last words" payloads via `OperationEchoMaker` and persist them with `OperationEchoAtom` |
 | `mostlylucid.ephemeral.atoms.escalator` | Promote typed, ephemeral signals into durable sinks for multi-target persistence |
-| `mostlylucid.ephemeral.atoms.taxonomy` | Taxonomy contracts and SignalDrivenAtom base types |
+| `mostlylucid.ephemeral.atoms.taxonomy` | Taxonomy contracts, SignalDrivenAtom base types, and **Ledger** namespace (`DetectionLedger`, `DetectionContribution`, `IEntityLedger`) |
 | `mostlylucid.ephemeral.atoms.taxonomy.sensor` | SensorAtom wrapper for deterministic signal extraction |
 | `mostlylucid.ephemeral.atoms.taxonomy.extractor` | ExtractorAtom wrapper for stable unit segmentation |
 | `mostlylucid.ephemeral.atoms.taxonomy.embedder` | EmbedderAtom wrapper for embedding production |
@@ -1118,6 +1117,107 @@ var proposer = new ProposerAtom<string, Proposal>(
 
 await proposer.EnqueueAsync("hello");
 ```
+
+### Detection Ledger (Evidence Accumulation)
+
+> **Package:** [mostlylucid.ephemeral.atoms.taxonomy](https://www.nuget.org/packages/mostlylucid.ephemeral.atoms.taxonomy)
+
+The `DetectionLedger` is the core evidence accumulator for detection systems (BotDetection, ThreatDetection, etc.). All detectors write contributions to the same ledger instance, which aggregates evidence and produces the final verdict.
+
+```csharp
+using Mostlylucid.Ephemeral.Atoms.Taxonomy.Ledger;
+
+// Create a ledger for a request
+var ledger = new DetectionLedger(requestId: "req-123", fingerprint: "hash-abc");
+
+// Detectors add contributions
+ledger.AddContribution(DetectionContribution.Bot(
+    detectorName: "UserAgent",
+    category: "Header",
+    confidence: 0.8,
+    reason: "Known bot pattern",
+    botType: "Scraper",
+    botName: "SomeBot"));
+
+ledger.AddContribution(DetectionContribution.Human(
+    detectorName: "Behavior",
+    category: "Interaction",
+    confidence: 0.3,
+    reason: "Natural mouse movement"));
+
+// Early exit for verified bots
+ledger.AddContribution(DetectionContribution.VerifiedBot(
+    detectorName: "SecurityTool",
+    reason: "SQLMap detected",
+    botType: "SecurityScanner",
+    botName: "sqlmap"));
+
+// Query the aggregated verdict
+Console.WriteLine($"Bot probability: {ledger.BotProbability:P}");
+Console.WriteLine($"Confidence: {ledger.Confidence:P}");
+Console.WriteLine($"Early exit: {ledger.EarlyExit}");
+
+// Category breakdown for explainability
+foreach (var (category, score) in ledger.CategoryBreakdown)
+{
+    Console.WriteLine($"  {category}: {score.Score:F2} (weight: {score.TotalWeight:F1})");
+}
+
+// High-salience signals for escalation to learning system
+var salient = ledger.GetHighSalienceSignals(threshold: 0.8);
+```
+
+**Key types:**
+
+| Type | Purpose |
+|------|---------|
+| `DetectionLedger` | Accumulates evidence, aggregates with sigmoid, produces verdict |
+| `DetectionContribution` | Single detector's evidence (confidence, weight, signals) |
+| `CategoryScore` | Breakdown by category (`TotalWeight`, not `Weight`) |
+| `LearningRecord` | High-confidence records for heuristic training |
+| `IEntityLedger` | Generic interface for any entity type (images, docs, rows) |
+
+**Factory methods on `DetectionContribution`:**
+
+```csharp
+// Bot-indicating (positive confidence delta)
+DetectionContribution.Bot(detector, category, confidence, reason, weight?, botType?, botName?, signals?)
+
+// Human-indicating (negative confidence delta)
+DetectionContribution.Human(detector, category, confidence, reason, weight?, signals?)
+
+// Neutral/informational (zero delta)
+DetectionContribution.Info(detector, category, reason, signals?)
+
+// Verified bad bot (triggers early exit)
+DetectionContribution.VerifiedBot(detector, reason, botType?, botName?)
+
+// Verified good bot (early exit, but allowed)
+DetectionContribution.VerifiedGoodBot(detector, reason, botName)
+```
+
+### Signal Subscription (Lock-Free Pattern)
+
+The preferred way to subscribe to signals is the lock-free `Subscribe()` method, which returns an `IDisposable`:
+
+```csharp
+var sink = new SignalSink();
+
+// Lock-free subscription (preferred)
+using var subscription = sink.Subscribe(signal =>
+{
+    if (signal.Is("file.saved"))
+    {
+        _ = thumbnailGenerator.EnqueueAsync(signal.OperationId);
+    }
+});
+
+// Pattern-based forwarding to another sink
+var errorSink = new SignalSink();
+using var forwarder = errorSink.SubscribeToPattern(sink, "error.*");
+```
+
+The `Subscribe()` method is preferred over the legacy `SignalRaised` event because it uses lock-free concurrent collections internally.
 
 ### Sample: Self-optimizing hot-key cache (EphemeralLruCache)
 

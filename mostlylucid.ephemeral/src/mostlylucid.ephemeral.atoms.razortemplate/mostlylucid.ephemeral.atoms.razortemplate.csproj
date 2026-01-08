@@ -19,6 +19,8 @@
     </ItemGroup>
     <ItemGroup>
         <PackageReference Include="RazorLight" Version="2.3.1"/>
+        <!-- Pin transitive dependency to fix vulnerability -->
+        <PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="9.0.0"/>
     </ItemGroup>
     <ItemGroup>
         <None Include="README.md" Pack="true" PackagePath="\"/>

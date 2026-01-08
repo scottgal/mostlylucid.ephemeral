@@ -14,7 +14,13 @@
       "Bash(git mv:*)",
       "Bash(md \"D:\\\\Source\\\\styloflow\\\\src\\\\StyloFlow\\\\Schemas\")",
       "Bash(md \"D:\\\\Source\\\\mostlylucid.nugetpackages\\\\Mostlylucid.BotDetection\\\\Orchestration\\\\Manifests\\\\schemas\")",
-      "Bash(dotnet run:*)"
+      "Bash(dotnet run:*)",
+      "Bash(Get-ChildItem -Path \"D:\\\\Source\\\\mostlylucid.atoms\\\\mostlylucid.ephemeral\\\\src\" -Recurse -Filter \"*.cs\")",
+      "Bash(Where-Object { $_FullName -notmatch \"\\\\obj\\\\\" -and $_FullName -notmatch \"\\\\bin\\\\\" })",
+      "Bash(Select-Object -ExpandProperty FullName)",
+      "Bash(ls:*)",
+      "Bash(xargs:*)",
+      "Bash(dotnet restore:*)"
     ],
     "deny": [],
     "ask": []

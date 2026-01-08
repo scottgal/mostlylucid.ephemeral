@@ -17,6 +17,7 @@
         <PackageReleaseNotes>$([System.IO.File]::ReadAllText("$(MSBuildProjectDirectory)/ReleaseNotes.txt"))</PackageReleaseNotes>
         <RepositoryUrl>https://github.com/scottgal/mostlylucid.atoms</RepositoryUrl>
         <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+        <Version>2.0.0</Version>
     </PropertyGroup>
 
     <!-- Core source files -->
@@ -44,7 +45,7 @@
         <Compile Include="..\mostlylucid.ephemeral.atoms.batching\*.cs" Link="Atoms\%(Filename)%(Extension)"/>
         <Compile Include="..\mostlylucid.ephemeral.atoms.echo\*.cs" Link="Atoms\%(Filename)%(Extension)"/>
         <Compile Include="..\mostlylucid.ephemeral.atoms.escalator\*.cs" Link="Atoms\%(Filename)%(Extension)"/>
-        <Compile Include="..\mostlylucid.ephemeral.atoms.taxonomy\*.cs" Link="Atoms\%(Filename)%(Extension)"/>
+        <Compile Include="..\mostlylucid.ephemeral.atoms.taxonomy\**\*.cs" Exclude="..\mostlylucid.ephemeral.atoms.taxonomy\bin\**;..\mostlylucid.ephemeral.atoms.taxonomy\obj\**" Link="Atoms\Taxonomy\%(RecursiveDir)%(Filename)%(Extension)"/>
         <Compile Include="..\mostlylucid.ephemeral.atoms.taxonomy.sensor\*.cs" Link="Atoms\%(Filename)%(Extension)"/>
         <Compile Include="..\mostlylucid.ephemeral.atoms.taxonomy.extractor\*.cs" Link="Atoms\%(Filename)%(Extension)"/>
         <Compile Include="..\mostlylucid.ephemeral.atoms.taxonomy.embedder\*.cs" Link="Atoms\%(Filename)%(Extension)"/>
@@ -123,6 +124,7 @@
         <PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="9.0.0"/>
         <PackageReference Include="MailKit" Version="4.9.0"/>
         <PackageReference Include="RazorLight" Version="2.3.1"/>
+        <PackageReference Include="YamlDotNet" Version="16.3.0"/>
     </ItemGroup>
 
     <ItemGroup>

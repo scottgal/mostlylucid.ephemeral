@@ -14,6 +14,7 @@ public sealed class AtomContract
     /// <param name="persistence">Persistence authority for outputs.</param>
     /// <param name="reads">Optional list of read domains.</param>
     /// <param name="writes">Optional list of write domains.</param>
+    /// <param name="configs">Optional list of config signal domains (for dynamic configuration).</param>
     /// <param name="budget">Optional time, token, or cost limits.</param>
     /// <param name="evidenceRequirements">Optional evidence requirements for outputs.</param>
     /// <param name="kinds">Optional explicit kinds (defaults to the primary kind).</param>
@@ -24,6 +25,7 @@ public sealed class AtomContract
         AtomPersistence persistence,
         IReadOnlyCollection<string>? reads = null,
         IReadOnlyCollection<string>? writes = null,
+        IReadOnlyCollection<string>? configs = null,
         AtomBudget? budget = null,
         string? evidenceRequirements = null,
         IReadOnlyCollection<AtomKind>? kinds = null)
@@ -37,6 +39,7 @@ public sealed class AtomContract
         Persistence = persistence;
         Reads = reads ?? Array.Empty<string>();
         Writes = writes ?? Array.Empty<string>();
+        Configs = configs ?? Array.Empty<string>();
         Budget = budget;
         EvidenceRequirements = evidenceRequirements;
         Kinds = NormalizeKinds(kind, kinds);
@@ -78,6 +81,12 @@ public sealed class AtomContract
     public IReadOnlyCollection<string> Writes { get; }
 
     /// <summary>
+    ///     Optional list of config signal domains for dynamic configuration.
+    ///     Config signals allow real-time configuration changes to be routed like data signals.
+    /// </summary>
+    public IReadOnlyCollection<string> Configs { get; }
+
+    /// <summary>
     ///     Optional time, token, or cost limits.
     /// </summary>
     public AtomBudget? Budget { get; }
@@ -96,6 +105,7 @@ public sealed class AtomContract
     /// <param name="name">Optional name override.</param>
     /// <param name="reads">Optional list of read domains.</param>
     /// <param name="writes">Optional list of write domains.</param>
+    /// <param name="configs">Optional list of config signal domains for runtime configuration.</param>
     /// <param name="budget">Optional time, token, or cost limits.</param>
     /// <param name="evidenceRequirements">Optional evidence requirements for outputs.</param>
     /// <param name="kinds">Optional explicit kinds (defaults to the primary kind).</param>
@@ -106,6 +116,7 @@ public sealed class AtomContract
         string? name = null,
         IReadOnlyCollection<string>? reads = null,
         IReadOnlyCollection<string>? writes = null,
+        IReadOnlyCollection<string>? configs = null,
         AtomBudget? budget = null,
         string? evidenceRequirements = null,
         IReadOnlyCollection<AtomKind>? kinds = null)
@@ -118,6 +129,7 @@ public sealed class AtomContract
             persistence,
             reads,
             writes,
+            configs,
             budget,
             evidenceRequirements,
             kinds);
@@ -130,6 +142,7 @@ public sealed class AtomContract
     /// <param name="name">Optional name override.</param>
     /// <param name="reads">Optional read domains to append.</param>
     /// <param name="writes">Optional write domains to append.</param>
+    /// <param name="configs">Optional config signal domains for runtime configuration.</param>
     /// <param name="budget">Optional budget override.</param>
     /// <param name="evidenceRequirements">Optional evidence requirement override.</param>
     public static AtomContract Compose(
@@ -137,6 +150,7 @@ public sealed class AtomContract
         string? name = null,
         IReadOnlyCollection<string>? reads = null,
         IReadOnlyCollection<string>? writes = null,
+        IReadOnlyCollection<string>? configs = null,
         AtomBudget? budget = null,
         string? evidenceRequirements = null)
     {
@@ -154,6 +168,7 @@ public sealed class AtomContract
         var persistence = CombinePersistence(shardList);
         var mergedReads = MergeStrings(shardList, reads, shard => shard.Reads);
         var mergedWrites = MergeStrings(shardList, writes, shard => shard.Writes);
+        var mergedConfigs = MergeStrings(shardList, configs, shard => shard.Configs);
         var mergedBudget = budget ?? MergeBudgets(shardList);
         var mergedEvidence = evidenceRequirements ?? MergeEvidenceRequirements(shardList);
 
@@ -169,6 +184,7 @@ public sealed class AtomContract
             persistence,
             mergedReads,
             mergedWrites,
+            mergedConfigs,
             mergedBudget,
             mergedEvidence,
             kinds);

@@ -365,6 +365,7 @@ public sealed class ManifestLoader
             manifest.Name,
             reads,
             writes,
+            configs: null, // Configs not yet supported in YAML manifests
             budget,
             manifest.Evidence?.Requirements);
     }

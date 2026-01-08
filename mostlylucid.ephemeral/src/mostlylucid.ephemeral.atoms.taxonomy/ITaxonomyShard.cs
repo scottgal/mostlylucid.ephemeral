@@ -36,6 +36,11 @@ public interface ITaxonomyShard
     static virtual IReadOnlyCollection<string> Writes => Array.Empty<string>();
 
     /// <summary>
+    ///     Optional config signal domains for runtime configuration.
+    /// </summary>
+    static virtual IReadOnlyCollection<string> Configs => Array.Empty<string>();
+
+    /// <summary>
     ///     Optional budget constraints implied by this shard.
     /// </summary>
     static virtual AtomBudget? Budget => null;

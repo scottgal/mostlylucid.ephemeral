@@ -14,6 +14,7 @@ public readonly record struct TaxonomyShard
     /// <param name="defaultOutputSignal">Default output signal for this shard.</param>
     /// <param name="reads">Optional read domains implied by this shard.</param>
     /// <param name="writes">Optional write domains implied by this shard.</param>
+    /// <param name="configs">Optional config signal domains for runtime configuration.</param>
     /// <param name="budget">Optional budget constraints implied by this shard.</param>
     /// <param name="evidenceRequirements">Optional evidence requirements implied by this shard.</param>
     public TaxonomyShard(
@@ -23,6 +24,7 @@ public readonly record struct TaxonomyShard
         string defaultOutputSignal,
         IReadOnlyCollection<string>? reads = null,
         IReadOnlyCollection<string>? writes = null,
+        IReadOnlyCollection<string>? configs = null,
         AtomBudget? budget = null,
         string? evidenceRequirements = null)
     {
@@ -35,6 +37,7 @@ public readonly record struct TaxonomyShard
         DefaultOutputSignal = defaultOutputSignal;
         Reads = reads ?? Array.Empty<string>();
         Writes = writes ?? Array.Empty<string>();
+        Configs = configs ?? Array.Empty<string>();
         Budget = budget;
         EvidenceRequirements = evidenceRequirements;
     }
@@ -70,6 +73,11 @@ public readonly record struct TaxonomyShard
     public IReadOnlyCollection<string> Writes { get; }
 
     /// <summary>
+    ///     Optional config signal domains for runtime configuration.
+    /// </summary>
+    public IReadOnlyCollection<string> Configs { get; }
+
+    /// <summary>
     ///     Optional budget constraints implied by this shard.
     /// </summary>
     public AtomBudget? Budget { get; }
@@ -92,6 +100,7 @@ public readonly record struct TaxonomyShard
             TShard.DefaultOutputSignal,
             TShard.Reads,
             TShard.Writes,
+            TShard.Configs,
             TShard.Budget,
             TShard.EvidenceRequirements);
     }

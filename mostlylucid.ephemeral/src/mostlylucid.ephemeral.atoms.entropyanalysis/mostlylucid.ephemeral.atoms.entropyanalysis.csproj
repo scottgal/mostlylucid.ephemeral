@@ -5,7 +5,7 @@
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
         <PackageId>Mostlylucid.Ephemeral.Atoms.EntropyAnalysis</PackageId>
-        <Version>1.0.0</Version>
+        <Version>2.0.0</Version>
         <Authors>Scott Galloway</Authors>
         <Description>Shannon entropy analysis for detecting bot-like patterns. Identifies too-random or too-repetitive automated patterns.</Description>
         <PackageTags>async;entropy;pattern;detection;statistics;atom</PackageTags>

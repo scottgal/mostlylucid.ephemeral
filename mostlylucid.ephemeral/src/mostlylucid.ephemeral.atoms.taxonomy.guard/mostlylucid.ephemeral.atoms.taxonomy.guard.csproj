@@ -7,7 +7,7 @@
         <Nullable>enable</Nullable>
 
         <PackageId>Mostlylucid.Ephemeral.Atoms.Taxonomy.Guard</PackageId>
-        <Version>1.0.0</Version>
+        <Version>2.0.0</Version>
         <Authors>Scott Galloway</Authors>
         <Description>Deterministic guard atom that enforces safety or compliance rules.</Description>
         <PackageTags>async;signals;atoms;taxonomy;guard</PackageTags>

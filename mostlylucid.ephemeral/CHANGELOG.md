@@ -36,6 +36,26 @@ using var sub = sink.Subscribe(signal => ProcessSignal(signal));
 ```
 
 ### Added
+- **Detection Ledger System** (`Mostlylucid.Ephemeral.Atoms.Taxonomy.Ledger`): Core evidence accumulation for detection systems
+  - `DetectionLedger` - Accumulates detector contributions, aggregates with sigmoid function, produces verdict
+  - `DetectionContribution` - Represents a single detector's evidence with factory methods:
+    - `Bot()` - Positive confidence delta (bot-indicating)
+    - `Human()` - Negative confidence delta (human-indicating)
+    - `Info()` - Neutral/informational (zero delta)
+    - `VerifiedBot()` - Triggers early exit for confirmed bad bots
+    - `VerifiedGoodBot()` - Early exit for allowed bots (e.g., Googlebot)
+  - `CategoryScore` - Breakdown by category with `TotalWeight` for explainability
+  - `LearningRecord` - High-confidence records for heuristic training
+  - `IEntityLedger` - Generic interface for any entity type (images, documents, requests)
+  - `LedgerSignal` - Individual signal with salience and provenance metadata
+  - Sigmoid-based aggregation produces bot probability (0.0-1.0) with confidence score
+  - High-salience signals can be escalated to RAG storage or learning systems
+
+- **Lock-free Signal Subscription**: `sink.Subscribe(handler)` returns `IDisposable`
+  - Preferred over legacy `SignalRaised` event
+  - Uses lock-free concurrent collections internally
+  - Pattern-based forwarding: `errorSink.SubscribeToPattern(mainSink, "error.*")`
+
 - **WindowSizeAtom**: New atom for dynamic SignalSink capacity and retention management via signals
   - Commands: `window.size.set/increase/decrease` and `window.time.set/increase/decrease`
   - Support for multiple time formats: seconds (`30s`), milliseconds (`500ms`), TimeSpan (`00:05:00`)

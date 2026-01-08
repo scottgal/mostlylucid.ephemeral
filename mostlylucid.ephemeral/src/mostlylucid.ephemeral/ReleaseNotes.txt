@@ -1,8 +1,18 @@
-v1.0.0
-- Initial release
-- EphemeralWorkCoordinator for bounded async execution
-- EphemeralKeyedWorkCoordinator for per-key ordering
-- PriorityWorkCoordinator for priority lanes
-- Signal-based coordination (SignalSink, SignalDispatcher)
-- ParallelEphemeral extension methods
-- DI integration
+v2.0.0
+BREAKING: SignalRaised event removed - use Subscribe() instead
+BREAKING: .NET 6.0/7.0 removed - minimum is .NET 8.0
+
+NEW: Detection Ledger System for evidence accumulation
+- DetectionLedger aggregates detector contributions with sigmoid function
+- DetectionContribution with factory methods (Bot, Human, VerifiedBot, etc.)
+- CategoryScore breakdown for explainability
+- IEntityLedger generic interface for any entity type
+- LedgerSignal with salience and provenance metadata
+
+NEW: Lock-free Signal Subscription
+- sink.Subscribe(handler) returns IDisposable
+- Pattern-based forwarding: errorSink.SubscribeToPattern(mainSink, "error.*")
+
+NEW: WindowSizeAtom for dynamic capacity management via signals
+SECURITY: Patched System.Text.Json and Npgsql vulnerabilities
+PERF: Bounded cleanup iteration prevents degradation under load

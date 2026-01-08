@@ -7,7 +7,7 @@
         <Nullable>enable</Nullable>
 
         <PackageId>Mostlylucid.Ephemeral.Atoms.Taxonomy.Retriever</PackageId>
-        <Version>1.0.0</Version>
+        <Version>2.0.0</Version>
         <Authors>Scott Galloway</Authors>
         <Description>Deterministic retriever atom that selects candidates under a lens.</Description>
         <PackageTags>async;signals;atoms;taxonomy;retriever</PackageTags>

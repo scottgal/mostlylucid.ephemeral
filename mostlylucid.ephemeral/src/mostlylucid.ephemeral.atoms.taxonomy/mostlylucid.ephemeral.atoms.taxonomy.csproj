@@ -7,7 +7,7 @@
         <Nullable>enable</Nullable>
 
         <PackageId>Mostlylucid.Ephemeral.Atoms.Taxonomy</PackageId>
-        <Version>1.0.0</Version>
+        <Version>2.0.0</Version>
         <Authors>Scott Galloway</Authors>
         <Description>Shared contracts, shards, and base types for Ephemeral taxonomy atoms (AtomKind, AtomContract, SignalDrivenAtom, MultiTaxonomyAtom).</Description>
         <PackageTags>async;signals;atoms;taxonomy;contracts;composition</PackageTags>

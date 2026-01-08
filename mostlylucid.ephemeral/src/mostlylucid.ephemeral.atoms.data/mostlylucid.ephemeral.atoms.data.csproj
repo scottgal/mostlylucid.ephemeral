@@ -7,7 +7,7 @@
         <Nullable>enable</Nullable>
 
         <PackageId>Mostlylucid.Ephemeral.Atoms.Data</PackageId>
-        <Version>1.0.0</Version>
+        <Version>2.0.0</Version>
         <Authors>Scott Galloway</Authors>
         <Description>Core data storage abstractions for signal-driven persistence. Provides common interfaces and configuration for file, SQLite, and PostgreSQL storage atoms.</Description>
         <PackageTags>async;data;storage;persistence;signals;atom</PackageTags>

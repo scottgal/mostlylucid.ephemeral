@@ -7,7 +7,7 @@
         <Nullable>enable</Nullable>
 
         <PackageId>Mostlylucid.Ephemeral.Atoms.Volatile</PackageId>
-        <Version>1.0.0</Version>
+        <Version>2.0.0</Version>
         <Authors>Scott Galloway</Authors>
         <Description>Removes completed operations as soon as they emit a configurable kill signal, keeping the window ultra-ephemeral.</Description>
         <PackageTags>async;ephemeral;volatile;signals;atom</PackageTags>

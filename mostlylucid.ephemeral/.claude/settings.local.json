@@ -20,7 +20,8 @@
       "Bash(Select-Object -ExpandProperty FullName)",
       "Bash(ls:*)",
       "Bash(xargs:*)",
-      "Bash(dotnet restore:*)"
+      "Bash(dotnet restore:*)",
+      "Bash(find:*)"
     ],
     "deny": [],
     "ask": []

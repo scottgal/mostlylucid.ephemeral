@@ -1,12 +1,12 @@
 # Mostlylucid.Ephemeral
 
-**The engine behind Styloflow - an ephemeral workflow solution. (And Stylobot, the learning forensic semantic firewall)**
+**The engine behind [StyloFlow](https://github.com/scottgal/styloflow) - an ephemeral workflow solution. (And Stylobot, the learning forensic semantic firewall)**
 
 <img src="demos/mostlylucid.ephemeral.demo/testdata/logo.png" width="120" height="120">
 
 **Fire... and Don't *Quite* Forget.**
 
-> 🚨🚨 WARNING 🚨🚨 - Though in the 2.x range of version THINGS WILL STILL BREAK. This is the lab for developing this concept when stabilized it'll power *stylo*flow and all my other systems  🚨🚨🚨
+> **Note:** This library is production-ready. The 2.x release introduces the **Ledger** system for evidence accumulation, lock-free signal subscriptions via `Subscribe()`, and expanded taxonomy atoms. See the [Detection Ledger](#detection-ledger-evidence-accumulation) section for migration guidance.
 
 A lightweight .NET library for bounded, observable, self-cleaning async execution with signal-based coordination. Targets .NET 6.0, 7.0, 8.0, 9.0, and 10.0.
 

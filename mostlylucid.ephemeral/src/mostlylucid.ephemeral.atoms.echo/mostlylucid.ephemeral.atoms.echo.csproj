@@ -7,7 +7,7 @@
         <Nullable>enable</Nullable>
 
         <PackageId>Mostlylucid.Ephemeral.Atoms.Echo</PackageId>
-        <Version>1.0.0</Version>
+        <Version>2.0.0</Version>
         <Authors>Scott Galloway</Authors>
         <Description>Capture the critical state of operations via typed signals and persist compact echoes as the coordinator trims entries.</Description>
         <PackageTags>async;signal;echo;atom;observation</PackageTags>

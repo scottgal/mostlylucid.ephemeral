@@ -7,7 +7,7 @@
         <Nullable>enable</Nullable>
 
         <PackageId>Mostlylucid.Ephemeral.Atoms.Taxonomy.Ranker</PackageId>
-        <Version>1.0.0</Version>
+        <Version>2.0.0</Version>
         <Authors>Scott Galloway</Authors>
         <Description>Deterministic ranker atom that re-scores and re-orders candidates.</Description>
         <PackageTags>async;signals;atoms;taxonomy;ranker</PackageTags>

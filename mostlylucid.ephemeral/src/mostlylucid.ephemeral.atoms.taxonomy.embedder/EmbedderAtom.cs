@@ -1,23 +1,18 @@
-using System;
-using System.Threading;
-using System.Threading.Tasks;
-using Mostlylucid.Ephemeral;
-
 namespace Mostlylucid.Ephemeral.Atoms.Taxonomy;
 
 /// <summary>
-/// Deterministic embedder atom that produces embeddings for extracted units.
+///     Deterministic embedder atom that produces embeddings for extracted units.
 /// </summary>
 /// <remarks>
-/// Default contract: Kind = Embedder, Determinism = Deterministic, Persistence = PersistableViaEscalation.
-/// Output signals default to "atom.embedder.output" unless overridden.
+///     Default contract: Kind = Embedder, Determinism = Deterministic, Persistence = PersistableViaEscalation.
+///     Output signals default to "atom.embedder.output" unless overridden.
 /// </remarks>
 /// <typeparam name="TInput">The input payload type.</typeparam>
 /// <typeparam name="TOutput">The output payload type.</typeparam>
 public sealed class EmbedderAtom<TInput, TOutput> : SignalDrivenAtom<TInput, TOutput>
 {
     /// <summary>
-    /// Initializes an EmbedderAtom that emits to an untyped SignalSink.
+    ///     Initializes an EmbedderAtom that emits to an untyped SignalSink.
     /// </summary>
     /// <param name="signals">Signal sink that receives output signals.</param>
     /// <param name="handler">Handler invoked for each input.</param>
@@ -40,7 +35,7 @@ public sealed class EmbedderAtom<TInput, TOutput> : SignalDrivenAtom<TInput, TOu
     }
 
     /// <summary>
-    /// Initializes an EmbedderAtom that emits to a TypedSignalSink.
+    ///     Initializes an EmbedderAtom that emits to a TypedSignalSink.
     /// </summary>
     /// <param name="typedSignals">Typed signal sink that receives output signals.</param>
     /// <param name="handler">Handler invoked for each input.</param>

@@ -1,12 +1,11 @@
-using Mostlylucid.Ephemeral;
-using Mostlylucid.Ephemeral.Atoms.ImageSharp;
 using System.Diagnostics;
+using Mostlylucid.Ephemeral.Atoms.ImageSharp;
 
 namespace Mostlylucid.Ephemeral.Demo;
 
 /// <summary>
-/// Demonstrates realistic multi-stage image processing with file I/O,
-/// resizing, EXIF manipulation, and watermarking.
+///     Demonstrates realistic multi-stage image processing with file I/O,
+///     resizing, EXIF manipulation, and watermarking.
 /// </summary>
 public static class ImageProcessingDemo
 {
@@ -21,17 +20,18 @@ public static class ImageProcessingDemo
             Console.WriteLine($"Clearing output directory: {outputDir}");
             Directory.Delete(outputDir, true);
         }
+
         Directory.CreateDirectory(outputDir);
 
         // Find source image - try multiple locations
         var sourceImage = FindTestImage();
         if (sourceImage == null)
         {
-            Console.WriteLine($"Error: Could not find test image logo.png");
-            Console.WriteLine($"Tried locations:");
-            Console.WriteLine($"  - {{AppContext.BaseDirectory}}/testdata/logo.png");
-            Console.WriteLine($"  - {{CurrentDirectory}}/testdata/logo.png");
-            Console.WriteLine($"  - {{CurrentDirectory}}/../../testdata/logo.png (from build output)");
+            Console.WriteLine("Error: Could not find test image logo.png");
+            Console.WriteLine("Tried locations:");
+            Console.WriteLine("  - {AppContext.BaseDirectory}/testdata/logo.png");
+            Console.WriteLine("  - {CurrentDirectory}/testdata/logo.png");
+            Console.WriteLine("  - {CurrentDirectory}/../../testdata/logo.png (from build output)");
             return;
         }
 
@@ -43,17 +43,13 @@ public static class ImageProcessingDemo
         const int imagesPerBatch = 10;
         var jobs = new List<ImageJob>();
 
-        for (int batch = 0; batch < batchCount; batch++)
-        {
-            for (int img = 0; img < imagesPerBatch; img++)
-            {
-                jobs.Add(new ImageJob(sourceImage, outputDir, batch, img));
-            }
-        }
+        for (var batch = 0; batch < batchCount; batch++)
+        for (var img = 0; img < imagesPerBatch; img++)
+            jobs.Add(new ImageJob(sourceImage, outputDir, batch, img));
 
         Console.WriteLine($"Processing {jobs.Count} images ({batchCount} batches × {imagesPerBatch} images)");
-        Console.WriteLine($"Pipeline: Load → Resize (3 sizes) → EXIF → Watermark");
-        Console.WriteLine($"\n💡 Press [ESC] to cancel processing\n");
+        Console.WriteLine("Pipeline: Load → Resize (3 sizes) → EXIF → Watermark");
+        Console.WriteLine("\n💡 Press [ESC] to cancel processing\n");
 
         var sw = Stopwatch.StartNew();
 
@@ -69,14 +65,14 @@ public static class ImageProcessingDemo
             var opId = signal.OperationId != 0 ? $" [op:{signal.OperationId}]" : "";
             var color = signal.Signal switch
             {
-                var s when s.StartsWith("image.loading") => "\u001b[36m",      // Cyan
-                var s when s.StartsWith("image.loaded") => "\u001b[32m",       // Green
-                var s when s.StartsWith("resize.") => "\u001b[33m",            // Yellow
-                var s when s.StartsWith("exif.") => "\u001b[35m",              // Magenta
-                var s when s.StartsWith("watermark.") => "\u001b[34m",         // Blue
-                var s when s.StartsWith("file.saved") => "\u001b[32m",         // Green
-                var s when s.Contains("complete") => "\u001b[92m",             // Bright green
-                _ => "\u001b[90m"                                               // Gray
+                var s when s.StartsWith("image.loading") => "\u001b[36m", // Cyan
+                var s when s.StartsWith("image.loaded") => "\u001b[32m", // Green
+                var s when s.StartsWith("resize.") => "\u001b[33m", // Yellow
+                var s when s.StartsWith("exif.") => "\u001b[35m", // Magenta
+                var s when s.StartsWith("watermark.") => "\u001b[34m", // Blue
+                var s when s.StartsWith("file.saved") => "\u001b[32m", // Green
+                var s when s.Contains("complete") => "\u001b[92m", // Bright green
+                _ => "\u001b[90m" // Gray
             };
             Console.WriteLine($"\u001b[90m[{timestamp}]\u001b[0m {color}{signal.Signal}{opId}\u001b[0m");
         });
@@ -105,6 +101,7 @@ public static class ImageProcessingDemo
                     cts.Cancel();
                     break;
                 }
+
                 Thread.Sleep(50);
             }
         });
@@ -142,11 +139,11 @@ public static class ImageProcessingDemo
         }
         catch (OperationCanceledException)
         {
-            Console.WriteLine($"\u001b[93m✋ Processing cancelled by user\u001b[0m");
+            Console.WriteLine("\u001b[93m✋ Processing cancelled by user\u001b[0m");
         }
 
         sw.Stop();
-        cts.Cancel();  // Ensure escape task stops
+        cts.Cancel(); // Ensure escape task stops
         await escapeTask;
 
         // Display results
@@ -160,6 +157,7 @@ public static class ImageProcessingDemo
             Console.WriteLine($"  Throughput:        {processedCount / sw.Elapsed.TotalSeconds:F1} images/sec");
             Console.WriteLine($"  Per-image average: {sw.Elapsed.TotalMilliseconds / processedCount:F0}ms");
         }
+
         Console.WriteLine();
 
         if (results.Any())
@@ -178,7 +176,7 @@ public static class ImageProcessingDemo
 
             // Show sample output paths
             var sample = results.First();
-            Console.WriteLine($"\nSample output paths (batch 0, image 0):");
+            Console.WriteLine("\nSample output paths (batch 0, image 0):");
             Console.WriteLine($"  Thumbnail:   {sample.ThumbnailPath}");
             Console.WriteLine($"  Medium:      {sample.MediumPath}");
             Console.WriteLine($"  Large:       {sample.LargePath}");
@@ -200,16 +198,13 @@ public static class ImageProcessingDemo
             Path.Combine(AppContext.BaseDirectory, "testdata", "logo.png"),
             Path.Combine(Directory.GetCurrentDirectory(), "testdata", "logo.png"),
             Path.Combine(Directory.GetCurrentDirectory(), "..", "..", "testdata", "logo.png"),
-            Path.Combine(Directory.GetCurrentDirectory(), "..", "..", "..", "testdata", "logo.png"),
+            Path.Combine(Directory.GetCurrentDirectory(), "..", "..", "..", "testdata", "logo.png")
         };
 
         foreach (var path in possiblePaths)
         {
             var fullPath = Path.GetFullPath(path);
-            if (File.Exists(fullPath))
-            {
-                return fullPath;
-            }
+            if (File.Exists(fullPath)) return fullPath;
         }
 
         return null;
@@ -219,7 +214,7 @@ public static class ImageProcessingDemo
     {
         string[] sizes = ["B", "KB", "MB", "GB"];
         double len = bytes;
-        int order = 0;
+        var order = 0;
 
         while (len >= 1024 && order < sizes.Length - 1)
         {

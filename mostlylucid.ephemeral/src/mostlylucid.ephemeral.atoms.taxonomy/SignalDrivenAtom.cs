@@ -1,26 +1,20 @@
-using System;
-using System.Threading;
-using System.Threading.Tasks;
-using Mostlylucid.Ephemeral;
-
 namespace Mostlylucid.Ephemeral.Atoms.Taxonomy;
 
 /// <summary>
-/// Base class for taxonomy atoms that execute a handler and emit typed signals on completion.
+///     Base class for taxonomy atoms that execute a handler and emit typed signals on completion.
 /// </summary>
 /// <typeparam name="TInput">The input type accepted by the atom.</typeparam>
 /// <typeparam name="TOutput">The output type produced by the atom.</typeparam>
 public abstract class SignalDrivenAtom<TInput, TOutput> : IAsyncDisposable
 {
+    private readonly EphemeralWorkCoordinator<TInput> _coordinator;
     private readonly Func<TInput, CancellationToken, Task<TOutput>> _handler;
     private readonly Func<TInput, string?>? _keySelector;
     private readonly TypedSignalSink<TOutput> _typedSignals;
-    private readonly EphemeralWorkCoordinator<TInput> _coordinator;
-    private readonly string? _outputSignal;
     private bool _disposed;
 
     /// <summary>
-    /// Initializes a signal-driven atom wrapper.
+    ///     Initializes a signal-driven atom wrapper.
     /// </summary>
     /// <param name="contract">Execution contract for the atom.</param>
     /// <param name="typedSignals">Typed signal sink used to emit outputs.</param>
@@ -42,7 +36,7 @@ public abstract class SignalDrivenAtom<TInput, TOutput> : IAsyncDisposable
         _typedSignals = typedSignals ?? throw new ArgumentNullException(nameof(typedSignals));
         _handler = handler ?? throw new ArgumentNullException(nameof(handler));
         _keySelector = keySelector;
-        _outputSignal = emitOutputSignals
+        OutputSignal = emitOutputSignals
             ? string.IsNullOrWhiteSpace(outputSignal)
                 ? DefaultOutputSignal(contract.Kind)
                 : outputSignal
@@ -52,46 +46,17 @@ public abstract class SignalDrivenAtom<TInput, TOutput> : IAsyncDisposable
     }
 
     /// <summary>
-    /// Contract metadata for this atom.
+    ///     Contract metadata for this atom.
     /// </summary>
     public AtomContract Contract { get; }
 
     /// <summary>
-    /// The signal name emitted on successful execution, or null if suppressed.
+    ///     The signal name emitted on successful execution, or null if suppressed.
     /// </summary>
-    public string? OutputSignal => _outputSignal;
+    public string? OutputSignal { get; }
 
     /// <summary>
-    /// Enqueues input for coordinated execution.
-    /// </summary>
-    /// <param name="input">The input payload.</param>
-    /// <param name="ct">Cancellation token.</param>
-    public ValueTask EnqueueAsync(TInput input, CancellationToken ct = default)
-    {
-        return _coordinator.EnqueueAsync(input, ct);
-    }
-
-    /// <summary>
-    /// Executes the handler immediately and returns the output.
-    /// </summary>
-    /// <param name="input">The input payload.</param>
-    /// <param name="ct">Cancellation token.</param>
-    public Task<TOutput> RunAsync(TInput input, CancellationToken ct = default)
-    {
-        return ExecuteAsync(input, ct);
-    }
-
-    /// <summary>
-    /// Drains outstanding queued work.
-    /// </summary>
-    /// <param name="ct">Cancellation token.</param>
-    public Task DrainAsync(CancellationToken ct = default)
-    {
-        return _coordinator.DrainAsync(ct);
-    }
-
-    /// <summary>
-    /// Completes and drains the coordinator.
+    ///     Completes and drains the coordinator.
     /// </summary>
     public async ValueTask DisposeAsync()
     {
@@ -102,6 +67,35 @@ public abstract class SignalDrivenAtom<TInput, TOutput> : IAsyncDisposable
         _coordinator.Complete();
         await _coordinator.DrainAsync().ConfigureAwait(false);
         await _coordinator.DisposeAsync().ConfigureAwait(false);
+    }
+
+    /// <summary>
+    ///     Enqueues input for coordinated execution.
+    /// </summary>
+    /// <param name="input">The input payload.</param>
+    /// <param name="ct">Cancellation token.</param>
+    public ValueTask EnqueueAsync(TInput input, CancellationToken ct = default)
+    {
+        return _coordinator.EnqueueAsync(input, ct);
+    }
+
+    /// <summary>
+    ///     Executes the handler immediately and returns the output.
+    /// </summary>
+    /// <param name="input">The input payload.</param>
+    /// <param name="ct">Cancellation token.</param>
+    public Task<TOutput> RunAsync(TInput input, CancellationToken ct = default)
+    {
+        return ExecuteAsync(input, ct);
+    }
+
+    /// <summary>
+    ///     Drains outstanding queued work.
+    /// </summary>
+    /// <param name="ct">Cancellation token.</param>
+    public Task DrainAsync(CancellationToken ct = default)
+    {
+        return _coordinator.DrainAsync(ct);
     }
 
     private async Task ProcessAsync(TInput input, CancellationToken ct)
@@ -118,11 +112,11 @@ public abstract class SignalDrivenAtom<TInput, TOutput> : IAsyncDisposable
 
     private void EmitOutput(TOutput output, TInput input)
     {
-        if (string.IsNullOrWhiteSpace(_outputSignal))
+        if (string.IsNullOrWhiteSpace(OutputSignal))
             return;
 
         var key = _keySelector?.Invoke(input);
-        _typedSignals.Raise(_outputSignal!, output, key);
+        _typedSignals.Raise(OutputSignal!, output, key);
     }
 
     private static string DefaultOutputSignal(AtomKind kind)

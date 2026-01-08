@@ -2,7 +2,6 @@
 
 Provides adapters between `Microsoft.Extensions.Logging` and the signal world.
 
-> 🚨🚨 WARNING 🚨🚨 - Though in the 1.x range of version THINGS WILL STILL BREAK. This is the lab for developing this concept when stabilized it'll becoe the first *stylo*flow release 🚨🚨🚨
 
 
 ## Log↔Signal features

@@ -1,9 +1,4 @@
-using System;
 using System.Collections.Concurrent;
-using System.Threading;
-using System.Threading.Tasks;
-using Mostlylucid.Ephemeral;
-using Mostlylucid.Ephemeral.Atoms.Escalator;
 using Xunit;
 
 namespace Mostlylucid.Ephemeral.Atoms.Escalator.Tests;
@@ -39,7 +34,7 @@ public class EscalatorAtomTests
         };
 
         await using var escalator = new EscalatorAtom<int>(sink, typed, targets);
-        typed.Raise("escalate.signal", 5, key: "order-1");
+        typed.Raise("escalate.signal", 5, "order-1");
 
         await WaitForSignalAsync(successTcs.Task);
         Assert.Contains("primary", calls);
@@ -103,7 +98,7 @@ public class EscalatorAtomTests
         };
 
         await using var escalator = new EscalatorAtom<int>(sink, typed, targets);
-        typed.Raise("escalate.fail", 42, key: "order-2");
+        typed.Raise("escalate.fail", 42, "order-2");
 
         var failure = await WaitForSignalAsync(failureTcs.Task);
         Assert.Contains("InvalidOperationException", failure.Signal);

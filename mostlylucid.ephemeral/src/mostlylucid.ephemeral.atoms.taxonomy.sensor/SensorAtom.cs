@@ -1,23 +1,18 @@
-using System;
-using System.Threading;
-using System.Threading.Tasks;
-using Mostlylucid.Ephemeral;
-
 namespace Mostlylucid.Ephemeral.Atoms.Taxonomy;
 
 /// <summary>
-/// Deterministic sensor atom that extracts signals or evidence pointers from sources.
+///     Deterministic sensor atom that extracts signals or evidence pointers from sources.
 /// </summary>
 /// <remarks>
-/// Default contract: Kind = Sensor, Determinism = Deterministic, Persistence = PersistableViaEscalation.
-/// Output signals default to "atom.sensor.output" unless overridden.
+///     Default contract: Kind = Sensor, Determinism = Deterministic, Persistence = PersistableViaEscalation.
+///     Output signals default to "atom.sensor.output" unless overridden.
 /// </remarks>
 /// <typeparam name="TInput">The input payload type.</typeparam>
 /// <typeparam name="TOutput">The output payload type.</typeparam>
 public sealed class SensorAtom<TInput, TOutput> : SignalDrivenAtom<TInput, TOutput>
 {
     /// <summary>
-    /// Initializes a SensorAtom that emits to an untyped SignalSink.
+    ///     Initializes a SensorAtom that emits to an untyped SignalSink.
     /// </summary>
     /// <param name="signals">Signal sink that receives output signals.</param>
     /// <param name="handler">Handler invoked for each input.</param>
@@ -40,7 +35,7 @@ public sealed class SensorAtom<TInput, TOutput> : SignalDrivenAtom<TInput, TOutp
     }
 
     /// <summary>
-    /// Initializes a SensorAtom that emits to a TypedSignalSink.
+    ///     Initializes a SensorAtom that emits to a TypedSignalSink.
     /// </summary>
     /// <param name="typedSignals">Typed signal sink that receives output signals.</param>
     /// <param name="handler">Handler invoked for each input.</param>

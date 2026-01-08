@@ -1,28 +1,25 @@
 using System.Collections.Concurrent;
 using System.IO.Hashing;
 using System.Text;
-using Mostlylucid.Ephemeral;
 
 namespace Mostlylucid.Ephemeral.Atoms.EntropyAnalysis;
 
 /// <summary>
 ///     Entropy analysis for detecting bot-like patterns in sequences.
-///
 ///     Uses Shannon entropy to measure randomness:
 ///     - High entropy (>3.5) = random/scanning behavior (bot)
 ///     - Low entropy (<0.5) = too repetitive/automated (bot)
 ///     - Medium entropy (0.5-3.5) = natural human patterns
-///
 ///     Privacy-preserving: Uses XxHash64 for identity hashing.
 /// </summary>
 public class EntropyAnalysisAtom<T> : IAsyncDisposable where T : notnull
 {
-    private readonly ConcurrentDictionary<string, TrackedSequence> _sequences = new();
     private readonly TimeSpan _analysisWindow;
-    private readonly int _minSamples;
-    private readonly SignalSink? _signals;
-    private readonly string _salt;
     private readonly Timer? _cleanupTimer;
+    private readonly int _minSamples;
+    private readonly string _salt;
+    private readonly ConcurrentDictionary<string, TrackedSequence> _sequences = new();
+    private readonly SignalSink? _signals;
 
     public EntropyAnalysisAtom(
         TimeSpan? analysisWindow = null,
@@ -37,6 +34,11 @@ public class EntropyAnalysisAtom<T> : IAsyncDisposable where T : notnull
 
         // Cleanup old entries every minute
         _cleanupTimer = new Timer(CleanupOldEntries, null, TimeSpan.FromMinutes(1), TimeSpan.FromMinutes(1));
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_cleanupTimer != null) await _cleanupTimer.DisposeAsync();
     }
 
     /// <summary>
@@ -90,12 +92,8 @@ public class EntropyAnalysisAtom<T> : IAsyncDisposable where T : notnull
         // Calculate Shannon entropy: H = -Σ(p * log2(p))
         var entropy = 0.0;
         foreach (var freq in frequencies.Values)
-        {
             if (freq > 0)
-            {
                 entropy -= freq * Math.Log2(freq);
-            }
-        }
 
         _signals?.Raise($"entropy.calculated:{signature}:entropy={entropy:F2}");
 
@@ -110,7 +108,6 @@ public class EntropyAnalysisAtom<T> : IAsyncDisposable where T : notnull
         var entropy = CalculateEntropy(identityKey);
 
         if (entropy == 0)
-        {
             return new EntropyResult
             {
                 Entropy = 0,
@@ -118,7 +115,6 @@ public class EntropyAnalysisAtom<T> : IAsyncDisposable where T : notnull
                 Confidence = 0,
                 Description = "Insufficient samples for analysis"
             };
-        }
 
         // High entropy = too random (bot scanning)
         if (entropy > 3.5)
@@ -192,35 +188,16 @@ public class EntropyAnalysisAtom<T> : IAsyncDisposable where T : notnull
         var toRemove = new List<string>();
 
         foreach (var kvp in _sequences)
-        {
             lock (kvp.Value)
             {
                 kvp.Value.Values.RemoveAll(v => v.Timestamp < cutoff);
 
-                if (kvp.Value.Values.Count == 0)
-                {
-                    toRemove.Add(kvp.Key);
-                }
+                if (kvp.Value.Values.Count == 0) toRemove.Add(kvp.Key);
             }
-        }
 
-        foreach (var key in toRemove)
-        {
-            _sequences.TryRemove(key, out _);
-        }
+        foreach (var key in toRemove) _sequences.TryRemove(key, out _);
 
-        if (toRemove.Count > 0)
-        {
-            _signals?.Raise($"entropy.cleanup:removed={toRemove.Count}");
-        }
-    }
-
-    public async ValueTask DisposeAsync()
-    {
-        if (_cleanupTimer != null)
-        {
-            await _cleanupTimer.DisposeAsync();
-        }
+        if (toRemove.Count > 0) _signals?.Raise($"entropy.cleanup:removed={toRemove.Count}");
     }
 
     private class TrackedSequence
@@ -248,7 +225,7 @@ public record EntropyResult
 public enum EntropyClassification
 {
     InsufficientData,
-    TooRandom,      // High entropy (> 3.5) - bot scanning
-    TooRepetitive,  // Low entropy (< 0.5) - bot automation
-    Normal          // Medium entropy (0.5-3.5) - human-like
+    TooRandom, // High entropy (> 3.5) - bot scanning
+    TooRepetitive, // Low entropy (< 0.5) - bot automation
+    Normal // Medium entropy (0.5-3.5) - human-like
 }

@@ -1,5 +1,5 @@
-using Xunit;
 using Mostlylucid.Ephemeral.Atoms.WindowSize;
+using Xunit;
 
 namespace Mostlylucid.Ephemeral.Tests;
 
@@ -8,7 +8,7 @@ public class WindowSizeAtomTests
     [Fact]
     public async Task SetCapacity_UpdatesSignalSinkCapacity()
     {
-        var sink = new SignalSink(maxCapacity: 100);
+        var sink = new SignalSink(100);
         await using var atom = new WindowSizeAtom(sink);
 
         sink.Raise("window.size.set:200");
@@ -20,7 +20,7 @@ public class WindowSizeAtomTests
     [Fact]
     public async Task IncreaseCapacity_AddsToCurrentCapacity()
     {
-        var sink = new SignalSink(maxCapacity: 100);
+        var sink = new SignalSink(100);
         await using var atom = new WindowSizeAtom(sink);
 
         sink.Raise("window.size.increase:50");
@@ -32,7 +32,7 @@ public class WindowSizeAtomTests
     [Fact]
     public async Task DecreaseCapacity_SubtractsFromCurrentCapacity()
     {
-        var sink = new SignalSink(maxCapacity: 200);
+        var sink = new SignalSink(200);
         await using var atom = new WindowSizeAtom(sink);
 
         sink.Raise("window.size.decrease:50");
@@ -44,7 +44,7 @@ public class WindowSizeAtomTests
     [Fact]
     public async Task SetCapacity_ClampsToMinimum()
     {
-        var sink = new SignalSink(maxCapacity: 100);
+        var sink = new SignalSink(100);
         var options = new WindowSizeAtomOptions { MinCapacity = 50, MaxCapacity = 1000 };
         await using var atom = new WindowSizeAtom(sink, options);
 
@@ -57,7 +57,7 @@ public class WindowSizeAtomTests
     [Fact]
     public async Task SetCapacity_ClampsToMaximum()
     {
-        var sink = new SignalSink(maxCapacity: 100);
+        var sink = new SignalSink(100);
         var options = new WindowSizeAtomOptions { MinCapacity = 50, MaxCapacity = 1000 };
         await using var atom = new WindowSizeAtom(sink, options);
 
@@ -169,7 +169,7 @@ public class WindowSizeAtomTests
     [Fact]
     public async Task InvalidSignal_DoesNotCrash()
     {
-        var sink = new SignalSink(maxCapacity: 100);
+        var sink = new SignalSink(100);
         await using var atom = new WindowSizeAtom(sink);
 
         sink.Raise("window.size.set:invalid");
@@ -184,7 +184,7 @@ public class WindowSizeAtomTests
     [Fact]
     public async Task DisposeAsync_UnsubscribesFromSignals()
     {
-        var sink = new SignalSink(maxCapacity: 100);
+        var sink = new SignalSink(100);
         var atom = new WindowSizeAtom(sink);
 
         await atom.DisposeAsync();
@@ -200,7 +200,7 @@ public class WindowSizeAtomTests
     [Fact]
     public async Task CustomCommands_WorkCorrectly()
     {
-        var sink = new SignalSink(maxCapacity: 100);
+        var sink = new SignalSink(100);
         var options = new WindowSizeAtomOptions
         {
             CapacitySetCommand = "custom.size",
@@ -237,7 +237,7 @@ public class WindowSizeAtomTests
     [Fact]
     public async Task NegativeValues_ClampedToMinimum()
     {
-        var sink = new SignalSink(maxCapacity: 100);
+        var sink = new SignalSink(100);
         var options = new WindowSizeAtomOptions { MinCapacity = 10 };
         await using var atom = new WindowSizeAtom(sink, options);
 
@@ -250,7 +250,7 @@ public class WindowSizeAtomTests
     [Fact]
     public async Task NestedSignalName_ParsesCorrectly()
     {
-        var sink = new SignalSink(maxCapacity: 100);
+        var sink = new SignalSink(100);
         await using var atom = new WindowSizeAtom(sink);
 
         // Signal with prefix should still work
@@ -270,7 +270,7 @@ public class WindowSizeAtomTests
     public async Task Constructor_NullOptions_UsesDefaults()
     {
         var sink = new SignalSink();
-        await using var atom = new WindowSizeAtom(sink, null);
+        await using var atom = new WindowSizeAtom(sink);
 
         // Should use default commands
         sink.Raise("window.size.set:500");

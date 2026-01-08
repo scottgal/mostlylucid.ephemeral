@@ -1,25 +1,21 @@
 using System.Diagnostics;
-using Mostlylucid.Ephemeral;
 
 namespace Mostlylucid.Ephemeral.Demo;
 
 /// <summary>
 ///     Demonstrates the "preload and trigger" pattern using EnqueueManyAsync + DeferOnSignals + ResumeOnSignals.
-///
 ///     Pattern: Defer while "batch.loading" signal exists, bulk enqueue, then raise "batch.ready" to trigger.
 ///     This is the proper architectural pattern for batch loading scenarios.
 /// </summary>
 public static class PreloadDemo
 {
-    public record ImageProcessingJob(int Id, string ImagePath, string Operation);
-
     public static async Task RunAsync()
     {
         Console.WriteLine("=== Preload and Trigger Demo ===\n");
         Console.WriteLine("Demonstrating: DeferOnSignals + EnqueueManyAsync + ResumeOnSignals\n");
 
         // Shared signal sink
-        var signals = new SignalSink(maxCapacity: 2000);
+        var signals = new SignalSink(2000);
 
         // Step 1: Raise defer signal BEFORE creating coordinator
         signals.Raise("batch.loading");
@@ -59,25 +55,27 @@ public static class PreloadDemo
         Console.WriteLine($"    Enqueue completed, took {stopwatch.ElapsedMilliseconds}ms");
 
         Console.WriteLine($"[2] Bulk enqueued {enqueued} jobs in {stopwatch.ElapsedMilliseconds}ms");
-        Console.WriteLine($"    Jobs are queued but NOT processing (deferred by 'batch.loading' signal)\n");
+        Console.WriteLine("    Jobs are queued but NOT processing (deferred by 'batch.loading' signal)\n");
 
         // Monitor pending count (should stay at 1000 while deferred)
-        Console.WriteLine($"    Waiting 500ms to verify defer is working...");
+        Console.WriteLine("    Waiting 500ms to verify defer is working...");
         await Task.Delay(500);
         var completed = coordinator.GetCompleted().Count;
         var running = coordinator.GetRunning().Count;
-        Console.WriteLine($"[3] Status check: {coordinator.PendingCount} jobs pending, {completed} completed, {running} running");
+        Console.WriteLine(
+            $"[3] Status check: {coordinator.PendingCount} jobs pending, {completed} completed, {running} running");
         Console.WriteLine($"    (All {enqueued} jobs should be waiting for 'batch.ready' signal)");
 
         if (completed > 0 || running > 0)
         {
-            Console.WriteLine($"    [ERROR] Jobs started processing! Defer is NOT working!");
+            Console.WriteLine("    [ERROR] Jobs started processing! Defer is NOT working!");
             Console.WriteLine($"    Completed: {completed}, Running: {running}");
         }
         else
         {
-            Console.WriteLine($"    [SUCCESS] Defer is working - no jobs processing yet!");
+            Console.WriteLine("    [SUCCESS] Defer is working - no jobs processing yet!");
         }
+
         Console.WriteLine();
 
         // Step 4: TRIGGER - Raise resume signal to start processing
@@ -111,9 +109,7 @@ public static class PreloadDemo
 
         // Simulate occasional failures for demo purposes
         if (Random.Shared.Next(100) < 2) // 2% failure rate
-        {
             throw new InvalidOperationException($"Failed to process image {job.Id}");
-        }
     }
 
     private static async Task MonitorProgressAsync(
@@ -132,11 +128,11 @@ public static class PreloadDemo
 
             if (completedCount != lastCompleted)
             {
-                var progress = (int)((completedCount / 1000.0) * 40);
+                var progress = (int)(completedCount / 1000.0 * 40);
                 var bar = new string('█', progress) + new string('░', 40 - progress);
 
                 Console.Write($"\r    {spinner[spinnerIndex++ % 4]} [{bar}] {completedCount,4}/1000 " +
-                             $"| Active: {runningCount,2} | Failed: {failedCount,2}");
+                              $"| Active: {runningCount,2} | Failed: {failedCount,2}");
 
                 lastCompleted = completedCount;
             }
@@ -150,4 +146,6 @@ public static class PreloadDemo
             await Task.Delay(50);
         }
     }
+
+    public record ImageProcessingJob(int Id, string ImagePath, string Operation);
 }

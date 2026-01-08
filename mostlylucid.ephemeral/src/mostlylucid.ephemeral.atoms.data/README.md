@@ -3,7 +3,6 @@
 Core data storage abstractions for signal-driven persistence. This package provides the base interfaces and
 configuration used by storage-specific implementations.
 
-> 🚨🚨 WARNING 🚨🚨 - Though in the 1.x range of version THINGS WILL STILL BREAK. This is the lab for developing this concept when stabilized it'll becoe the first *stylo*flow release 🚨🚨🚨
 
 
 ## Installation

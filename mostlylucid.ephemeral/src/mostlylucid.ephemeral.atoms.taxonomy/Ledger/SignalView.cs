@@ -1,26 +1,22 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Text.RegularExpressions;
 
 namespace Mostlylucid.Ephemeral.Atoms.Taxonomy.Ledger;
 
 /// <summary>
-/// A view over LIVE signals from Atoms running in Coordinators.
-/// Views are lightweight query interfaces with NO separate lifetime - they don't own signals.
+///     A view over LIVE signals from Atoms running in Coordinators.
+///     Views are lightweight query interfaces with NO separate lifetime - they don't own signals.
 /// </summary>
 /// <remarks>
-/// **IMPORTANT DISTINCTION:**
-/// - SignalView operates on LIVE signals from Atoms in Coordinators
-/// - EntityLedger is a SEPARATE persisted entity (RDBMS + Vector)
-/// - Signals flow: Atoms → SignalView → (escalation) → LedgerAtom → EntityLedger
-///
-/// Key principles:
-/// - Views are QUERIES over live atom signals, not containers
-/// - Views have no separate lifetime (signals die with atoms)
-/// - Views can span multiple coordinators (for cross-coordinator visibility)
-/// - Views apply filters (pattern, salience, source, time)
-/// - High-salience signals can be ESCALATED to EntityLedger via LedgerAtom
+///     **IMPORTANT DISTINCTION:**
+///     - SignalView operates on LIVE signals from Atoms in Coordinators
+///     - EntityLedger is a SEPARATE persisted entity (RDBMS + Vector)
+///     - Signals flow: Atoms → SignalView → (escalation) → LedgerAtom → EntityLedger
+///     Key principles:
+///     - Views are QUERIES over live atom signals, not containers
+///     - Views have no separate lifetime (signals die with atoms)
+///     - Views can span multiple coordinators (for cross-coordinator visibility)
+///     - Views apply filters (pattern, salience, source, time)
+///     - High-salience signals can be ESCALATED to EntityLedger via LedgerAtom
 /// </remarks>
 public sealed class SignalView
 {
@@ -28,7 +24,7 @@ public sealed class SignalView
     private readonly Regex? _patternRegex;
 
     /// <summary>
-    /// Creates a view over a single ledger.
+    ///     Creates a view over a single ledger.
     /// </summary>
     public SignalView(IEntityLedger ledger, SignalViewOptions? options = null)
         : this(new[] { ledger }, options)
@@ -36,7 +32,7 @@ public sealed class SignalView
     }
 
     /// <summary>
-    /// Creates a view over multiple ledgers.
+    ///     Creates a view over multiple ledgers.
     /// </summary>
     public SignalView(IEnumerable<IEntityLedger> ledgers, SignalViewOptions? options = null)
     {
@@ -58,22 +54,27 @@ public sealed class SignalView
     }
 
     /// <summary>
-    /// View name for identification.
+    ///     View name for identification.
     /// </summary>
     public string Name => Options.Name ?? "unnamed";
 
     /// <summary>
-    /// View configuration.
+    ///     View configuration.
     /// </summary>
     public SignalViewOptions Options { get; }
 
     /// <summary>
-    /// Number of ledgers this view covers.
+    ///     Number of ledgers this view covers.
     /// </summary>
     public int LedgerCount => _ledgers.Count;
 
     /// <summary>
-    /// Adds a ledger to this view.
+    ///     Number of signals visible in this view.
+    /// </summary>
+    public int Count => GetSignals().Count;
+
+    /// <summary>
+    ///     Adds a ledger to this view.
     /// </summary>
     public void AddLedger(IEntityLedger ledger)
     {
@@ -88,7 +89,7 @@ public sealed class SignalView
     }
 
     /// <summary>
-    /// Removes a ledger from this view.
+    ///     Removes a ledger from this view.
     /// </summary>
     public bool RemoveLedger(IEntityLedger ledger)
     {
@@ -99,7 +100,7 @@ public sealed class SignalView
     }
 
     /// <summary>
-    /// Gets all signals matching the view filter.
+    ///     Gets all signals matching the view filter.
     /// </summary>
     public IReadOnlyList<LedgerSignal> GetSignals()
     {
@@ -117,7 +118,7 @@ public sealed class SignalView
     }
 
     /// <summary>
-    /// Gets signals matching a specific pattern (overrides view pattern).
+    ///     Gets signals matching a specific pattern (overrides view pattern).
     /// </summary>
     public IReadOnlyList<LedgerSignal> GetSignals(string pattern)
     {
@@ -136,7 +137,7 @@ public sealed class SignalView
     }
 
     /// <summary>
-    /// Checks if a signal exists in this view.
+    ///     Checks if a signal exists in this view.
     /// </summary>
     public bool HasSignal(string key)
     {
@@ -144,7 +145,7 @@ public sealed class SignalView
     }
 
     /// <summary>
-    /// Gets a signal by key (if it passes the view filter).
+    ///     Gets a signal by key (if it passes the view filter).
     /// </summary>
     public LedgerSignal? GetSignal(string key)
     {
@@ -165,7 +166,7 @@ public sealed class SignalView
     }
 
     /// <summary>
-    /// Gets the value of a signal.
+    ///     Gets the value of a signal.
     /// </summary>
     public T? GetValue<T>(string key)
     {
@@ -174,7 +175,7 @@ public sealed class SignalView
     }
 
     /// <summary>
-    /// Gets high-salience signals from this view.
+    ///     Gets high-salience signals from this view.
     /// </summary>
     public IReadOnlyList<LedgerSignal> GetHighSalienceSignals(double threshold)
     {
@@ -196,12 +197,7 @@ public sealed class SignalView
     }
 
     /// <summary>
-    /// Number of signals visible in this view.
-    /// </summary>
-    public int Count => GetSignals().Count;
-
-    /// <summary>
-    /// Creates a derived view with additional filters.
+    ///     Creates a derived view with additional filters.
     /// </summary>
     public SignalView Derive(SignalViewOptions additionalOptions)
     {
@@ -288,7 +284,8 @@ public sealed class SignalView
             return false;
 
         if (Options.SourceKinds is { Count: > 0 } &&
-            (signal.SourceKind is null || !Options.SourceKinds.Contains(signal.SourceKind, StringComparer.OrdinalIgnoreCase)))
+            (signal.SourceKind is null ||
+             !Options.SourceKinds.Contains(signal.SourceKind, StringComparer.OrdinalIgnoreCase)))
             return false;
 
         if (Options.Since.HasValue && signal.Timestamp < Options.Since.Value)
@@ -313,47 +310,47 @@ public sealed class SignalView
 }
 
 /// <summary>
-/// Options for configuring a signal view.
+///     Options for configuring a signal view.
 /// </summary>
 public sealed class SignalViewOptions
 {
     /// <summary>
-    /// View name for identification.
+    ///     View name for identification.
     /// </summary>
     public string? Name { get; init; }
 
     /// <summary>
-    /// Pattern filter for signal keys (glob-style: *, ?).
+    ///     Pattern filter for signal keys (glob-style: *, ?).
     /// </summary>
     public string? Pattern { get; init; }
 
     /// <summary>
-    /// Minimum salience threshold for signals in this view.
+    ///     Minimum salience threshold for signals in this view.
     /// </summary>
     public double? SalienceThreshold { get; init; }
 
     /// <summary>
-    /// Only include signals from these atoms.
+    ///     Only include signals from these atoms.
     /// </summary>
     public IReadOnlyList<string>? SourceAtoms { get; init; }
 
     /// <summary>
-    /// Only include signals of these kinds.
+    ///     Only include signals of these kinds.
     /// </summary>
     public IReadOnlyList<string>? SourceKinds { get; init; }
 
     /// <summary>
-    /// Maximum number of signals in the view.
+    ///     Maximum number of signals in the view.
     /// </summary>
     public int? MaxSignals { get; init; }
 
     /// <summary>
-    /// Only include signals newer than this.
+    ///     Only include signals newer than this.
     /// </summary>
     public DateTimeOffset? Since { get; init; }
 
     /// <summary>
-    /// Creates a view for fast-path signals (high priority, sensors only).
+    ///     Creates a view for fast-path signals (high priority, sensors only).
     /// </summary>
     public static SignalViewOptions FastPath => new()
     {
@@ -363,7 +360,7 @@ public sealed class SignalViewOptions
     };
 
     /// <summary>
-    /// Creates a view for learning signals (high salience only).
+    ///     Creates a view for learning signals (high salience only).
     /// </summary>
     public static SignalViewOptions Learning => new()
     {
@@ -372,7 +369,7 @@ public sealed class SignalViewOptions
     };
 
     /// <summary>
-    /// Creates a view for escalation candidates (very high salience).
+    ///     Creates a view for escalation candidates (very high salience).
     /// </summary>
     public static SignalViewOptions Escalation => new()
     {
@@ -381,7 +378,7 @@ public sealed class SignalViewOptions
     };
 
     /// <summary>
-    /// Creates a view for all signals (no filtering).
+    ///     Creates a view for all signals (no filtering).
     /// </summary>
     public static SignalViewOptions All => new()
     {

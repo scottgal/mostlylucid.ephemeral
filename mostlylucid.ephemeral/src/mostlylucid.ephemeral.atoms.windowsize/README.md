@@ -2,12 +2,13 @@
 
 **Dynamic window sizing atom that adjusts SignalSink capacity and retention at runtime via signals.**
 
-> 🚨🚨 WARNING 🚨🚨 - Though in the 1.x range of version THINGS WILL STILL BREAK. This is the lab for developing this concept when stabilized it'll becoe the first *stylo*flow release 🚨🚨🚨
 
 
 ## Overview
 
-WindowSizeAtom listens for command signals and dynamically tunes `SignalSink` parameters without requiring service restarts. This enables adaptive memory management, debug modes, circuit breaker integration, and runtime configuration tuning.
+WindowSizeAtom listens for command signals and dynamically tunes `SignalSink` parameters without requiring service
+restarts. This enables adaptive memory management, debug modes, circuit breaker integration, and runtime configuration
+tuning.
 
 ## ⚠️ **Important: This Atom is an Exception to the Ephemeral Signals Pattern**
 
@@ -15,6 +16,7 @@ WindowSizeAtom listens for command signals and dynamically tunes `SignalSink` pa
 The pattern is: **Signal provides context, atom holds state**.
 
 **Example of the pattern:**
+
 ```csharp
 // ✅ CORRECT: Signal is just a notification
 sink.Raise("file.saved");
@@ -26,17 +28,20 @@ sink.Raise($"file.saved:{filename}"); // State in signal!
 ```
 
 **WindowSizeAtom is a deliberate exception** because:
+
 1. It's a **command pattern**, not event notification
 2. The "state" (capacity/retention) is transient configuration, not business data
 3. The commands are **imperative actions** ("set to 500") not events ("something happened")
 4. It operates on the SignalSink itself, which is infrastructure, not domain logic
 
 **When to use command signals (rare):**
+
 - Infrastructure configuration (like WindowSizeAtom)
 - System control commands (shutdown, pause, resume)
 - Admin/debug operations (enable logging, change verbosity)
 
 **When to use notification signals (common):**
+
 - Domain events: "order.placed", "user.registered", "payment.completed"
 - State changes: "circuit.open", "cache.expired", "connection.lost"
 - Metrics: "error.occurred", "threshold.exceeded", "quota.warning"
@@ -68,28 +73,28 @@ sink.Raise("window.time.set:30s");
 
 ### Capacity Commands
 
-| Signal | Description | Example |
-|--------|-------------|---------|
-| `window.size.set:N` | Set absolute capacity | `window.size.set:500` |
+| Signal                   | Description            | Example                    |
+|--------------------------|------------------------|----------------------------|
+| `window.size.set:N`      | Set absolute capacity  | `window.size.set:500`      |
 | `window.size.increase:N` | Increase capacity by N | `window.size.increase:100` |
-| `window.size.decrease:N` | Decrease capacity by N | `window.size.decrease:50` |
+| `window.size.decrease:N` | Decrease capacity by N | `window.size.decrease:50`  |
 
 ### Retention Commands
 
-| Signal | Description | Example |
-|--------|-------------|---------|
-| `window.time.set:VALUE` | Set retention duration | `window.time.set:30s` |
-| `window.time.increase:VALUE` | Extend retention | `window.time.increase:10s` |
-| `window.time.decrease:VALUE` | Reduce retention | `window.time.decrease:5s` |
+| Signal                       | Description            | Example                    |
+|------------------------------|------------------------|----------------------------|
+| `window.time.set:VALUE`      | Set retention duration | `window.time.set:30s`      |
+| `window.time.increase:VALUE` | Extend retention       | `window.time.increase:10s` |
+| `window.time.decrease:VALUE` | Reduce retention       | `window.time.decrease:5s`  |
 
 ### Time Format Support
 
-| Format | Example | Result |
-|--------|---------|--------|
-| Seconds | `30s` | 30 seconds |
-| Milliseconds | `500ms` | 500 milliseconds |
-| TimeSpan | `00:05:00` | 5 minutes |
-| TimeSpan | `01:30:00` | 1 hour 30 minutes |
+| Format       | Example    | Result            |
+|--------------|------------|-------------------|
+| Seconds      | `30s`      | 30 seconds        |
+| Milliseconds | `500ms`    | 500 milliseconds  |
+| TimeSpan     | `00:05:00` | 5 minutes         |
+| TimeSpan     | `01:30:00` | 1 hour 30 minutes |
 
 **Note:** Millisecond format (`ms`) is checked before seconds (`s`) to prevent parsing "500ms" as "500m" + "s".
 
@@ -226,12 +231,15 @@ sink.Raise("production.app.window.size.set:100");
 ## Safety & Performance
 
 ### Thread Safety
+
 - ✅ All updates are thread-safe
 - ✅ Concurrent signals handled safely
 - ⚠️ Rapid updates may cause lock contention on SignalSink
 
 ### Value Clamping
+
 All values are automatically clamped to configured min/max:
+
 ```csharp
 // Request 1 million capacity
 sink.Raise("window.size.set:1000000");
@@ -243,6 +251,7 @@ sink.Raise("window.time.set:1ms");
 ```
 
 ### Performance
+
 - Signal processing: **< 10 microseconds** (synchronous, fast)
 - Memory impact: **Negligible** (event handler only)
 - Lock contention: **Low** (only during SignalSink updates)
@@ -291,6 +300,7 @@ public IActionResult SetRetention(int seconds)
 **Problem:** Signals raised but capacity/retention unchanged
 
 **Solutions:**
+
 1. Check signal format matches command exactly
 2. Verify atom is not disposed
 3. Check values aren't being clamped to limits
@@ -311,6 +321,7 @@ Console.WriteLine($"Capacity now: {sink.MaxCapacity}");
 **Problem:** Values being clamped to unexpected limits
 
 **Solution:** Check your WindowSizeAtomOptions:
+
 ```csharp
 var options = new WindowSizeAtomOptions
 {
@@ -325,7 +336,8 @@ var options = new WindowSizeAtomOptions
 
 Recent updates include:
 
-1. **Bounds checking in SignalCommandMatch** - Prevents potential `ArgumentOutOfRangeException` when parsing malformed signals
+1. **Bounds checking in SignalCommandMatch** - Prevents potential `ArgumentOutOfRangeException` when parsing malformed
+   signals
 2. **Millisecond parsing fix** - Correctly parses "ms" suffix before "s" to avoid misinterpretation
 3. **Comprehensive test coverage** - 24 new tests covering edge cases, concurrency, and error handling
 

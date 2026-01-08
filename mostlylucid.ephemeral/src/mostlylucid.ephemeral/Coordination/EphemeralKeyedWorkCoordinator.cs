@@ -1,5 +1,4 @@
 using System.Collections.Concurrent;
-using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Threading.Channels;
 
@@ -8,7 +7,8 @@ namespace Mostlylucid.Ephemeral;
 /// <summary>
 ///     Keyed version: per-key sequential execution with fair scheduling.
 /// </summary>
-public sealed class EphemeralKeyedWorkCoordinator<T, TKey> : IAsyncDisposable, IOperationPinning, IOperationFinalization, IOperationEvictor
+public sealed class EphemeralKeyedWorkCoordinator<T, TKey> : IAsyncDisposable, IOperationPinning,
+    IOperationFinalization, IOperationEvictor
     where TKey : notnull
 {
     private const long KeyLockIdleTimeoutMs = 60_000;
@@ -121,6 +121,22 @@ public sealed class EphemeralKeyedWorkCoordinator<T, TKey> : IAsyncDisposable, I
         _pauseGate.Dispose();
     }
 
+    /// <inheritdoc />
+    public bool TryKill(long operationId)
+    {
+        if (operationId <= 0)
+            return false;
+
+        if (!TryRemoveOperation(operationId, out var candidate) || candidate is null)
+            return false;
+
+        if (candidate.Completed is null) candidate.Completed = DateTimeOffset.UtcNow;
+        candidate.IsPinned = false;
+        NotifyOperationFinalized(candidate);
+        CleanupWindow();
+        return true;
+    }
+
     /// <summary>
     ///     Raised when an operation is evicted from the window.
     /// </summary>
@@ -156,22 +172,6 @@ public sealed class EphemeralKeyedWorkCoordinator<T, TKey> : IAsyncDisposable, I
         RecordEcho(op);
     }
 
-    /// <inheritdoc />
-    public bool TryKill(long operationId)
-    {
-        if (operationId <= 0)
-            return false;
-
-        if (!TryRemoveOperation(operationId, out var candidate) || candidate is null)
-            return false;
-
-        if (candidate.Completed is null) candidate.Completed = DateTimeOffset.UtcNow;
-        candidate.IsPinned = false;
-        NotifyOperationFinalized(candidate);
-        CleanupWindow();
-        return true;
-    }
-
     private bool TryRemoveOperation(long operationId, out EphemeralOperation? removed)
     {
         removed = null;
@@ -192,10 +192,7 @@ public sealed class EphemeralKeyedWorkCoordinator<T, TKey> : IAsyncDisposable, I
                 buffer.Add(op);
             }
 
-            foreach (var op in buffer)
-            {
-                _recent.Enqueue(op);
-            }
+            foreach (var op in buffer) _recent.Enqueue(op);
         }
 
         return found;
@@ -620,10 +617,8 @@ public sealed class EphemeralKeyedWorkCoordinator<T, TKey> : IAsyncDisposable, I
                     hasResumeSignal = true;
                     break;
                 }
-                if (StringPatternMatcher.MatchesAny(signal, _options.DeferOnSignals))
-                {
-                    hasDeferSignal = true;
-                }
+
+                if (StringPatternMatcher.MatchesAny(signal, _options.DeferOnSignals)) hasDeferSignal = true;
             }
 
             if (hasResumeSignal) return;
@@ -686,6 +681,7 @@ public sealed class EphemeralKeyedWorkCoordinator<T, TKey> : IAsyncDisposable, I
         {
             _recent.Enqueue(op);
         }
+
         CleanupWindow();
     }
 

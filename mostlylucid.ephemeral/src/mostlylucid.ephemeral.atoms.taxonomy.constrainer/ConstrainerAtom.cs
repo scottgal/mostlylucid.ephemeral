@@ -1,23 +1,18 @@
-using System;
-using System.Threading;
-using System.Threading.Tasks;
-using Mostlylucid.Ephemeral;
-
 namespace Mostlylucid.Ephemeral.Atoms.Taxonomy;
 
 /// <summary>
-/// Deterministic constrainer atom that validates or selects proposals.
+///     Deterministic constrainer atom that validates or selects proposals.
 /// </summary>
 /// <remarks>
-/// Default contract: Kind = Constrainer, Determinism = Deterministic, Persistence = PersistableViaEscalation.
-/// Output signals default to "atom.constrainer.output" unless overridden.
+///     Default contract: Kind = Constrainer, Determinism = Deterministic, Persistence = PersistableViaEscalation.
+///     Output signals default to "atom.constrainer.output" unless overridden.
 /// </remarks>
 /// <typeparam name="TInput">The input payload type.</typeparam>
 /// <typeparam name="TOutput">The output payload type.</typeparam>
 public sealed class ConstrainerAtom<TInput, TOutput> : SignalDrivenAtom<TInput, TOutput>
 {
     /// <summary>
-    /// Initializes a ConstrainerAtom that emits to an untyped SignalSink.
+    ///     Initializes a ConstrainerAtom that emits to an untyped SignalSink.
     /// </summary>
     /// <param name="signals">Signal sink that receives output signals.</param>
     /// <param name="handler">Handler invoked for each input.</param>
@@ -40,7 +35,7 @@ public sealed class ConstrainerAtom<TInput, TOutput> : SignalDrivenAtom<TInput, 
     }
 
     /// <summary>
-    /// Initializes a ConstrainerAtom that emits to a TypedSignalSink.
+    ///     Initializes a ConstrainerAtom that emits to a TypedSignalSink.
     /// </summary>
     /// <param name="typedSignals">Typed signal sink that receives output signals.</param>
     /// <param name="handler">Handler invoked for each input.</param>

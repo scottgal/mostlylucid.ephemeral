@@ -1,11 +1,9 @@
 using RazorLight;
-using Mostlylucid.Ephemeral;
 
 namespace Mostlylucid.Ephemeral.Atoms.RazorTemplate;
 
 /// <summary>
 ///     Razor template rendering atom for generating HTML emails and content.
-///
 ///     Uses RazorLight for in-memory Razor compilation and rendering.
 /// </summary>
 public class RazorTemplateAtom : IAsyncDisposable
@@ -21,20 +19,19 @@ public class RazorTemplateAtom : IAsyncDisposable
         var builder = new RazorLightEngineBuilder();
 
         if (!string.IsNullOrEmpty(options.TemplateRootPath))
-        {
             builder.UseFileSystemProject(options.TemplateRootPath);
-        }
         else
-        {
             builder.UseEmbeddedResourcesProject(typeof(RazorTemplateAtom));
-        }
 
-        if (options.EnableCaching)
-        {
-            builder.UseMemoryCachingProvider();
-        }
+        if (options.EnableCaching) builder.UseMemoryCachingProvider();
 
         _engine = builder.Build();
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        // RazorLightEngine doesn't need explicit disposal
+        await Task.CompletedTask;
     }
 
     /// <summary>
@@ -120,12 +117,6 @@ public class RazorTemplateAtom : IAsyncDisposable
         CancellationToken cancellationToken = default)
     {
         return await RenderStringAsync(templateKey, templateContent, model, cancellationToken);
-    }
-
-    public async ValueTask DisposeAsync()
-    {
-        // RazorLightEngine doesn't need explicit disposal
-        await Task.CompletedTask;
     }
 }
 

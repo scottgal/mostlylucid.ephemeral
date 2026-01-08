@@ -1,27 +1,24 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
-using Mostlylucid.Ephemeral;
 
 namespace Mostlylucid.Ephemeral.Atoms.WaveOrchestrator;
 
 /// <summary>
 ///     Wave-based parallel orchestrator with circuit breaker and early exit.
-///
 ///     Executes workers in configurable waves:
 ///     - Workers in the same wave run in parallel (up to maxParallelPerWave)
 ///     - Waves execute sequentially
 ///     - Early exit when earlyExitCondition is met
 ///     - Circuit breaker per worker prevents cascading failures
-///
 ///     Inspired by BotDetection blackboard orchestrator pattern.
 /// </summary>
 public class WaveOrchestratorAtom<TInput, TOutput> : IAsyncDisposable
 {
-    private readonly IReadOnlyList<WaveWorker<TInput, TOutput>> _workers;
-    private readonly WaveOrchestratorOptions<TOutput> _options;
-    private readonly SignalSink? _signals;
     private readonly ConcurrentDictionary<string, CircuitBreakerState> _circuitBreakers = new();
     private readonly SemaphoreSlim _lock = new(1, 1);
+    private readonly WaveOrchestratorOptions<TOutput> _options;
+    private readonly SignalSink? _signals;
+    private readonly IReadOnlyList<WaveWorker<TInput, TOutput>> _workers;
 
     public WaveOrchestratorAtom(
         IEnumerable<WaveWorker<TInput, TOutput>> workers,
@@ -31,6 +28,12 @@ public class WaveOrchestratorAtom<TInput, TOutput> : IAsyncDisposable
         _workers = workers.OrderBy(w => w.Wave).ThenBy(w => w.Priority).ToList();
         _options = options ?? new WaveOrchestratorOptions<TOutput>();
         _signals = signals;
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        _lock.Dispose();
+        await Task.CompletedTask;
     }
 
     /// <summary>
@@ -48,7 +51,7 @@ public class WaveOrchestratorAtom<TInput, TOutput> : IAsyncDisposable
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         cts.CancelAfter(_options.TotalTimeout);
 
-        _signals?.Raise($"wave.orchestrator.started");
+        _signals?.Raise("wave.orchestrator.started");
 
         try
         {
@@ -96,18 +99,18 @@ public class WaveOrchestratorAtom<TInput, TOutput> : IAsyncDisposable
 
                 // Small delay between waves
                 if (waveNumber <= maxWave && _options.WaveInterval > TimeSpan.Zero)
-                {
                     await Task.Delay(_options.WaveInterval, cts.Token);
-                }
             }
         }
-        catch (OperationCanceledException) when (cts.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
+        catch (OperationCanceledException) when (cts.IsCancellationRequested &&
+                                                 !cancellationToken.IsCancellationRequested)
         {
             _signals?.Raise($"wave.timeout:elapsed={stopwatch.ElapsedMilliseconds}ms");
         }
 
         stopwatch.Stop();
-        _signals?.Raise($"wave.orchestrator.completed:duration={stopwatch.ElapsedMilliseconds}ms:results={results.Count}");
+        _signals?.Raise(
+            $"wave.orchestrator.completed:duration={stopwatch.ElapsedMilliseconds}ms:results={results.Count}");
 
         return new WaveOrchestratorResult<TOutput>
         {
@@ -130,10 +133,7 @@ public class WaveOrchestratorAtom<TInput, TOutput> : IAsyncDisposable
         var maxParallel = _options.MaxParallelPerWave;
 
         // Check for per-wave parallelism override
-        if (_options.ParallelismPerWave.TryGetValue(waveNumber, out var overrideValue))
-        {
-            maxParallel = overrideValue;
-        }
+        if (_options.ParallelismPerWave.TryGetValue(waveNumber, out var overrideValue)) maxParallel = overrideValue;
 
         if (maxParallel <= 1 || workers.Length == 1)
         {
@@ -215,7 +215,8 @@ public class WaveOrchestratorAtom<TInput, TOutput> : IAsyncDisposable
             failedWorkers.Add(worker.Name);
             RecordFailure(worker.Name);
 
-            _signals?.Raise($"worker.failed:{worker.Name}:duration={stopwatch.ElapsedMilliseconds}ms:error={ex.Message}");
+            _signals?.Raise(
+                $"worker.failed:{worker.Name}:duration={stopwatch.ElapsedMilliseconds}ms:error={ex.Message}");
 
             return default;
         }
@@ -239,6 +240,7 @@ public class WaveOrchestratorAtom<TInput, TOutput> : IAsyncDisposable
                 state.State = CircuitState.HalfOpen;
                 return true;
             }
+
             return false;
         }
 
@@ -270,12 +272,6 @@ public class WaveOrchestratorAtom<TInput, TOutput> : IAsyncDisposable
     }
 
     #endregion
-
-    public async ValueTask DisposeAsync()
-    {
-        _lock.Dispose();
-        await Task.CompletedTask;
-    }
 }
 
 /// <summary>
@@ -340,7 +336,7 @@ internal class CircuitBreakerState
 
 internal enum CircuitState
 {
-    Closed,   // Normal operation
-    Open,     // Failing, reject requests
-    HalfOpen  // Trying one request to see if recovered
+    Closed, // Normal operation
+    Open, // Failing, reject requests
+    HalfOpen // Trying one request to see if recovered
 }

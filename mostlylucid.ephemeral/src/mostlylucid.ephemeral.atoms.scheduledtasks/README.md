@@ -2,7 +2,6 @@
 
 Durable task + cron-driven helpers that keep scheduled work visible until someone handles it.
 
-> 🚨🚨 WARNING 🚨🚨 - Though in the 1.x range of version THINGS WILL STILL BREAK. This is the lab for developing this concept when stabilized it'll becoe the first *stylo*flow release 🚨🚨🚨
 
 
 ## DurableTaskAtom
@@ -22,7 +21,9 @@ atom, call `durable.WaitForIdleAsync()`. `DrainAsync` still requires `Complete()
 to stop accepting new work, but `WaitForIdleAsync` simply polls until `PendingCount` and `ActiveCount` hit zero so you
 can enqueue more work afterwards.
 
-Each DurableTask carries the schedule Name, Signal, optional Key, the configured Payload, and the human-readable Description. Downstream listeners treat the emitted signal as the durable record of what ran (filenames, URLs, metadata, etc.) so they can keep logging, tracing, or acknowledging the work in the same coordinator window.
+Each DurableTask carries the schedule Name, Signal, optional Key, the configured Payload, and the human-readable
+Description. Downstream listeners treat the emitted signal as the durable record of what ran (filenames, URLs, metadata,
+etc.) so they can keep logging, tracing, or acknowledging the work in the same coordinator window.
 `
 
 The atom exposes EnqueueAsync to post durable work plus DrainAsync/DisposeAsync for graceful shutdown.

@@ -2,7 +2,7 @@
 
 [![NuGet](https://img.shields.io/nuget/v/mostlylucid.ephemeral.complete.svg)](https://www.nuget.org/packages/mostlylucid.ephemeral.complete)
 
-> 🚨🚨 WARNING 🚨🚨 - Though in the 1.x range of version THINGS WILL STILL BREAK. This is the lab for developing this concept when stabilized it'll becoe the first *stylo*flow release 🚨🚨🚨
+
 
 
 **All of Mostlylucid.Ephemeral in a single DLL** - bounded async execution with signal-based coordination.
@@ -100,7 +100,8 @@ app.MapPost("/", async ([FromServices] IEphemeralCoordinatorFactory<WorkItem> fa
 await app.RunAsync();
 ```
 
-The familiar `services.AddCoordinator<T>()` helpers and `AddEphemeralSignalJobRunner<T>()` keep service registration concise, let DI own the sink/runner, and make the new responsibility/cache/logging stories a single click away.
+The familiar `services.AddCoordinator<T>()` helpers and `AddEphemeralSignalJobRunner<T>()` keep service registration
+concise, let DI own the sink/runner, and make the new responsibility/cache/logging stories a single click away.
 
 ### Attribute-driven jobs
 
@@ -194,7 +195,10 @@ schedules via `ScheduledTaskDefinition` (cron, signal, optional `key`, `payload`
 raises the configured signal inside a coordinator window, so it inherits pinning, logging, and responsibility semantics
 while your molecules or attribute pipelines respond to the emitted signal wave.
 
-Every `DurableTask` carries the schedule `Name`, `Signal`, optional `Key`, even a typed `Payload`, and `Description`, so downstream listeners immediately know which job ran and what metadata (filenames, URLs, etc.) to consume. Call `DurableTaskAtom.WaitForIdleAsync()` when you just want to wait for the current burst of scheduled work to finish without completing the atom, keeping the scheduler ready for the next cron tick.
+Every `DurableTask` carries the schedule `Name`, `Signal`, optional `Key`, even a typed `Payload`, and `Description`, so
+downstream listeners immediately know which job ran and what metadata (filenames, URLs, etc.) to consume. Call
+`DurableTaskAtom.WaitForIdleAsync()` when you just want to wait for the current burst of scheduled work to finish
+without completing the atom, keeping the scheduler ready for the next cron tick.
 
 ### Logging & Signals
 
@@ -584,7 +588,8 @@ await atom.DrainAsync();
 
 > **Package:** [mostlylucid.ephemeral.atoms.data](https://www.nuget.org/packages/mostlylucid.ephemeral.atoms.data)
 
-Shared configuration for storage atoms (`DataStorageConfig`, `IDataStorageAtom<TKey, TValue>`) plus the signal conventions that drive file, SQLite, and PostgreSQL adapters.
+Shared configuration for storage atoms (`DataStorageConfig`, `IDataStorageAtom<TKey, TValue>`) plus the signal
+conventions that drive file, SQLite, and PostgreSQL adapters.
 
 ```csharp
 using Mostlylucid.Ephemeral.Atoms.Data;
@@ -606,7 +611,11 @@ storage.EnqueueSave("order-123", new Order { Id = "order-123", Total = 42.00m })
 var loaded = await storage.LoadAsync("order-123");
 ```
 
-Use the same `DataStorageConfig` with [`Mostlylucid.Ephemeral.Atoms.Data.Sqlite`](https://www.nuget.org/packages/mostlylucid.ephemeral.atoms.data.sqlite) or [`Mostlylucid.Ephemeral.Atoms.Data.Postgres`](https://www.nuget.org/packages/mostlylucid.ephemeral.atoms.data.postgres) implementations for durable, signal-driven persistence powered by SQLite/Postgres. Attribute jobs can subscribe to `saved.data.{dbname}` signals to kick off downstream work while `load.data.{dbname}` triggers hydrate caches.
+Use the same `DataStorageConfig` with [
+`Mostlylucid.Ephemeral.Atoms.Data.Sqlite`](https://www.nuget.org/packages/mostlylucid.ephemeral.atoms.data.sqlite) or [
+`Mostlylucid.Ephemeral.Atoms.Data.Postgres`](https://www.nuget.org/packages/mostlylucid.ephemeral.atoms.data.postgres)
+implementations for durable, signal-driven persistence powered by SQLite/Postgres. Attribute jobs can subscribe to
+`saved.data.{dbname}` signals to kick off downstream work while `load.data.{dbname}` triggers hydrate caches.
 
 
 ---
@@ -679,9 +688,13 @@ Console.WriteLine($"Entries: {stats.TotalEntries}, Hot: {stats.HotEntries}");
 
 ### VolatileOperationAtom
 
-> **Package:** [mostlylucid.ephemeral.atoms.volatile](https://www.nuget.org/packages/mostlylucid.ephemeral.atoms.volatile)
+> **Package:
+** [mostlylucid.ephemeral.atoms.volatile](https://www.nuget.org/packages/mostlylucid.ephemeral.atoms.volatile)
 
-Drop operations the instant they emit a kill signal so the window stays lightweight even under very high throughput. The atom listens for a configurable pattern (default `kill.*`) on the shared `SignalSink`, calls `IOperationEvictor.TryKill` with the captured operation ID, and still lets the coordinator fire its echo/finalization hooks before the entry disappears.
+Drop operations the instant they emit a kill signal so the window stays lightweight even under very high throughput. The
+atom listens for a configurable pattern (default `kill.*`) on the shared `SignalSink`, calls `IOperationEvictor.TryKill`
+with the captured operation ID, and still lets the coordinator fire its echo/finalization hooks before the entry
+disappears.
 
 ```csharp
 var sink = new SignalSink();
@@ -699,7 +712,8 @@ using var volatileAtom = new VolatileOperationAtom(sink, coordinator);
 // inside the job: emitter.Emit("kill.job");
 ```
 
-Pair the atom with `OperationEchoMaker`/`OperationEchoAtom` so typed `*.echo.*` signals survive the kill as a tiny TTL’d record.
+Pair the atom with `OperationEchoMaker`/`OperationEchoAtom` so typed `*.echo.*` signals survive the kill as a tiny TTL’d
+record.
 
 ### EphemeralLruCache
 
@@ -735,7 +749,8 @@ var signals = cache.GetSignals("cache.*"); // cache.hot/evict/miss/hit
 
 ### Window Size Atom
 
-> **Package:** [mostlylucid.ephemeral.atoms.windowsize](https://www.nuget.org/packages/mostlylucid.ephemeral.atoms.windowsize)
+> **Package:
+** [mostlylucid.ephemeral.atoms.windowsize](https://www.nuget.org/packages/mostlylucid.ephemeral.atoms.windowsize)
 
 The atom listens for `window.size.*` or `window.time.*` commands, clamps the requested capacity/retention, and calls
 `SignalSink.UpdateWindowSize` so you can expand or shrink the shared window from another coordinator or signal watcher.
@@ -751,9 +766,11 @@ sink.Raise("window.time.set:00:02:00");
 ### Taxonomy Atoms
 
 > **Packages:**
-> - Base contracts: [mostlylucid.ephemeral.atoms.taxonomy](https://www.nuget.org/packages/mostlylucid.ephemeral.atoms.taxonomy) (includes `MultiTaxonomyAtom`)
+> - Base
+    contracts: [mostlylucid.ephemeral.atoms.taxonomy](https://www.nuget.org/packages/mostlylucid.ephemeral.atoms.taxonomy) (
+    includes `MultiTaxonomyAtom`)
 > - Atom kinds: `mostlylucid.ephemeral.atoms.taxonomy.sensor`, `.extractor`, `.embedder`, `.retriever`, `.proposer`,
->   `.constrainer`, `.ranker`, `.renderer`, `.coordinator`, `.feedback`, `.guard`
+    > `.constrainer`, `.ranker`, `.renderer`, `.coordinator`, `.feedback`, `.guard`
 
 Generic atom kinds that align to the taxonomy (sensor, extractor, embedder, retriever, proposer, constrainer, ranker,
 renderer, coordinator, feedback, guard). Each atom emits a typed signal on completion and carries an AtomContract for
@@ -778,7 +795,8 @@ await proposer.EnqueueAsync("hello");
 
 ### EscalatorAtom
 
-> **Package:** [mostlylucid.ephemeral.atoms.escalator](https://www.nuget.org/packages/mostlylucid.ephemeral.atoms.escalator)
+> **Package:
+** [mostlylucid.ephemeral.atoms.escalator](https://www.nuget.org/packages/mostlylucid.ephemeral.atoms.escalator)
 
 Promote typed, ephemeral signals into durable sinks. EscalatorAtoms are the preferred way to persist outputs from
 short-lived coordinators.
@@ -1333,7 +1351,9 @@ Modern DI roots may prefer the shorter helpers such as `services.AddCoordinator<
 
 ## Lane + Key Configuration (Simple config, hidden power)
 
-`mostlylucid.ephemeral.complete` bundles `PriorityWorkCoordinator` and the keyed variants, so the same “AddCoordinator” surface you use at startup can send work through named lanes. Configure a few lane names, give them optional `MaxDepth`, and rely on the coordinator to drain “hot” lanes before “slow” lanes while still observing any request keys.
+`mostlylucid.ephemeral.complete` bundles `PriorityWorkCoordinator` and the keyed variants, so the same “AddCoordinator”
+surface you use at startup can send work through named lanes. Configure a few lane names, give them optional `MaxDepth`,
+and rely on the coordinator to drain “hot” lanes before “slow” lanes while still observing any request keys.
 
 ```csharp
 var sink = new SignalSink();
@@ -1354,7 +1374,8 @@ await coordinator.EnqueueAsync(new WorkItem("order-42"), laneName: "hot");
 await coordinator.EnqueueAsync(new WorkItem("order-43"), laneName: "slow");
 ```
 
-Use `PriorityKeyedWorkCoordinator` if you also need per-key ordering—the lane decisions still happen in the pump, but a built-in key selector keeps every partition sequential.
+Use `PriorityKeyedWorkCoordinator` if you also need per-key ordering—the lane decisions still happen in the pump, but a
+built-in key selector keeps every partition sequential.
 
 ```csharp
 var keyed = new PriorityKeyedWorkCoordinator<WorkItem, string>(
@@ -1368,7 +1389,8 @@ await keyed.EnqueueAsync(new WorkItem("order-42") { CustomerId = "A" }, laneName
 await keyed.EnqueueAsync(new WorkItem("order-44") { CustomerId = "B" }, laneName: "normal");
 ```
 
-Think of the coordinator as the chef, lanes as the bowls, and keys as the spoons that keep each customer’s order sequential—the hidden power that keeps work ordered, throttled, and signal-aware without extra ceremony.
+Think of the coordinator as the chef, lanes as the bowls, and keys as the spoons that keep each customer’s order
+sequential—the hidden power that keeps work ordered, throttled, and signal-aware without extra ceremony.
 
 ---
 

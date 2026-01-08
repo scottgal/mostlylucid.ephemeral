@@ -1,16 +1,15 @@
-using Mostlylucid.Ephemeral;
-using Mostlylucid.Ephemeral.Atoms.ImageSharp;
-using ImageSharpSize = SixLabors.ImageSharp.Size;
-using SpectreColor = Spectre.Console.Color;
-using Spectre.Console;
 using System.Diagnostics;
+using System.Text;
+using Mostlylucid.Ephemeral.Atoms.ImageSharp;
+using Spectre.Console;
+using ImageSharpSize = SixLabors.ImageSharp.Size;
 
 namespace Mostlylucid.Ephemeral.Demo;
 
 /// <summary>
-/// Demonstrates the nested coordinator pattern - an atom that internally uses
-/// a coordinator for bounded parallel work while propagating signals with
-/// operation IDs from sub-operations.
+///     Demonstrates the nested coordinator pattern - an atom that internally uses
+///     a coordinator for bounded parallel work while propagating signals with
+///     operation IDs from sub-operations.
 /// </summary>
 public static class ParallelResizeDemo
 {
@@ -30,11 +29,11 @@ public static class ParallelResizeDemo
 
         if (sourceImage == null)
         {
-            Console.WriteLine($"Error: Could not find test image logo.png");
-            Console.WriteLine($"Tried locations:");
-            Console.WriteLine($"  - {{AppContext.BaseDirectory}}/testdata/logo.png");
-            Console.WriteLine($"  - {{CurrentDirectory}}/testdata/logo.png");
-            Console.WriteLine($"  - {{CurrentDirectory}}/../../testdata/logo.png (from build output)");
+            Console.WriteLine("Error: Could not find test image logo.png");
+            Console.WriteLine("Tried locations:");
+            Console.WriteLine("  - {AppContext.BaseDirectory}/testdata/logo.png");
+            Console.WriteLine("  - {CurrentDirectory}/testdata/logo.png");
+            Console.WriteLine("  - {CurrentDirectory}/../../testdata/logo.png (from build output)");
             return;
         }
 
@@ -100,12 +99,13 @@ public static class ParallelResizeDemo
                 }
 
                 // Show live status (overwrite previous line)
-                Console.Write($"\r\u001b[K"); // Clear line
+                Console.Write("\r\u001b[K"); // Clear line
                 var pct = (int)(100.0 * imagesCompleted / imageCount);
                 Console.Write($"Images: {imagesCompleted}/{imageCount} ({pct}%) | ");
                 Console.Write($"Resizing: {string.Join(", ", currentlyResizing.Take(3))}");
                 if (currentlyResizing.Count > 3) Console.Write($" +{currentlyResizing.Count - 3} more");
-                Console.Write($" | Size variants completed (this run): {completedResizes.Count}/{resizeOptions.Sizes.Count}");
+                Console.Write(
+                    $" | Size variants completed (this run): {completedResizes.Count}/{resizeOptions.Sizes.Count}");
             }
         });
 
@@ -114,7 +114,8 @@ public static class ParallelResizeDemo
 
         Console.WriteLine($"Processing {imageCount} images (each with {resizeOptions.Sizes.Count} sizes)");
         Console.WriteLine($"Total resize operations: {imageCount * resizeOptions.Sizes.Count} operations");
-        Console.WriteLine($"Max parallelism: {resizeOptions.MaxParallelism} concurrent resizes ({Environment.ProcessorCount} processors)\n");
+        Console.WriteLine(
+            $"Max parallelism: {resizeOptions.MaxParallelism} concurrent resizes ({Environment.ProcessorCount} processors)\n");
         Console.WriteLine("Watch for operation IDs - each resize is a sub-operation");
         Console.WriteLine("Press [ESC] to cancel all in-progress operations\n");
 
@@ -131,10 +132,11 @@ public static class ParallelResizeDemo
                     if (Console.KeyAvailable && Console.ReadKey(true).Key == ConsoleKey.Escape)
                     {
                         Console.WriteLine("\n\n[ESC] pressed - raising 'imagesharp.stop' signal...");
-                        sink.Raise("imagesharp.stop");  // Global stop signal
+                        sink.Raise("imagesharp.stop"); // Global stop signal
                         cts.Cancel();
                         break;
                     }
+
                     Thread.Sleep(50);
                 }
             }
@@ -156,25 +158,21 @@ public static class ParallelResizeDemo
         try
         {
             // Process each image
-            for (int i = 0; i < imageCount && !cts.Token.IsCancellationRequested; i++)
-            {
+            for (var i = 0; i < imageCount && !cts.Token.IsCancellationRequested; i++)
                 try
                 {
                     var job = new ImageJob(sourceImage, outputDir, 0, i);
                     var result = await pipeline.ProcessAsync(job, cts.Token);
                     processedCount++;
 
-                    if (i % 5 == 0)  // Progress update every 5 images
-                    {
+                    if (i % 5 == 0) // Progress update every 5 images
                         Console.WriteLine($"  Progress: {processedCount}/{imageCount} images processed");
-                    }
                 }
                 catch (OperationCanceledException)
                 {
                     cancelledCount++;
                     Console.WriteLine($"  Image {i} cancelled");
                 }
-            }
         }
         catch (OperationCanceledException)
         {
@@ -182,20 +180,20 @@ public static class ParallelResizeDemo
         }
 
         sw.Stop();
-        cts.Cancel();  // Ensure escape task stops
+        cts.Cancel(); // Ensure escape task stops
         await escapeTask;
 
         // Analysis
         var duration = sw.Elapsed;
         Console.WriteLine($"\n{'=',-60}");
-        Console.WriteLine($"Processing Summary:");
+        Console.WriteLine("Processing Summary:");
         Console.WriteLine($"{'=',-60}");
         Console.WriteLine($"  Total time:        {duration.TotalSeconds:F2}s");
         Console.WriteLine($"  Images processed:  {processedCount}/{imageCount}");
         Console.WriteLine($"  Images cancelled:  {cancelledCount}");
         Console.WriteLine($"  Throughput:        {processedCount / duration.TotalSeconds:F1} images/sec");
 
-        Console.WriteLine($"\nSignal Analysis:");
+        Console.WriteLine("\nSignal Analysis:");
         Console.WriteLine($"  Total signals emitted: {signalLog.Count}");
 
         var uniqueOpIds = signalLog
@@ -214,17 +212,14 @@ public static class ParallelResizeDemo
             .Take(5);
 
         Console.WriteLine("\n  Top signal types:");
-        foreach (var group in signalsByType)
-        {
-            Console.WriteLine($"    {group.Key}.*: {group.Count()} signals");
-        }
+        foreach (var group in signalsByType) Console.WriteLine($"    {group.Key}.*: {group.Count()} signals");
 
         // Check for cancellation signals
         var stopSignals = signalLog.Count(s => s.Signal.Contains("stop") || s.Signal.Contains("cancel"));
         if (stopSignals > 0)
         {
             Console.WriteLine($"\n  🛑 Cancellation signals detected: {stopSignals} (e.g. 'imagesharp.stop')");
-            Console.WriteLine($"      ESC → imagesharp.stop → coordinators react");
+            Console.WriteLine("      ESC → imagesharp.stop → coordinators react");
         }
 
         // Show parallel execution pattern (first few operations)
@@ -242,7 +237,7 @@ public static class ParallelResizeDemo
 
         if (startSignals.Any())
         {
-            Console.WriteLine($"\n  Execution timeline (first 10 operations):");
+            Console.WriteLine("\n  Execution timeline (first 10 operations):");
             Console.WriteLine($"    First resize started:  {startSignals.First().Timestamp:HH:mm:ss.fff}");
             Console.WriteLine($"    Last started:          {startSignals.Last().Timestamp:HH:mm:ss.fff}");
             if (completeSignals.Any())
@@ -267,11 +262,11 @@ public static class ParallelResizeDemo
         // count 'file.saved' + sum 'resize.size.bytes' to reconstruct output stats
         // without touching the filesystem. Signals = observability substrate.
 
-        Console.WriteLine($"\n💡 Key Patterns Demonstrated:");
-        Console.WriteLine($"   ✓ Each resize operation gets its own operation ID");
+        Console.WriteLine("\n💡 Key Patterns Demonstrated:");
+        Console.WriteLine("   ✓ Each resize operation gets its own operation ID");
         Console.WriteLine($"   ✓ Bounded parallelism: {resizeOptions.MaxParallelism} concurrent resizes");
-        Console.WriteLine($"   ✓ Signal-based cancellation via [ESC] → 'imagesharp.stop'");
-        Console.WriteLine($"   ✓ Nested coordinators propagate operation IDs automatically");
+        Console.WriteLine("   ✓ Signal-based cancellation via [ESC] → 'imagesharp.stop'");
+        Console.WriteLine("   ✓ Nested coordinators propagate operation IDs automatically");
     }
 
     public static async Task RunContinuousAsync()
@@ -289,14 +284,14 @@ public static class ParallelResizeDemo
         var sourceImage = FindTestImage();
         if (sourceImage == null)
         {
-            Console.WriteLine($"Error: Could not find test image logo.png");
+            Console.WriteLine("Error: Could not find test image logo.png");
             return;
         }
 
         var outputDir = Path.Combine(AppContext.BaseDirectory, "output", "parallel-resize-continuous");
 
         // Window sized for ~2 batches: 80 images × 3 sizes × 6 signals × 2 batches = ~2880 signals
-        var sink = new SignalSink(maxCapacity: 3000, maxAge: TimeSpan.FromSeconds(30));
+        var sink = new SignalSink(3000, TimeSpan.FromSeconds(30));
 
         var resizeOptions = new ParallelResizeOptions
         {
@@ -325,10 +320,13 @@ public static class ParallelResizeDemo
                         cts.Cancel();
                         break;
                     }
+
                     Thread.Sleep(50);
                 }
             }
-            catch (InvalidOperationException) { }
+            catch (InvalidOperationException)
+            {
+            }
         });
 
         const int imagesPerBatch = 20;
@@ -347,7 +345,8 @@ public static class ParallelResizeDemo
         var memoryHistory = new List<double>();
         var maxHistoryPoints = 20;
 
-        AnsiConsole.WriteLine($"Processing {imagesPerBatch} images/batch × {resizeOptions.Sizes.Count} sizes = {imagesPerBatch * resizeOptions.Sizes.Count} resizes/batch");
+        AnsiConsole.WriteLine(
+            $"Processing {imagesPerBatch} images/batch × {resizeOptions.Sizes.Count} sizes = {imagesPerBatch * resizeOptions.Sizes.Count} resizes/batch");
         AnsiConsole.WriteLine($"Max parallelism: {resizeOptions.MaxParallelism} concurrent resize operations");
         AnsiConsole.WriteLine($"Signal window: {sink.MaxCapacity} events, {sink.MaxAge.TotalSeconds}s retention\n");
 
@@ -355,20 +354,18 @@ public static class ParallelResizeDemo
         sink.Subscribe(signal =>
         {
             if (signal.Signal.Contains(".complete") && !signal.Signal.StartsWith("resize.parallel"))
-            {
                 lock (statusLock)
                 {
                     completedResizes++;
                     totalProcessed++;
                     lastUpdateTime = DateTimeOffset.UtcNow;
                 }
-            }
         });
 
         // Track previous values for trend arrows
         double prevThroughput = 0;
         double prevMemory = 0;
-        int prevSignals = 0;
+        var prevSignals = 0;
 
         try
         {
@@ -400,19 +397,18 @@ public static class ParallelResizeDemo
                         }
 
                         // Process batch - metrics update LIVE via signals
-                        for (int i = 0; i < imagesPerBatch && !cts.Token.IsCancellationRequested; i++)
+                        for (var i = 0; i < imagesPerBatch && !cts.Token.IsCancellationRequested; i++)
                         {
                             var job = new ImageJob(sourceImage, outputDir, 0, i);
                             await pipeline.ProcessAsync(job, cts.Token);
 
                             // Update dashboard every ~200ms
                             if ((DateTimeOffset.UtcNow - lastUpdateTime).TotalMilliseconds > 200)
-                            {
                                 lock (statusLock)
                                 {
                                     var uptime = DateTimeOffset.UtcNow - startTime;
                                     var throughput = totalProcessed / uptime.TotalSeconds;
-                                    var memoryMB = GC.GetTotalMemory(forceFullCollection: false) / (1024.0 * 1024.0);
+                                    var memoryMB = GC.GetTotalMemory(false) / (1024.0 * 1024.0);
                                     var signalCount = sink.Count;
 
                                     // Track history
@@ -451,17 +447,21 @@ public static class ParallelResizeDemo
                                         "[green]Throughput[/]",
                                         $"[green]{throughput:F1}/s[/]",
                                         throughputTrend,
-                                        throughputHistory.Count > 1 ? GenerateSparkline(throughputHistory, Color.Green) : "[grey]collecting...[/]"
+                                        throughputHistory.Count > 1
+                                            ? GenerateSparkline(throughputHistory, Color.Green)
+                                            : "[grey]collecting...[/]"
                                     );
 
                                     dashboard.AddRow(
                                         "[blue]Memory[/]",
                                         $"[blue]{memoryMB:F1} MB[/]",
                                         memoryTrend,
-                                        memoryHistory.Count > 1 ? GenerateSparkline(memoryHistory, Color.Blue) : "[grey]collecting...[/]"
+                                        memoryHistory.Count > 1
+                                            ? GenerateSparkline(memoryHistory, Color.Blue)
+                                            : "[grey]collecting...[/]"
                                     );
 
-                                    var signalPercent = (int)((signalCount / (double)sink.MaxCapacity) * 100);
+                                    var signalPercent = (int)(signalCount / (double)sink.MaxCapacity * 100);
                                     dashboard.AddRow(
                                         "[grey]Signals[/]",
                                         $"[grey]{signalCount}/{sink.MaxCapacity}[/]",
@@ -484,7 +484,6 @@ public static class ParallelResizeDemo
                                     prevMemory = memoryMB;
                                     prevSignals = signalCount;
                                 }
-                            }
                         }
 
                         // Occasional detailed checkpoint (pause live display)
@@ -495,24 +494,25 @@ public static class ParallelResizeDemo
                             {
                                 var uptime = DateTimeOffset.UtcNow - startTime;
                                 var throughput = totalProcessed / uptime.TotalSeconds;
-                                var memoryMB = GC.GetTotalMemory(forceFullCollection: false) / (1024.0 * 1024.0);
+                                var memoryMB = GC.GetTotalMemory(false) / (1024.0 * 1024.0);
                                 var signalCount = sink.Count;
 
                                 // Show checkpoint panel
                                 checkpoint = new Panel(
                                     new Markup($"[cyan1]Total resizes:[/] {totalProcessed:N0}\n" +
-                                              $"[cyan1]Avg throughput:[/] {throughput:F1} resizes/sec\n" +
-                                              $"[cyan1]Memory usage:[/] {memoryMB:F1} MB\n" +
-                                              $"[cyan1]Signal window:[/] {signalCount} / {sink.MaxCapacity} live ({totalProcessed:N0} total)\n" +
-                                              $"[cyan1]GC collections:[/] Gen0={GC.CollectionCount(0)}, Gen1={GC.CollectionCount(1)}, Gen2={GC.CollectionCount(2)}\n" +
-                                              $"[cyan1]Uptime:[/] {uptime:hh\\:mm\\:ss}\n" +
-                                              $"[green]✓ Status:[/] Throughput and memory flat → no leak detected so far"))
+                                               $"[cyan1]Avg throughput:[/] {throughput:F1} resizes/sec\n" +
+                                               $"[cyan1]Memory usage:[/] {memoryMB:F1} MB\n" +
+                                               $"[cyan1]Signal window:[/] {signalCount} / {sink.MaxCapacity} live ({totalProcessed:N0} total)\n" +
+                                               $"[cyan1]GC collections:[/] Gen0={GC.CollectionCount(0)}, Gen1={GC.CollectionCount(1)}, Gen2={GC.CollectionCount(2)}\n" +
+                                               $"[cyan1]Uptime:[/] {uptime:hh\\:mm\\:ss}\n" +
+                                               $"[green]✓ Status:[/] Throughput and memory flat → no leak detected so far"))
                                 {
                                     Header = new PanelHeader($"[yellow]═══ Checkpoint at Batch {iteration} ═══[/]"),
                                     Border = BoxBorder.Double,
                                     BorderStyle = new Style(Color.Yellow)
                                 };
                             }
+
                             ctx.UpdateTarget(checkpoint);
                             await Task.Delay(2000, cts.Token); // Show checkpoint for 2 seconds
                         }
@@ -538,32 +538,32 @@ public static class ParallelResizeDemo
         Console.WriteLine($"Total resizes:     {totalProcessed:N0}");
         Console.WriteLine($"Total time:        {finalUptime.TotalSeconds:F1}s");
         Console.WriteLine($"Avg throughput:    {finalThroughput:F1} resizes/sec");
-        Console.WriteLine($"Final memory:      {GC.GetTotalMemory(forceFullCollection: false) / (1024.0 * 1024.0):F1} MB");
-        Console.WriteLine($"\n✅ Continuous mode demonstrates:");
-        Console.WriteLine($"   • Stable memory usage (no leaks)");
-        Console.WriteLine($"   • Automatic signal window cleanup");
-        Console.WriteLine($"   • Consistent throughput over time");
-        Console.WriteLine($"   • Operation eviction working correctly");
-        Console.WriteLine($"   • LIVE metrics driven by signals");
-        Console.WriteLine($"\nAll metrics above are driven purely from Ephemeral signals (no extra tracing code).");
-        Console.WriteLine($"\n(Note: If exit code is non-zero, this indicates manual ESC termination of the continuous loop.)");
+        Console.WriteLine($"Final memory:      {GC.GetTotalMemory(false) / (1024.0 * 1024.0):F1} MB");
+        Console.WriteLine("\n✅ Continuous mode demonstrates:");
+        Console.WriteLine("   • Stable memory usage (no leaks)");
+        Console.WriteLine("   • Automatic signal window cleanup");
+        Console.WriteLine("   • Consistent throughput over time");
+        Console.WriteLine("   • Operation eviction working correctly");
+        Console.WriteLine("   • LIVE metrics driven by signals");
+        Console.WriteLine("\nAll metrics above are driven purely from Ephemeral signals (no extra tracing code).");
+        Console.WriteLine(
+            "\n(Note: If exit code is non-zero, this indicates manual ESC termination of the continuous loop.)");
     }
 
     private static string GetTrendArrow(double current, double previous)
     {
         if (previous == 0) return "[grey]—[/]";
 
-        var change = ((current - previous) / previous) * 100;
+        var change = (current - previous) / previous * 100;
 
         if (Math.Abs(change) < 1.0)
             return "[grey]→[/]"; // Stable (< 1% change)
-        else if (change > 0)
+        if (change > 0)
             return "[green]↑[/]"; // Increasing
-        else
-            return "[red]↓[/]"; // Decreasing
+        return "[red]↓[/]"; // Decreasing
     }
 
-    private static string GenerateSparkline(List<double> values, Spectre.Console.Color color)
+    private static string GenerateSparkline(List<double> values, Color color)
     {
         if (values.Count < 2) return "";
 
@@ -576,11 +576,9 @@ public static class ParallelResizeDemo
 
         // If values are stable (range < 5% of max), show flat line
         if (range < max * 0.05)
-        {
             return $"[{color}]" + string.Concat(Enumerable.Repeat("▄", values.Count)) + " (stable)[/]";
-        }
 
-        var sparkline = new System.Text.StringBuilder();
+        var sparkline = new StringBuilder();
         sparkline.Append($"[{color}]");
 
         foreach (var value in values)
@@ -603,7 +601,7 @@ public static class ParallelResizeDemo
             Path.Combine(AppContext.BaseDirectory, "testdata", "logo.png"),
             Path.Combine(Directory.GetCurrentDirectory(), "testdata", "logo.png"),
             Path.Combine(Directory.GetCurrentDirectory(), "..", "..", "testdata", "logo.png"),
-            Path.Combine(Directory.GetCurrentDirectory(), "..", "..", "..", "testdata", "logo.png"),
+            Path.Combine(Directory.GetCurrentDirectory(), "..", "..", "..", "testdata", "logo.png")
         };
 
         foreach (var path in possiblePaths)
@@ -623,7 +621,7 @@ public static class ParallelResizeDemo
     {
         string[] sizes = ["B", "KB", "MB", "GB"];
         double len = bytes;
-        int order = 0;
+        var order = 0;
 
         while (len >= 1024 && order < sizes.Length - 1)
         {

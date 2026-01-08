@@ -7,11 +7,6 @@ namespace Mostlylucid.Ephemeral;
 public interface IEphemeralCoordinator : IAsyncDisposable
 {
     /// <summary>
-    ///     Complete intake (no new items) and wait for all work to finish.
-    /// </summary>
-    Task DrainAsync(CancellationToken cancellationToken = default);
-
-    /// <summary>
     ///     Whether Complete() has been called.
     /// </summary>
     bool IsCompleted { get; }
@@ -20,6 +15,11 @@ public interface IEphemeralCoordinator : IAsyncDisposable
     ///     Whether all work is done (completed + drained).
     /// </summary>
     bool IsDrained { get; }
+
+    /// <summary>
+    ///     Complete intake (no new items) and wait for all work to finish.
+    /// </summary>
+    Task DrainAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
     ///     Signal that no more items will be added.

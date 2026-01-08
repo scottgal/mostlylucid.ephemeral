@@ -21,7 +21,8 @@ dotnet add package mostlylucid.ephemeral.atoms.taxonomy
 - AtomContract
 - ITaxonomyShard
 - TaxonomyShard
-- Shard definitions (SensorShard, ExtractorShard, EmbedderShard, RetrieverShard, ProposerShard, ConstrainerShard, RankerShard, RendererShard, CoordinatorShard, FeedbackShard, EscalatorShard, GuardShard)
+- Shard definitions (SensorShard, ExtractorShard, EmbedderShard, RetrieverShard, ProposerShard, ConstrainerShard,
+  RankerShard, RendererShard, CoordinatorShard, FeedbackShard, EscalatorShard, GuardShard)
 - SignalDrivenAtom
 - MultiTaxonomyAtom
 

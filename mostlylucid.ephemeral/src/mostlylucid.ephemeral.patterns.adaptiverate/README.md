@@ -2,7 +2,7 @@
 
 [![NuGet](https://img.shields.io/nuget/v/mostlylucid.ephemeral.patterns.adaptiverate.svg)](https://www.nuget.org/packages/mostlylucid.ephemeral.patterns.adaptiverate)
 
-> 🚨🚨 WARNING 🚨🚨 - Though in the 1.x range of version THINGS WILL STILL BREAK. This is the lab for developing this concept when stabilized it'll becoe the first *stylo*flow release 🚨🚨🚨
+
 
 
 Adaptive rate limiting using ephemeral signals for automatic backoff.

@@ -2,7 +2,8 @@
 
 [![NuGet](https://img.shields.io/nuget/v/mostlylucid.ephemeral.atoms.priorityprocessor.svg)](https://www.nuget.org/packages/mostlylucid.ephemeral.atoms.priorityprocessor)
 
-> 🚨🚨 WARNING 🚨🚨 - Though in the 1.x range of version THINGS WILL STILL BREAK. This is the lab for developing this concept when stabilized it'll become the first *stylo*flow release 🚨🚨🚨
+> 🚨🚨 WARNING 🚨🚨 - Though in the 2.x range of version THINGS WILL STILL BREAK. This is the lab for developing this
+> concept when stabilized it'll become the first *stylo*flow release 🚨🚨🚨
 
 Priority-based processing with automatic failover, health monitoring, and self-healing recovery.
 
@@ -45,13 +46,17 @@ await backup.DrainAsync();
 ## Key Features
 
 ### 🔄 Automatic Failover
+
 Primary processor fails repeatedly? Backup processor instantly takes over based on signal-driven health checks.
 
 ### 🏥 Self-Healing
+
 Periodic probing automatically detects when primary processor recovers and restores routing.
 
 ### 📊 Full Observability
+
 All decisions captured as signals:
+
 - `processing.started:pri{N}:{id}`
 - `processing.complete:pri{N}:{id}`
 - `processing.failed:pri{N}:{id}`
@@ -60,6 +65,7 @@ All decisions captured as signals:
 - `probe.success:pri{N}`
 
 ### ⚡ Zero Overhead
+
 Signal-based coordination with lock-free listener arrays - no polling, no timers during normal operation.
 
 ---
@@ -220,6 +226,7 @@ proberCts.Cancel();
 - **After (CountRecentByPrefix)**: 55.57µs per query | 17,994 queries/sec
 
 **Signal Raising** - Lock-free performance:
+
 - 790,000+ signals/sec single-threaded
 - 850,000+ signals/sec with 4 concurrent threads
 
@@ -230,18 +237,23 @@ proberCts.Cancel();
 ## Use Cases
 
 ### Multi-Tenant SaaS
+
 Route customer requests to healthy region-specific processors with automatic failover.
 
 ### Edge Computing
+
 Prioritize on-device processing, fall back to cloud with self-healing when device recovers.
 
 ### Financial Processing
+
 Primary fast-path validation, backup comprehensive audit with automatic recovery.
 
 ### IoT Data Pipelines
+
 Route sensor data to primary aggregator, failover to backup on network issues.
 
 ### Microservices
+
 Service mesh routing with health-based failover and recovery.
 
 ---

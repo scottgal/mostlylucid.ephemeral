@@ -30,10 +30,7 @@ public static class ParallelEphemeral
         var running = new List<Task>();
 
         // Pre-size if source is a collection
-        if (source is ICollection<T> coll)
-        {
-            running.Capacity = Math.Min(coll.Count, options.MaxConcurrency * 2);
-        }
+        if (source is ICollection<T> coll) running.Capacity = Math.Min(coll.Count, options.MaxConcurrency * 2);
 
         foreach (var item in source)
         {
@@ -75,10 +72,7 @@ public static class ParallelEphemeral
 
         var running = new List<Task>();
 
-        if (source is ICollection<T> coll)
-        {
-            running.Capacity = Math.Min(coll.Count, options.MaxConcurrency * 2);
-        }
+        if (source is ICollection<T> coll) running.Capacity = Math.Min(coll.Count, options.MaxConcurrency * 2);
 
         foreach (var item in source)
         {
@@ -145,10 +139,7 @@ public static class ParallelEphemeral
         var running = new List<Task>();
 
         // Pre-size if possible
-        if (source is ICollection<T> coll)
-        {
-            running.Capacity = Math.Min(coll.Count, options.MaxConcurrency * 2);
-        }
+        if (source is ICollection<T> coll) running.Capacity = Math.Min(coll.Count, options.MaxConcurrency * 2);
 
         try
         {

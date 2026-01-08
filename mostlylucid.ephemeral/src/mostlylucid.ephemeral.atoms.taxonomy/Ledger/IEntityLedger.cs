@@ -1,47 +1,47 @@
-using System;
-using System.Collections.Generic;
-using System.Threading;
-using System.Threading.Tasks;
-
 namespace Mostlylucid.Ephemeral.Atoms.Taxonomy.Ledger;
 
 /// <summary>
-/// A ledger that accumulates signals for an entity (image, document, request, data row).
-/// This is the universal signal accumulator that enables cross-project atom portability.
+///     A ledger that accumulates signals for an entity (image, document, request, data row).
+///     This is the universal signal accumulator that enables cross-project atom portability.
 /// </summary>
 /// <remarks>
-/// Key principles:
-/// - One ledger per entity being processed
-/// - Atoms write signals to the ledger
-/// - Atoms read signals from the ledger (to check dependencies)
-/// - Ledger lifetime = entity processing lifetime
-/// - High-salience signals can be escalated to RAG storage
+///     Key principles:
+///     - One ledger per entity being processed
+///     - Atoms write signals to the ledger
+///     - Atoms read signals from the ledger (to check dependencies)
+///     - Ledger lifetime = entity processing lifetime
+///     - High-salience signals can be escalated to RAG storage
 /// </remarks>
 public interface IEntityLedger : IDisposable
 {
     /// <summary>
-    /// Unique identifier for the entity this ledger tracks.
+    ///     Unique identifier for the entity this ledger tracks.
     /// </summary>
     string EntityId { get; }
 
     /// <summary>
-    /// Entity type (e.g., "image", "document", "request", "row").
+    ///     Entity type (e.g., "image", "document", "request", "row").
     /// </summary>
     string EntityType { get; }
 
     /// <summary>
-    /// When this ledger was created.
+    ///     When this ledger was created.
     /// </summary>
     DateTimeOffset CreatedAt { get; }
 
     /// <summary>
-    /// Records a signal from an atom.
+    ///     Total number of signals in the ledger.
+    /// </summary>
+    int Count { get; }
+
+    /// <summary>
+    ///     Records a signal from an atom.
     /// </summary>
     /// <param name="signal">The signal to record.</param>
     void Record(LedgerSignal signal);
 
     /// <summary>
-    /// Records a signal with explicit parameters.
+    ///     Records a signal with explicit parameters.
     /// </summary>
     void Record(
         string key,
@@ -52,98 +52,93 @@ public interface IEntityLedger : IDisposable
         IDictionary<string, object>? metadata = null);
 
     /// <summary>
-    /// Checks if a signal exists in the ledger.
+    ///     Checks if a signal exists in the ledger.
     /// </summary>
     bool HasSignal(string key);
 
     /// <summary>
-    /// Checks if a signal exists and matches a condition.
+    ///     Checks if a signal exists and matches a condition.
     /// </summary>
     bool HasSignal(string key, Func<LedgerSignal, bool> predicate);
 
     /// <summary>
-    /// Gets a signal by key.
+    ///     Gets a signal by key.
     /// </summary>
     LedgerSignal? GetSignal(string key);
 
     /// <summary>
-    /// Gets the value of a signal, cast to the expected type.
+    ///     Gets the value of a signal, cast to the expected type.
     /// </summary>
     T? GetValue<T>(string key);
 
     /// <summary>
-    /// Gets all signals matching a pattern (glob-style: *, ?).
+    ///     Gets all signals matching a pattern (glob-style: *, ?).
     /// </summary>
     IReadOnlyList<LedgerSignal> GetSignals(string pattern);
 
     /// <summary>
-    /// Gets all signals from a specific atom.
+    ///     Gets all signals from a specific atom.
     /// </summary>
     IReadOnlyList<LedgerSignal> GetSignalsFromAtom(string atomName);
 
     /// <summary>
-    /// Gets all signals with salience above a threshold.
+    ///     Gets all signals with salience above a threshold.
     /// </summary>
     IReadOnlyList<LedgerSignal> GetHighSalienceSignals(double threshold);
 
     /// <summary>
-    /// Gets all signals in the ledger.
+    ///     Gets all signals in the ledger.
     /// </summary>
     IReadOnlyList<LedgerSignal> GetAllSignals();
 
     /// <summary>
-    /// Total number of signals in the ledger.
-    /// </summary>
-    int Count { get; }
-
-    /// <summary>
-    /// Creates a view over this ledger with optional filtering.
+    ///     Creates a view over this ledger with optional filtering.
     /// </summary>
     ILedgerView CreateView(LedgerViewOptions? options = null);
 }
 
 /// <summary>
-/// A signal stored in an entity ledger.
+///     A signal stored in an entity ledger.
 /// </summary>
 public sealed class LedgerSignal
 {
     /// <summary>
-    /// Signal key (e.g., "identity.format", "detection.confidence").
+    ///     Signal key (e.g., "identity.format", "detection.confidence").
     /// </summary>
     public required string Key { get; init; }
 
     /// <summary>
-    /// Signal value (can be any type).
+    ///     Signal value (can be any type).
     /// </summary>
     public object? Value { get; init; }
 
     /// <summary>
-    /// Salience score (0.0 to 1.0). Higher = more important.
+    ///     Salience score (0.0 to 1.0). Higher = more important.
     /// </summary>
     public double Salience { get; init; } = 0.5;
 
     /// <summary>
-    /// Name of the atom that produced this signal.
+    ///     Name of the atom that produced this signal.
     /// </summary>
     public required string SourceAtom { get; init; }
 
     /// <summary>
-    /// Kind of the source atom (sensor, extractor, proposer, etc.).
+    ///     Kind of the source atom (sensor, extractor, proposer, etc.).
     /// </summary>
     public string? SourceKind { get; init; }
 
     /// <summary>
-    /// When this signal was recorded.
+    ///     When this signal was recorded.
     /// </summary>
     public DateTimeOffset Timestamp { get; init; } = DateTimeOffset.UtcNow;
 
     /// <summary>
-    /// Additional metadata about the signal.
+    ///     Additional metadata about the signal.
     /// </summary>
     public IDictionary<string, object>? Metadata { get; init; }
 
     /// <summary>
-    /// Gets the value cast to the expected type.
+    ///     Gets the value cast to the expected type.
     /// </summary>
     public T? GetValue<T>()
     {
@@ -165,100 +160,100 @@ public sealed class LedgerSignal
 }
 
 /// <summary>
-/// Options for creating a ledger view.
+///     Options for creating a ledger view.
 /// </summary>
 public sealed class LedgerViewOptions
 {
     /// <summary>
-    /// Pattern filter for signal keys (glob-style).
+    ///     Pattern filter for signal keys (glob-style).
     /// </summary>
     public string? Pattern { get; init; }
 
     /// <summary>
-    /// Minimum salience threshold for signals in this view.
+    ///     Minimum salience threshold for signals in this view.
     /// </summary>
     public double? SalienceThreshold { get; init; }
 
     /// <summary>
-    /// Only include signals from these atoms.
+    ///     Only include signals from these atoms.
     /// </summary>
     public IReadOnlyList<string>? SourceAtoms { get; init; }
 
     /// <summary>
-    /// Only include signals of these kinds.
+    ///     Only include signals of these kinds.
     /// </summary>
     public IReadOnlyList<string>? SourceKinds { get; init; }
 
     /// <summary>
-    /// Maximum number of signals in the view.
+    ///     Maximum number of signals in the view.
     /// </summary>
     public int? MaxSignals { get; init; }
 
     /// <summary>
-    /// Only include signals newer than this.
+    ///     Only include signals newer than this.
     /// </summary>
     public DateTimeOffset? Since { get; init; }
 }
 
 /// <summary>
-/// A filtered view over an entity ledger.
+///     A filtered view over an entity ledger.
 /// </summary>
 public interface ILedgerView
 {
     /// <summary>
-    /// The underlying ledger.
+    ///     The underlying ledger.
     /// </summary>
     IEntityLedger Ledger { get; }
 
     /// <summary>
-    /// View options.
+    ///     View options.
     /// </summary>
     LedgerViewOptions Options { get; }
 
     /// <summary>
-    /// Gets all signals matching the view filter.
+    ///     Number of signals visible in this view.
+    /// </summary>
+    int Count { get; }
+
+    /// <summary>
+    ///     Gets all signals matching the view filter.
     /// </summary>
     IReadOnlyList<LedgerSignal> GetSignals();
 
     /// <summary>
-    /// Checks if a signal exists in this view.
+    ///     Checks if a signal exists in this view.
     /// </summary>
     bool HasSignal(string key);
 
     /// <summary>
-    /// Gets a signal by key (if it passes the view filter).
+    ///     Gets a signal by key (if it passes the view filter).
     /// </summary>
     LedgerSignal? GetSignal(string key);
-
-    /// <summary>
-    /// Number of signals visible in this view.
-    /// </summary>
-    int Count { get; }
 }
 
 /// <summary>
-/// Factory for creating entity ledgers.
+///     Factory for creating entity ledgers.
 /// </summary>
 public interface IEntityLedgerFactory
 {
     /// <summary>
-    /// Creates a new ledger for an entity.
+    ///     Creates a new ledger for an entity.
     /// </summary>
     IEntityLedger Create(string entityId, string entityType);
 
     /// <summary>
-    /// Creates a ledger with a generated ID.
+    ///     Creates a ledger with a generated ID.
     /// </summary>
     IEntityLedger Create(string entityType);
 }
 
 /// <summary>
-/// Extension point for escalating ledger signals to persistent storage.
+///     Extension point for escalating ledger signals to persistent storage.
 /// </summary>
 public interface ILedgerEscalator
 {
     /// <summary>
-    /// Escalates high-salience signals to persistent storage.
+    ///     Escalates high-salience signals to persistent storage.
     /// </summary>
     /// <param name="ledger">The ledger to escalate from.</param>
     /// <param name="salienceThreshold">Minimum salience for escalation.</param>
@@ -271,7 +266,7 @@ public interface ILedgerEscalator
         CancellationToken ct = default);
 
     /// <summary>
-    /// Escalates specific signals to persistent storage.
+    ///     Escalates specific signals to persistent storage.
     /// </summary>
     Task EscalateAsync(
         IEntityLedger ledger,

@@ -1,15 +1,14 @@
-using Mostlylucid.Ephemeral;
-using Spectre.Console;
 using System.Collections.Concurrent;
+using Spectre.Console;
 
 namespace Mostlylucid.Ephemeral.Demo;
 
 /// <summary>
-/// Demonstrates the Dynamic Adaptive Workflow pattern using PROPER Ephemeral coordinators:
-/// - Priority-based failover (primary → backup processor)
-/// - Dynamic routing based on health signals
-/// - Adaptive concurrency adjustment
-/// - Self-healing via periodic probing
+///     Demonstrates the Dynamic Adaptive Workflow pattern using PROPER Ephemeral coordinators:
+///     - Priority-based failover (primary → backup processor)
+///     - Dynamic routing based on health signals
+///     - Adaptive concurrency adjustment
+///     - Self-healing via periodic probing
 /// </summary>
 public static class DynamicWorkflowDemo
 {
@@ -19,7 +18,7 @@ public static class DynamicWorkflowDemo
         AnsiConsole.MarkupLine("[grey]Priority failover + adaptive concurrency + self-healing[/]\n");
         AnsiConsole.MarkupLine("[cyan]⚡ Using PROPER coordinators (no event handlers!)[/]\n");
 
-        var globalSink = new SignalSink(maxCapacity: 5000);
+        var globalSink = new SignalSink(5000);
 
         // Track routing decisions and metrics
         var routingTable = new ConcurrentDictionary<string, int>(); // Entity → Priority
@@ -42,9 +41,7 @@ public static class DynamicWorkflowDemo
             };
 
             if (!signal.Signal.Contains("health.good")) // Reduce noise
-            {
                 AnsiConsole.MarkupLine($"[{color}]{signal.Signal.Substring(0, Math.Min(60, signal.Signal.Length))}[/]");
-            }
 
             // Track metrics
             if (signal.Signal.Contains("processing.complete")) metrics.Successful++;
@@ -85,7 +82,7 @@ public static class DynamicWorkflowDemo
                     {
                         processorHealth[1] = false;
                         globalSink.Raise($"processor.pri1.unhealthy:failures={recentFailures}");
-                        globalSink.Raise($"failover.triggered:pri1→pri2");
+                        globalSink.Raise("failover.triggered:pri1→pri2");
                     }
                 }
             },
@@ -131,13 +128,9 @@ public static class DynamicWorkflowDemo
 
                 // Enqueue to appropriate processor
                 if (targetPriority == 1)
-                {
                     await processor1.EnqueueAsync(widgetId);
-                }
                 else
-                {
                     await processor2.EnqueueAsync(widgetId);
-                }
             },
             new EphemeralOptions
             {
@@ -207,7 +200,7 @@ public static class DynamicWorkflowDemo
         AnsiConsole.MarkupLine("[grey]Watch for failover when Processor 1 fails repeatedly[/]\n");
 
         // Process widgets through router
-        for (int i = 0; i < 50; i++)
+        for (var i = 0; i < 50; i++)
         {
             var widgetId = $"WIDGET-{i}";
             metrics.Total++;
@@ -254,7 +247,7 @@ public static class DynamicWorkflowDemo
         table.AddRow("Successful", $"[green]{metrics.Successful}[/]");
         table.AddRow("Failed", $"[red]{metrics.Failed}[/]");
         table.AddRow("Failovers Triggered", $"[yellow]{metrics.Failovers}[/]");
-        table.AddRow("Success Rate", $"[cyan]{(metrics.Successful * 100.0 / metrics.Total):F1}%[/]");
+        table.AddRow("Success Rate", $"[cyan]{metrics.Successful * 100.0 / metrics.Total:F1}%[/]");
         table.AddRow("Final Concurrency", $"[blue]{currentConcurrency}[/]");
 
         var proc1Stats = processor1.GetSnapshot();
@@ -276,9 +269,9 @@ public static class DynamicWorkflowDemo
 
     private class WorkflowMetrics
     {
-        public int Total = 0;
-        public int Successful = 0;
-        public int Failed = 0;
-        public int Failovers = 0;
+        public int Failed;
+        public int Failovers;
+        public int Successful;
+        public int Total;
     }
 }

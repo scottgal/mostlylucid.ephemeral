@@ -1,36 +1,36 @@
-using System;
-using System.Threading;
-using System.Threading.Tasks;
-
 namespace Mostlylucid.Ephemeral.Atoms.PriorityProcessor;
 
 /// <summary>
-/// Processor atom that listens to signals with priority semantics.
-/// When a processor fails repeatedly, it emits failover signals for lower priority atoms.
-/// Part of the Dynamic Adaptive Workflow pattern for priority-based failover.
+///     Processor atom that listens to signals with priority semantics.
+///     When a processor fails repeatedly, it emits failover signals for lower priority atoms.
+///     Part of the Dynamic Adaptive Workflow pattern for priority-based failover.
 /// </summary>
 /// <remarks>
-/// <para><strong>Pattern:</strong> Priority-Based Failover with Health Monitoring</para>
-/// <para><strong>Use Cases:</strong></para>
-/// <list type="bullet">
-/// <item>Multi-processor workflows with automatic failover</item>
-/// <item>Primary/backup processor architectures</item>
-/// <item>Resilient processing pipelines with redundancy</item>
-/// </list>
-/// <para><strong>Signals Emitted:</strong></para>
-/// <list type="bullet">
-/// <item><c>processing.started:pri{N}:{entityKey}</c> - Processing began</item>
-/// <item><c>processing.complete:pri{N}:{entityKey}</c> - Success</item>
-/// <item><c>processing.failed:pri{N}:{entityKey}</c> - Failure</item>
-/// <item><c>processor.{atom}.unhealthy</c> - Health threshold exceeded</item>
-/// <item><c>failover.requested:pri{N}→pri{N+1}</c> - Request routing change</item>
-/// </list>
+///     <para><strong>Pattern:</strong> Priority-Based Failover with Health Monitoring</para>
+///     <para>
+///         <strong>Use Cases:</strong>
+///     </para>
+///     <list type="bullet">
+///         <item>Multi-processor workflows with automatic failover</item>
+///         <item>Primary/backup processor architectures</item>
+///         <item>Resilient processing pipelines with redundancy</item>
+///     </list>
+///     <para>
+///         <strong>Signals Emitted:</strong>
+///     </para>
+///     <list type="bullet">
+///         <item><c>processing.started:pri{N}:{entityKey}</c> - Processing began</item>
+///         <item><c>processing.complete:pri{N}:{entityKey}</c> - Success</item>
+///         <item><c>processing.failed:pri{N}:{entityKey}</c> - Failure</item>
+///         <item><c>processor.{atom}.unhealthy</c> - Health threshold exceeded</item>
+///         <item><c>failover.requested:pri{N}→pri{N+1}</c> - Request routing change</item>
+///     </list>
 /// </remarks>
 /// <example>
-/// <code>
+///     <code>
 /// var sink = new SignalSink();
 /// var context = new SignalContext("workflow", "orders", "ProcessorA");
-///
+/// 
 /// var processor = new PriorityProcessorAtom(
 ///     sink,
 ///     context,
@@ -45,18 +45,15 @@ namespace Mostlylucid.Ephemeral.Atoms.PriorityProcessor;
 /// </example>
 public sealed class PriorityProcessorAtom : IAsyncDisposable
 {
-    private readonly SignalSink _signals;
     private readonly SignalContext _context;
-    private readonly int _priority;
+    private readonly int _failureThreshold;
     private readonly string _listenSignal;
     private readonly Func<string, CancellationToken, Task<bool>> _processFunc;
+    private readonly SignalSink _signals;
     private readonly IDisposable _subscription;
-    private bool _isHealthy = true;
-    private int _consecutiveFailures = 0;
-    private readonly int _failureThreshold;
 
     /// <summary>
-    /// Creates a priority processor atom that handles work at a specific priority level.
+    ///     Creates a priority processor atom that handles work at a specific priority level.
     /// </summary>
     /// <param name="signals">Shared signal sink for coordination</param>
     /// <param name="context">Signal context (Sink.Coordinator.Atom hierarchy)</param>
@@ -74,7 +71,7 @@ public sealed class PriorityProcessorAtom : IAsyncDisposable
     {
         _signals = signals ?? throw new ArgumentNullException(nameof(signals));
         _context = context;
-        _priority = priority;
+        Priority = priority;
         _listenSignal = listenSignal ?? throw new ArgumentNullException(nameof(listenSignal));
         _processFunc = processFunc ?? throw new ArgumentNullException(nameof(processFunc));
         _failureThreshold = failureThreshold;
@@ -83,19 +80,25 @@ public sealed class PriorityProcessorAtom : IAsyncDisposable
     }
 
     /// <summary>
-    /// Current health status of this processor.
+    ///     Current health status of this processor.
     /// </summary>
-    public bool IsHealthy => _isHealthy;
+    public bool IsHealthy { get; private set; } = true;
 
     /// <summary>
-    /// Current count of consecutive failures.
+    ///     Current count of consecutive failures.
     /// </summary>
-    public int ConsecutiveFailures => _consecutiveFailures;
+    public int ConsecutiveFailures { get; private set; }
 
     /// <summary>
-    /// Priority level of this processor.
+    ///     Priority level of this processor.
     /// </summary>
-    public int Priority => _priority;
+    public int Priority { get; }
+
+    public ValueTask DisposeAsync()
+    {
+        _subscription?.Dispose();
+        return ValueTask.CompletedTask;
+    }
 
     private async void OnSignal(SignalEvent signal)
     {
@@ -109,25 +112,25 @@ public sealed class PriorityProcessorAtom : IAsyncDisposable
             return;
 
         // Check if we should process based on current routing rules
-        var routingSignal = $"route.priority.{_priority}:{entityKey}";
+        var routingSignal = $"route.priority.{Priority}:{entityKey}";
         var shouldProcess = _signals.Sense(evt => evt.Signal == routingSignal).Any();
 
-        if (!shouldProcess && _priority != 1) // Priority 1 always tries first
+        if (!shouldProcess && Priority != 1) // Priority 1 always tries first
             return;
 
         var emitter = new ScopedSignalEmitter(_context, signal.OperationId, _signals);
 
         try
         {
-            emitter.Emit($"processing.started:pri{_priority}:{entityKey}");
+            emitter.Emit($"processing.started:pri{Priority}:{entityKey}");
 
             var success = await _processFunc(entityKey, CancellationToken.None);
 
             if (success)
             {
-                _consecutiveFailures = 0;
-                _isHealthy = true;
-                emitter.Emit($"processing.complete:pri{_priority}:{entityKey}");
+                ConsecutiveFailures = 0;
+                IsHealthy = true;
+                emitter.Emit($"processing.complete:pri{Priority}:{entityKey}");
 
                 // Signal success for health monitoring
                 _signals.Raise(new SignalEvent(
@@ -149,28 +152,25 @@ public sealed class PriorityProcessorAtom : IAsyncDisposable
 
     private void HandleFailure(ScopedSignalEmitter emitter, string entityKey, long operationId, Exception? ex = null)
     {
-        _consecutiveFailures++;
-        emitter.Emit($"processing.failed:pri{_priority}:{entityKey}");
+        ConsecutiveFailures++;
+        emitter.Emit($"processing.failed:pri{Priority}:{entityKey}");
 
-        if (ex != null)
-        {
-            emitter.Emit($"processing.exception:pri{_priority}:{ex.GetType().Name}");
-        }
+        if (ex != null) emitter.Emit($"processing.exception:pri{Priority}:{ex.GetType().Name}");
 
-        if (_consecutiveFailures >= _failureThreshold && _isHealthy)
+        if (ConsecutiveFailures >= _failureThreshold && IsHealthy)
         {
-            _isHealthy = false;
+            IsHealthy = false;
 
             // Emit failover signal for router
             _signals.Raise(new SignalEvent(
                 $"processor.{_context.Atom}.unhealthy",
                 operationId,
-                $"pri{_priority}:failures={_consecutiveFailures}",
+                $"pri{Priority}:failures={ConsecutiveFailures}",
                 DateTimeOffset.UtcNow));
 
             // Trigger failover to next priority
             _signals.Raise(new SignalEvent(
-                $"failover.requested:pri{_priority}→pri{_priority + 1}",
+                $"failover.requested:pri{Priority}→pri{Priority + 1}",
                 operationId,
                 entityKey,
                 DateTimeOffset.UtcNow));
@@ -178,17 +178,11 @@ public sealed class PriorityProcessorAtom : IAsyncDisposable
     }
 
     /// <summary>
-    /// Manually reset health status and failure count.
+    ///     Manually reset health status and failure count.
     /// </summary>
     public void ResetHealth()
     {
-        _isHealthy = true;
-        _consecutiveFailures = 0;
-    }
-
-    public ValueTask DisposeAsync()
-    {
-        _subscription?.Dispose();
-        return ValueTask.CompletedTask;
+        IsHealthy = true;
+        ConsecutiveFailures = 0;
     }
 }

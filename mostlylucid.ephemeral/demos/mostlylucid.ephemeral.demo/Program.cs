@@ -1,7 +1,9 @@
+using System.Reflection;
+using BenchmarkDotNet.Attributes;
 using Mostlylucid.Ephemeral;
-using Mostlylucid.Ephemeral.Demo;
 using Mostlylucid.Ephemeral.Atoms.RateLimit;
 using Mostlylucid.Ephemeral.Atoms.WindowSize;
+using Mostlylucid.Ephemeral.Demo;
 using Spectre.Console;
 
 // Check for command-line arguments
@@ -66,7 +68,7 @@ void ListBenchmarks()
 
     // Get benchmark descriptions programmatically via reflection
     var benchmarkType = typeof(SignalBenchmarks);
-    var methods = benchmarkType.GetMethods(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
+    var methods = benchmarkType.GetMethods(BindingFlags.Public | BindingFlags.Instance);
 
     var allBenchmarks = new List<string>();
     var signalBenchmarks = new List<string>();
@@ -76,8 +78,8 @@ void ListBenchmarks()
 
     foreach (var method in methods)
     {
-        var benchmarkAttr = method.GetCustomAttributes(typeof(BenchmarkDotNet.Attributes.BenchmarkAttribute), false)
-            .FirstOrDefault() as BenchmarkDotNet.Attributes.BenchmarkAttribute;
+        var benchmarkAttr = method.GetCustomAttributes(typeof(BenchmarkAttribute), false)
+            .FirstOrDefault() as BenchmarkAttribute;
 
         if (benchmarkAttr != null && !string.IsNullOrEmpty(benchmarkAttr.Description))
         {
@@ -107,10 +109,7 @@ void ListBenchmarks()
     foreach (var (category, items) in benchmarks)
     {
         AnsiConsole.MarkupLine($"\n[cyan1]{category}:[/]");
-        foreach (var item in items)
-        {
-            AnsiConsole.MarkupLine($"  [grey]• {Markup.Escape(item)}[/]");
-        }
+        foreach (var item in items) AnsiConsole.MarkupLine($"  [grey]• {Markup.Escape(item)}[/]");
     }
 
     AnsiConsole.WriteLine();
@@ -119,9 +118,12 @@ void ListBenchmarks()
 
     AnsiConsole.MarkupLine("[yellow]Categories:[/]");
     AnsiConsole.MarkupLine($"  [cyan1]all[/]          - Run all {allBenchmarks.Count} benchmarks (default)");
-    AnsiConsole.MarkupLine($"  [cyan1]signals[/]      - Signal infrastructure only ({signalBenchmarks.Count} benchmarks)");
-    AnsiConsole.MarkupLine($"  [cyan1]coordinators[/] - Coordinator benchmarks only ({coordinatorBenchmarks.Count} benchmarks)");
-    AnsiConsole.MarkupLine($"  [cyan1]parallelism[/]  - Parallelism benchmarks only ({parallelismBenchmarks.Count} benchmarks)");
+    AnsiConsole.MarkupLine(
+        $"  [cyan1]signals[/]      - Signal infrastructure only ({signalBenchmarks.Count} benchmarks)");
+    AnsiConsole.MarkupLine(
+        $"  [cyan1]coordinators[/] - Coordinator benchmarks only ({coordinatorBenchmarks.Count} benchmarks)");
+    AnsiConsole.MarkupLine(
+        $"  [cyan1]parallelism[/]  - Parallelism benchmarks only ({parallelismBenchmarks.Count} benchmarks)");
     AnsiConsole.MarkupLine("  [cyan1]scoped[/]       - Scoped signal architecture benchmarks");
     AnsiConsole.MarkupLine($"  [cyan1]finale[/]       - FINALE benchmark only ({finaleBenchmark.Count} benchmark)");
     AnsiConsole.MarkupLine("  [cyan1]list[/]         - Show this list\n");
@@ -147,27 +149,17 @@ while (true)
         new SelectionPrompt<string>()
             .Title("[cyan1]Select a demo:[/]")
             .PageSize(20) // Show all menu items without scrolling
-            .AddChoices(new[]
-            {
-                "1. Image Processing Pipeline (ImageSharp Atoms)",
+            .AddChoices("1. Image Processing Pipeline (ImageSharp Atoms)",
                 "2. Parallel Resize Demo (Nested Coordinator Pattern)",
-                "3. Continuous Resize Loop (Long-term Behavior Test)",
-                "4. Pure Notification Pattern (File Save)",
-                "5. Context + Hint Pattern (Order Processing)",
-                "6. Command Pattern (Window Size Control)",
-                "7. Complex Multi-Step System (Rate Limiting Pipeline)",
-                "8. Signal Chain Demo (Cascading Atoms)",
-                "9. Circuit Breaker Pattern (Failure Handling)",
-                "10. Backpressure Demo (Queue Overflow Protection)",
-                "11. Metrics & Monitoring (Real-time Statistics)",
-                "12. Dynamic Rate Adjustment (Adaptive Throttling)",
-                "13. Live Signal Viewer",
-                "14. Dynamic Adaptive Workflow (Priority Failover + Self-Healing)",
+                "3. Continuous Resize Loop (Long-term Behavior Test)", "4. Pure Notification Pattern (File Save)",
+                "5. Context + Hint Pattern (Order Processing)", "6. Command Pattern (Window Size Control)",
+                "7. Complex Multi-Step System (Rate Limiting Pipeline)", "8. Signal Chain Demo (Cascading Atoms)",
+                "9. Circuit Breaker Pattern (Failure Handling)", "10. Backpressure Demo (Queue Overflow Protection)",
+                "11. Metrics & Monitoring (Real-time Statistics)", "12. Dynamic Rate Adjustment (Adaptive Throttling)",
+                "13. Live Signal Viewer", "14. Dynamic Adaptive Workflow (Priority Failover + Self-Healing)",
                 "15. Quick Dynamic Workflow Perf Test (Hotspot Analysis)",
-                "16. Preload and Trigger Demo (Bulk Enqueue + Signal Trigger)",
-                "B. Run Benchmarks (BenchmarkDotNet)",
-                "Exit"
-            }));
+                "16. Preload and Trigger Demo (Bulk Enqueue + Signal Trigger)", "B. Run Benchmarks (BenchmarkDotNet)",
+                "Exit"));
 
     if (choice == "Exit")
         break;
@@ -287,27 +279,22 @@ void RunBenchmarks()
 
     // Get benchmark descriptions dynamically via reflection
     var benchmarkType = typeof(SignalBenchmarks);
-    var methods = benchmarkType.GetMethods(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
+    var methods = benchmarkType.GetMethods(BindingFlags.Public | BindingFlags.Instance);
 
     var allBenchmarks = new List<string>();
     foreach (var method in methods)
     {
-        var benchmarkAttr = method.GetCustomAttributes(typeof(BenchmarkDotNet.Attributes.BenchmarkAttribute), false)
-            .FirstOrDefault() as BenchmarkDotNet.Attributes.BenchmarkAttribute;
+        var benchmarkAttr = method.GetCustomAttributes(typeof(BenchmarkAttribute), false)
+            .FirstOrDefault() as BenchmarkAttribute;
 
         if (benchmarkAttr != null && !string.IsNullOrEmpty(benchmarkAttr.Description))
-        {
             allBenchmarks.Add(benchmarkAttr.Description);
-        }
     }
 
     if (allBenchmarks.Count > 0)
     {
         AnsiConsole.MarkupLine($"[cyan1]Benchmarks ({allBenchmarks.Count} total):[/]");
-        foreach (var benchmark in allBenchmarks)
-        {
-            AnsiConsole.MarkupLine($"[grey]- {Markup.Escape(benchmark)}[/]");
-        }
+        foreach (var benchmark in allBenchmarks) AnsiConsole.MarkupLine($"[grey]- {Markup.Escape(benchmark)}[/]");
         AnsiConsole.WriteLine();
     }
 
@@ -342,12 +329,12 @@ async Task RunPureNotificationDemo()
     await using var fileAtom = new TestAtom(
         sink,
         "FileAtom",
-        listenSignals: new List<string> { "file.save" },
-        signalResponses: new Dictionary<string, string>
+        new List<string> { "file.save" },
+        new Dictionary<string, string>
         {
             { "file.save", "file.saved" }
         },
-        processingDelay: TimeSpan.FromMilliseconds(200));
+        TimeSpan.FromMilliseconds(200));
 
     // Create multiple listeners that query the atom
     var notificationListener = new Action<SignalEvent>(signal =>
@@ -377,7 +364,7 @@ async Task RunPureNotificationDemo()
         .Spinner(Spinner.Known.Dots)
         .StartAsync("Simulating file saves...", async ctx =>
         {
-            for (int i = 1; i <= 3; i++)
+            for (var i = 1; i <= 3; i++)
             {
                 ctx.Status($"Saving file {i}/3...");
                 sink.Raise("file.save");
@@ -412,12 +399,12 @@ async Task RunContextHintDemo()
     await using var orderAtom = new TestAtom(
         sink,
         "OrderAtom",
-        listenSignals: new List<string> { "order.place" },
-        signalResponses: new Dictionary<string, string>
+        new List<string> { "order.place" },
+        new Dictionary<string, string>
         {
             { "order.place", "order.placed:ORD-123" } // Hint included
         },
-        processingDelay: TimeSpan.FromMilliseconds(150));
+        TimeSpan.FromMilliseconds(150));
 
     var emailListener = new Action<SignalEvent>(signal =>
     {
@@ -429,9 +416,8 @@ async Task RunContextHintDemo()
 
             // Fast-path: use hint
             if (hintOrderId != null)
-            {
-                AnsiConsole.MarkupLine($"[green]📧[/] [white]Email (fast-path): Sending confirmation for {hintOrderId}[/]");
-            }
+                AnsiConsole.MarkupLine(
+                    $"[green]📧[/] [white]Email (fast-path): Sending confirmation for {hintOrderId}[/]");
 
             // Always verify with atom for safety
             var actualCount = orderAtom.GetProcessedCount();
@@ -445,7 +431,7 @@ async Task RunContextHintDemo()
         .Spinner(Spinner.Known.Dots)
         .StartAsync("Processing orders...", async ctx =>
         {
-            for (int i = 1; i <= 3; i++)
+            for (var i = 1; i <= 3; i++)
             {
                 ctx.Status($"Placing order {i}/3...");
                 sink.Raise("order.place");
@@ -468,7 +454,7 @@ async Task RunCommandPatternDemo()
     AnsiConsole.MarkupLine("[grey]- Example: WindowSizeAtom adjusts SignalSink capacity[/]");
     AnsiConsole.MarkupLine("[grey]- Signal: \"window.size.set:500\" (imperative command)[/]\n");
 
-    var sink = new SignalSink(maxCapacity: 100);
+    var sink = new SignalSink(100);
 
     await using var logger = new ConsoleSignalLoggerAtom(sink, new ConsoleSignalLoggerOptions
     {
@@ -520,7 +506,7 @@ async Task RunComplexPipelineDemo()
     AnsiConsole.MarkupLine("[grey]- Dynamic window sizing[/]");
     AnsiConsole.MarkupLine("[grey]- Multiple listeners querying state[/]\n");
 
-    var sink = new SignalSink(maxCapacity: 100);
+    var sink = new SignalSink(100);
 
     await using var logger = new ConsoleSignalLoggerAtom(sink, new ConsoleSignalLoggerOptions
     {
@@ -542,32 +528,32 @@ async Task RunComplexPipelineDemo()
     await using var validatorAtom = new TestAtom(
         sink,
         "Validator",
-        listenSignals: new List<string> { "api.request" },
-        signalResponses: new Dictionary<string, string>
+        new List<string> { "api.request" },
+        new Dictionary<string, string>
         {
             { "api.request", "request.validated" }
         },
-        processingDelay: TimeSpan.FromMilliseconds(50));
+        TimeSpan.FromMilliseconds(50));
 
     await using var processorAtom = new TestAtom(
         sink,
         "Processor",
-        listenSignals: new List<string> { "request.validated" },
-        signalResponses: new Dictionary<string, string>
+        new List<string> { "request.validated" },
+        new Dictionary<string, string>
         {
             { "request.validated", "request.processed" }
         },
-        processingDelay: TimeSpan.FromMilliseconds(100));
+        TimeSpan.FromMilliseconds(100));
 
     await using var storageAtom = new TestAtom(
         sink,
         "Storage",
-        listenSignals: new List<string> { "request.processed" },
-        signalResponses: new Dictionary<string, string>
+        new List<string> { "request.processed" },
+        new Dictionary<string, string>
         {
             { "request.processed", "request.complete" }
         },
-        processingDelay: TimeSpan.FromMilliseconds(75));
+        TimeSpan.FromMilliseconds(75));
 
     // Stats listener
     var statsListener = new Action<SignalEvent>(signal =>
@@ -586,7 +572,7 @@ async Task RunComplexPipelineDemo()
         .Spinner(Spinner.Known.Dots)
         .StartAsync("Sending API requests...", async ctx =>
         {
-            for (int i = 1; i <= 10; i++)
+            for (var i = 1; i <= 10; i++)
             {
                 ctx.Status($"Sending request {i}/10...");
 
@@ -596,7 +582,8 @@ async Task RunComplexPipelineDemo()
                 if (lease.IsAcquired)
                 {
                     sink.Raise("api.request");
-                    AnsiConsole.MarkupLine($"[green]✓[/] [grey]Request {i} allowed (rate: {rateLimiter.RatePerSecond}/s, burst: {rateLimiter.Burst})[/]");
+                    AnsiConsole.MarkupLine(
+                        $"[green]✓[/] [grey]Request {i} allowed (rate: {rateLimiter.RatePerSecond}/s, burst: {rateLimiter.Burst})[/]");
                 }
                 else
                 {
@@ -636,30 +623,29 @@ async Task RunSignalChainDemo()
     await using var atomA = new TestAtom(
         sink,
         "AtomA",
-        listenSignals: new List<string> { "input" },
-        signalResponses: new Dictionary<string, string> { { "input", "stepA.complete" } },
-        processingDelay: TimeSpan.FromMilliseconds(100));
+        new List<string> { "input" },
+        new Dictionary<string, string> { { "input", "stepA.complete" } },
+        TimeSpan.FromMilliseconds(100));
 
     await using var atomB = new TestAtom(
         sink,
         "AtomB",
-        listenSignals: new List<string> { "stepA.complete" },
-        signalResponses: new Dictionary<string, string> { { "stepA.complete", "stepB.complete" } },
-        processingDelay: TimeSpan.FromMilliseconds(100));
+        new List<string> { "stepA.complete" },
+        new Dictionary<string, string> { { "stepA.complete", "stepB.complete" } },
+        TimeSpan.FromMilliseconds(100));
 
     await using var atomC = new TestAtom(
         sink,
         "AtomC",
-        listenSignals: new List<string> { "stepB.complete" },
-        signalResponses: new Dictionary<string, string> { { "stepB.complete", "stepC.complete" } },
-        processingDelay: TimeSpan.FromMilliseconds(100));
+        new List<string> { "stepB.complete" },
+        new Dictionary<string, string> { { "stepB.complete", "stepC.complete" } },
+        TimeSpan.FromMilliseconds(100));
 
     var completionListener = new Action<SignalEvent>(signal =>
     {
         if (signal.Signal == "stepC.complete")
-        {
-            AnsiConsole.MarkupLine($"[green]🎉 Chain complete![/] [grey](A:{atomA.GetProcessedCount()}, B:{atomB.GetProcessedCount()}, C:{atomC.GetProcessedCount()})[/]");
-        }
+            AnsiConsole.MarkupLine(
+                $"[green]🎉 Chain complete![/] [grey](A:{atomA.GetProcessedCount()}, B:{atomB.GetProcessedCount()}, C:{atomC.GetProcessedCount()})[/]");
     });
 
     using var completionSub = sink.Subscribe(completionListener);
@@ -668,7 +654,7 @@ async Task RunSignalChainDemo()
         .Spinner(Spinner.Known.Dots)
         .StartAsync("Running signal chain...", async ctx =>
         {
-            for (int i = 1; i <= 3; i++)
+            for (var i = 1; i <= 3; i++)
             {
                 ctx.Status($"Chain {i}/3...");
                 sink.Raise("input");
@@ -703,9 +689,9 @@ async Task RunCircuitBreakerDemo()
     await using var serviceAtom = new TestAtom(
         sink,
         "ServiceAtom",
-        listenSignals: new List<string> { "service.call" },
-        signalResponses: new Dictionary<string, string>(),
-        processingDelay: TimeSpan.FromMilliseconds(50));
+        new List<string> { "service.call" },
+        new Dictionary<string, string>(),
+        TimeSpan.FromMilliseconds(50));
 
     // Circuit breaker state
     var circuitState = "closed"; // closed, open, half-open
@@ -761,7 +747,8 @@ async Task RunCircuitBreakerDemo()
                 if (failureCount >= failureThreshold && circuitState == "closed")
                 {
                     circuitState = "open";
-                    AnsiConsole.MarkupLine($"[red]🔴 Circuit OPEN - too many failures! Cooldown: {cooldownPeriod.TotalSeconds}s[/]");
+                    AnsiConsole.MarkupLine(
+                        $"[red]🔴 Circuit OPEN - too many failures! Cooldown: {cooldownPeriod.TotalSeconds}s[/]");
                     sink.Raise("circuit.open");
                 }
             }
@@ -774,7 +761,7 @@ async Task RunCircuitBreakerDemo()
         .Spinner(Spinner.Known.Dots)
         .StartAsync("Simulating service calls...", async ctx =>
         {
-            for (int i = 1; i <= 20; i++)
+            for (var i = 1; i <= 20; i++)
             {
                 ctx.Status($"Call {i}/20...");
                 sink.Raise("service.call");
@@ -815,17 +802,17 @@ async Task RunBackpressureDemo()
     await using var producerAtom = new TestAtom(
         sink,
         "Producer",
-        listenSignals: new List<string> { "produce.item" },
-        signalResponses: new Dictionary<string, string>(),
-        processingDelay: TimeSpan.FromMilliseconds(10));
+        new List<string> { "produce.item" },
+        new Dictionary<string, string>(),
+        TimeSpan.FromMilliseconds(10));
 
     // Consumer (slow)
     await using var consumerAtom = new TestAtom(
         sink,
         "Consumer",
-        listenSignals: new List<string> { "queue.item.added" },
-        signalResponses: new Dictionary<string, string> { { "queue.item.added", "item.consumed" } },
-        processingDelay: TimeSpan.FromMilliseconds(200));
+        new List<string> { "queue.item.added" },
+        new Dictionary<string, string> { { "queue.item.added", "item.consumed" } },
+        TimeSpan.FromMilliseconds(200));
 
     var queueListener = new Action<SignalEvent>(signal =>
     {
@@ -839,7 +826,8 @@ async Task RunBackpressureDemo()
             {
                 isBackpressureActive = true;
                 sink.Raise("backpressure.start");
-                AnsiConsole.MarkupLine($"[yellow]⚠️  BACKPRESSURE ACTIVE - queue full ({queue.Count}/{maxQueueSize})[/]");
+                AnsiConsole.MarkupLine(
+                    $"[yellow]⚠️  BACKPRESSURE ACTIVE - queue full ({queue.Count}/{maxQueueSize})[/]");
             }
         }
         else if (signal.Signal == "produce.item" && isBackpressureActive)
@@ -852,13 +840,15 @@ async Task RunBackpressureDemo()
             if (queue.Count > 0)
             {
                 var item = queue.Dequeue();
-                AnsiConsole.MarkupLine($"[green]✓[/] [white]Consumed item {item} (queue: {queue.Count}/{maxQueueSize})[/]");
+                AnsiConsole.MarkupLine(
+                    $"[green]✓[/] [white]Consumed item {item} (queue: {queue.Count}/{maxQueueSize})[/]");
 
                 if (isBackpressureActive && queue.Count < maxQueueSize / 2)
                 {
                     isBackpressureActive = false;
                     sink.Raise("backpressure.end");
-                    AnsiConsole.MarkupLine($"[green]✅ BACKPRESSURE RELEASED - queue draining ({queue.Count}/{maxQueueSize})[/]");
+                    AnsiConsole.MarkupLine(
+                        $"[green]✅ BACKPRESSURE RELEASED - queue draining ({queue.Count}/{maxQueueSize})[/]");
                 }
             }
         }
@@ -870,7 +860,7 @@ async Task RunBackpressureDemo()
         .Spinner(Spinner.Known.Dots)
         .StartAsync("Running producer/consumer...", async ctx =>
         {
-            for (int i = 1; i <= 15; i++)
+            for (var i = 1; i <= 15; i++)
             {
                 ctx.Status($"Producing item {i}/15...");
                 sink.Raise("produce.item");
@@ -922,13 +912,8 @@ async Task RunMetricsMonitoringDemo()
             latencies.Add(latency);
 
             if (signal.Signal == "request.success")
-            {
                 successCount++;
-            }
-            else if (signal.Signal == "request.failure")
-            {
-                failureCount++;
-            }
+            else if (signal.Signal == "request.failure") failureCount++;
         }
     });
 
@@ -938,26 +923,22 @@ async Task RunMetricsMonitoringDemo()
     await using var requestAtom = new TestAtom(
         sink,
         "RequestHandler",
-        listenSignals: new List<string> { "request.incoming" },
-        signalResponses: new Dictionary<string, string>(),
-        processingDelay: TimeSpan.FromMilliseconds(50));
+        new List<string> { "request.incoming" },
+        new Dictionary<string, string>(),
+        TimeSpan.FromMilliseconds(50));
 
     var dashboardTask = Task.Run(async () =>
     {
-        for (int i = 0; i < 20; i++)
+        for (var i = 0; i < 20; i++)
         {
             await Task.Delay(300);
 
             // Simulate requests
             var success = random.Next(100) < 85; // 85% success rate
             if (success)
-            {
                 sink.Raise("request.success");
-            }
             else
-            {
                 sink.Raise("request.failure");
-            }
 
             // Update dashboard every 3 requests
             if (i % 3 == 0 && latencies.Count > 0)
@@ -967,7 +948,7 @@ async Task RunMetricsMonitoringDemo()
                 var p95 = sorted[(int)(sorted.Count * 0.95)];
                 var p99 = sorted[(int)(sorted.Count * 0.99)];
 
-                var successRate = totalRequests > 0 ? (successCount * 100.0 / totalRequests) : 0;
+                var successRate = totalRequests > 0 ? successCount * 100.0 / totalRequests : 0;
 
                 var table = new Table()
                     .Border(TableBorder.Rounded)
@@ -1057,7 +1038,7 @@ async Task RunDynamicRateAdjustmentDemo()
         .Spinner(Spinner.Known.Dots)
         .StartAsync("Monitoring system load...", async ctx =>
         {
-            for (int i = 1; i <= 15; i++)
+            for (var i = 1; i <= 15; i++)
             {
                 ctx.Status($"Cycle {i}/15 (rate: {rateLimiter.RatePerSecond:F1}/s)...");
 
@@ -1066,13 +1047,10 @@ async Task RunDynamicRateAdjustmentDemo()
                 // Try to acquire rate limit
                 using var lease = await rateLimiter.AcquireAsync();
                 if (lease.IsAcquired)
-                {
-                    AnsiConsole.MarkupLine($"[green]✓[/] [white]Request allowed ({rateLimiter.RatePerSecond:F1}/s, burst:{rateLimiter.Burst})[/]");
-                }
+                    AnsiConsole.MarkupLine(
+                        $"[green]✓[/] [white]Request allowed ({rateLimiter.RatePerSecond:F1}/s, burst:{rateLimiter.Burst})[/]");
                 else
-                {
                     AnsiConsole.MarkupLine("[red]✗[/] [grey]Request rate limited[/]");
-                }
 
                 await Task.Delay(400);
             }

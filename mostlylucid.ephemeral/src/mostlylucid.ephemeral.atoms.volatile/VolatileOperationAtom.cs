@@ -1,23 +1,30 @@
-using System;
-using System.Threading.Tasks;
-using Mostlylucid.Ephemeral;
-
 namespace Mostlylucid.Ephemeral.Atoms.Volatile;
 
 public sealed class VolatileOperationAtom : IAsyncDisposable
 {
-    private readonly SignalSink _signals;
     private readonly IOperationEvictor _evictor;
     private readonly VolatileOperationAtomOptions _options;
+    private readonly SignalSink _signals;
     private readonly IDisposable _subscription;
     private bool _disposed;
 
-    public VolatileOperationAtom(SignalSink signals, IOperationEvictor evictor, VolatileOperationAtomOptions? options = null)
+    public VolatileOperationAtom(SignalSink signals, IOperationEvictor evictor,
+        VolatileOperationAtomOptions? options = null)
     {
         _signals = signals ?? throw new ArgumentNullException(nameof(signals));
         _evictor = evictor ?? throw new ArgumentNullException(nameof(evictor));
         _options = options ?? new VolatileOperationAtomOptions();
         _subscription = _signals.Subscribe(OnSignal);
+    }
+
+    public ValueTask DisposeAsync()
+    {
+        if (_disposed)
+            return default;
+
+        _disposed = true;
+        _subscription.Dispose();
+        return default;
     }
 
     private void OnSignal(SignalEvent signal)
@@ -36,15 +43,5 @@ public sealed class VolatileOperationAtom : IAsyncDisposable
             _options.OnKilled?.Invoke(signal);
         else
             _options.OnNotFound?.Invoke(signal);
-    }
-
-    public ValueTask DisposeAsync()
-    {
-        if (_disposed)
-            return default;
-
-        _disposed = true;
-        _subscription.Dispose();
-        return default;
     }
 }

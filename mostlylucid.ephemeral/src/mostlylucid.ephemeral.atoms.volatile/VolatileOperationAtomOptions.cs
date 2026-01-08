@@ -1,6 +1,3 @@
-using System;
-using Mostlylucid.Ephemeral;
-
 namespace Mostlylucid.Ephemeral.Atoms.Volatile;
 
 public sealed class VolatileOperationAtomOptions
@@ -12,7 +9,8 @@ public sealed class VolatileOperationAtomOptions
 
     /// <summary>
     ///     Optional hook that runs when a signal matches the kill criteria.
-    ///     Return <see langword="true"/> to treat the signal as a kill even if it does not match <see cref="KillSignalPattern"/>.
+    ///     Return <see langword="true" /> to treat the signal as a kill even if it does not match
+    ///     <see cref="KillSignalPattern" />.
     /// </summary>
     public Func<SignalEvent, bool>? ShouldKill { get; init; }
 

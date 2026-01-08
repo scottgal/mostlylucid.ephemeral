@@ -2,7 +2,7 @@
 
 Attribute-driven, signal-aware jobs that wire themselves into an `EphemeralWorkCoordinator`.
 
-> 🚨🚨 WARNING 🚨🚨 - Though in the 1.x range of version THINGS WILL STILL BREAK. This is the lab for developing this concept when stabilized it'll becoe the first *stylo*flow release 🚨🚨🚨
+
 
 
 This package exposes:
@@ -126,7 +126,11 @@ await using var runner = new EphemeralSignalJobRunner(sink, new[] { new Pipeline
 sink.Raise("orders.process", key: "order-42");
 ```
 
-The runner keeps the pipeline alive without additional wiring: `ProcessOrderAsync` picks up hot work in the `hot:4` lane, pins its responsibility until downstream signals (e.g., `orders.processed`) arrive, and extracts the operation key from the signal. `NotifyCustomerAsync` reads the payload via `[KeySource]` so the notifier stays keyed to the same order. Register the runner with `services.AddEphemeralSignalJobRunner<PipelineJobs>()` so DI keeps the sink, runner, and attribute descriptors aligned with your other services.
+The runner keeps the pipeline alive without additional wiring: `ProcessOrderAsync` picks up hot work in the `hot:4`
+lane, pins its responsibility until downstream signals (e.g., `orders.processed`) arrive, and extracts the operation key
+from the signal. `NotifyCustomerAsync` reads the payload via `[KeySource]` so the notifier stays keyed to the same
+order. Register the runner with `services.AddEphemeralSignalJobRunner<PipelineJobs>()` so DI keeps the sink, runner, and
+attribute descriptors aligned with your other services.
 
 ### Lanes for workload separation
 
@@ -199,9 +203,11 @@ that pin to a downstream acknowledgement, optionally adding a `description` such
  manager.PinUntilQueried(operationId, "responsibility.ack.file", description: "awaiting file pickup");
  ```
 
-This creates a “responsibility signal” where the job announces it has handed off state (file paths, metadata, etc.) that another reader owes it. The pin keeps the operation visible until the ack signal arrives, so the coordinator never evicts the resource while it is still needed.
- 
-  When the ack signal arrives the pin is released automatically, eliminating races between producers and consumers.
+This creates a “responsibility signal” where the job announces it has handed off state (file paths, metadata, etc.) that
+another reader owes it. The pin keeps the operation visible until the ack signal arrives, so the coordinator never
+evicts the resource while it is still needed.
+
+When the ack signal arrives the pin is released automatically, eliminating races between producers and consumers.
 Combine this with `OperationEchoMaker`/`OperationEchoAtom` (see `mostlylucid.ephemeral.atoms.echo`) if you need
 structured “last words”: capture the key signals or typed payloads that summarize the operation before it vanishes so
 molecules or auditors can still taste the soup.

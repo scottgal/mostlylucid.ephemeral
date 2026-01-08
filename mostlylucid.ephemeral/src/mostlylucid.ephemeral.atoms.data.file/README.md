@@ -2,7 +2,6 @@
 
 File-based JSON data storage atom for signal-driven persistence. Stores each key-value pair as a separate JSON file.
 
-> 🚨🚨 WARNING 🚨🚨 - Though in the 1.x range of version THINGS WILL STILL BREAK. This is the lab for developing this concept when stabilized it'll becoe the first *stylo*flow release 🚨🚨🚨
 
 
 ## Installation

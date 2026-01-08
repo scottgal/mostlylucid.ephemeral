@@ -72,19 +72,13 @@ public class SignalSinkTests
     [Fact]
     public void Cleanup_LimitsIterations_PreventingUnboundedLoop()
     {
-        var sink = new SignalSink(maxCapacity: 10);
+        var sink = new SignalSink(10);
 
         // Add way more signals than capacity
-        for (int i = 0; i < 5000; i++)
-        {
-            sink.Raise($"signal.{i}");
-        }
+        for (var i = 0; i < 5000; i++) sink.Raise($"signal.{i}");
 
         // Trigger cleanup by adding more
-        for (int i = 0; i < 1100; i++)
-        {
-            sink.Raise($"cleanup.{i}");
-        }
+        for (var i = 0; i < 1100; i++) sink.Raise($"cleanup.{i}");
 
         // Should not hang - cleanup is bounded
         // After bounded cleanup, count should be reasonable (not thousands)
@@ -94,7 +88,7 @@ public class SignalSinkTests
     [Fact]
     public async Task Cleanup_HandlesExpiredSignals()
     {
-        var sink = new SignalSink(maxCapacity: 100, maxAge: TimeSpan.FromMilliseconds(50));
+        var sink = new SignalSink(100, TimeSpan.FromMilliseconds(50));
 
         sink.Raise("signal.1");
         sink.Raise("signal.2");
@@ -102,10 +96,7 @@ public class SignalSinkTests
         await Task.Delay(100); // Wait for signals to expire
 
         // Add more to trigger cleanup
-        for (int i = 0; i < 1100; i++)
-        {
-            sink.Raise($"new.{i}");
-        }
+        for (var i = 0; i < 1100; i++) sink.Raise($"new.{i}");
 
         // Old signals should be cleaned up
         var signals = sink.Sense();
@@ -116,9 +107,9 @@ public class SignalSinkTests
     [Fact]
     public void UpdateWindowSize_UpdatesCapacityAndAge()
     {
-        var sink = new SignalSink(maxCapacity: 100, maxAge: TimeSpan.FromMinutes(1));
+        var sink = new SignalSink(100, TimeSpan.FromMinutes(1));
 
-        sink.UpdateWindowSize(maxCapacity: 200, maxAge: TimeSpan.FromMinutes(5));
+        sink.UpdateWindowSize(200, TimeSpan.FromMinutes(5));
 
         Assert.Equal(200, sink.MaxCapacity);
         Assert.Equal(TimeSpan.FromMinutes(5), sink.MaxAge);
@@ -127,9 +118,9 @@ public class SignalSinkTests
     [Fact]
     public void UpdateWindowSize_OnlyUpdatesSpecifiedParameters()
     {
-        var sink = new SignalSink(maxCapacity: 100, maxAge: TimeSpan.FromMinutes(1));
+        var sink = new SignalSink(100, TimeSpan.FromMinutes(1));
 
-        sink.UpdateWindowSize(maxCapacity: 200);
+        sink.UpdateWindowSize(200);
 
         Assert.Equal(200, sink.MaxCapacity);
         Assert.Equal(TimeSpan.FromMinutes(1), sink.MaxAge); // Unchanged
@@ -140,7 +131,7 @@ public class SignalSinkTests
     {
         var sink = new SignalSink();
 
-        sink.UpdateWindowSize(maxCapacity: -100);
+        sink.UpdateWindowSize(-100);
 
         Assert.True(sink.MaxCapacity >= 1);
     }
@@ -151,7 +142,7 @@ public class SignalSinkTests
         var sink = new SignalSink();
         SignalEvent? receivedSignal = null;
 
-        using var sub = sink.Subscribe((signal) => receivedSignal = signal);
+        using var sub = sink.Subscribe(signal => receivedSignal = signal);
         sink.Raise("test.event");
 
         Assert.NotNull(receivedSignal);
@@ -163,7 +154,7 @@ public class SignalSinkTests
     {
         var sink = new SignalSink();
 
-        using var sub = sink.Subscribe((_) => throw new Exception("Handler failure"));
+        using var sub = sink.Subscribe(_ => throw new Exception("Handler failure"));
 
         // Should not throw
         sink.Raise("test.event");
@@ -174,18 +165,15 @@ public class SignalSinkTests
     [Fact]
     public void ConcurrentRaise_HandlesMultipleThreads()
     {
-        var sink = new SignalSink(maxCapacity: 10000);
+        var sink = new SignalSink(10000);
         var tasks = new List<Task>();
 
-        for (int i = 0; i < 100; i++)
+        for (var i = 0; i < 100; i++)
         {
             var taskId = i;
             tasks.Add(Task.Run(() =>
             {
-                for (int j = 0; j < 100; j++)
-                {
-                    sink.Raise($"task.{taskId}.signal.{j}");
-                }
+                for (var j = 0; j < 100; j++) sink.Raise($"task.{taskId}.signal.{j}");
             }));
         }
 
@@ -201,10 +189,7 @@ public class SignalSinkTests
         var sink = new SignalSink();
 
         // Add many signals
-        for (int i = 0; i < 100; i++)
-        {
-            sink.Raise($"signal.{i}");
-        }
+        for (var i = 0; i < 100; i++) sink.Raise($"signal.{i}");
 
         // Pre-sized list should reduce allocations
         var results = sink.Sense(s => s.Signal.StartsWith("signal.5"));
@@ -218,10 +203,7 @@ public class SignalSinkTests
     {
         var sink = new SignalSink();
 
-        for (int i = 0; i < 1000; i++)
-        {
-            sink.Raise($"signal.{i}");
-        }
+        for (var i = 0; i < 1000; i++) sink.Raise($"signal.{i}");
 
         // Should find quickly without checking all 1000
         var found = sink.Detect("signal.0");
@@ -232,19 +214,16 @@ public class SignalSinkTests
     [Fact]
     public async Task HighVolumeStressTest_MaintainsStability()
     {
-        var sink = new SignalSink(maxCapacity: 1000);
+        var sink = new SignalSink();
 
         // Simulate high-volume scenario
         var tasks = Enumerable.Range(0, 10).Select(taskId =>
             Task.Run(async () =>
             {
-                for (int i = 0; i < 1000; i++)
+                for (var i = 0; i < 1000; i++)
                 {
                     sink.Raise($"task.{taskId}.msg.{i}");
-                    if (i % 100 == 0)
-                    {
-                        await Task.Delay(1); // Small delay
-                    }
+                    if (i % 100 == 0) await Task.Delay(1); // Small delay
                 }
             })
         ).ToArray();

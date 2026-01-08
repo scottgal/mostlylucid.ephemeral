@@ -2,7 +2,7 @@
 
 [![NuGet](https://img.shields.io/nuget/v/mostlylucid.ephemeral.patterns.reactivefanout.svg)](https://www.nuget.org/packages/mostlylucid.ephemeral.patterns.reactivefanout)
 
-> 🚨🚨 WARNING 🚨🚨 - Though in the 1.x range of version THINGS WILL STILL BREAK. This is the lab for developing this concept when stabilized it'll becoe the first *stylo*flow release 🚨🚨🚨
+
 
 
 Two-stage reactive pipeline that automatically throttles stage 1 when stage 2 signals backpressure.

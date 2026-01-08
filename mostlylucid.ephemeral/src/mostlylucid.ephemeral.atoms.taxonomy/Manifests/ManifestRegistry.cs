@@ -1,25 +1,19 @@
-using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
 using System.Reflection;
-using System.Threading;
-using System.Threading.Tasks;
 using YamlDotNet.Serialization;
 using YamlDotNet.Serialization.NamingConventions;
 
 namespace Mostlylucid.Ephemeral.Atoms.Taxonomy.Manifests;
 
 /// <summary>
-/// Registry for discovering and loading atom/molecule manifests at runtime.
-/// Supports loading from files, embedded resources, and remote URLs.
+///     Registry for discovering and loading atom/molecule manifests at runtime.
+///     Supports loading from files, embedded resources, and remote URLs.
 /// </summary>
 public sealed class ManifestRegistry : IManifestRegistry
 {
     private readonly ConcurrentDictionary<string, AtomManifest> _atoms = new(StringComparer.OrdinalIgnoreCase);
-    private readonly ConcurrentDictionary<string, MoleculeManifest> _molecules = new(StringComparer.OrdinalIgnoreCase);
     private readonly IDeserializer _deserializer;
+    private readonly ConcurrentDictionary<string, MoleculeManifest> _molecules = new(StringComparer.OrdinalIgnoreCase);
     private readonly ManifestRegistryOptions _options;
 
     public ManifestRegistry(ManifestRegistryOptions? options = null)
@@ -32,17 +26,17 @@ public sealed class ManifestRegistry : IManifestRegistry
     }
 
     /// <summary>
-    /// All registered atom manifests.
+    ///     All registered atom manifests.
     /// </summary>
     public IReadOnlyDictionary<string, AtomManifest> Atoms => _atoms;
 
     /// <summary>
-    /// All registered molecule manifests.
+    ///     All registered molecule manifests.
     /// </summary>
     public IReadOnlyDictionary<string, MoleculeManifest> Molecules => _molecules;
 
     /// <summary>
-    /// Loads all manifests from a directory.
+    ///     Loads all manifests from a directory.
     /// </summary>
     public async Task LoadFromDirectoryAsync(string path, CancellationToken ct = default)
     {
@@ -72,7 +66,7 @@ public sealed class ManifestRegistry : IManifestRegistry
     }
 
     /// <summary>
-    /// Loads manifests from embedded resources in an assembly.
+    ///     Loads manifests from embedded resources in an assembly.
     /// </summary>
     public void LoadFromAssembly(Assembly assembly, string? resourcePrefix = null)
     {
@@ -106,7 +100,7 @@ public sealed class ManifestRegistry : IManifestRegistry
     }
 
     /// <summary>
-    /// Registers an atom manifest directly.
+    ///     Registers an atom manifest directly.
     /// </summary>
     public void Register(AtomManifest manifest)
     {
@@ -115,7 +109,7 @@ public sealed class ManifestRegistry : IManifestRegistry
     }
 
     /// <summary>
-    /// Registers a molecule manifest directly.
+    ///     Registers a molecule manifest directly.
     /// </summary>
     public void Register(MoleculeManifest manifest)
     {
@@ -124,7 +118,7 @@ public sealed class ManifestRegistry : IManifestRegistry
     }
 
     /// <summary>
-    /// Gets an atom manifest by its fully qualified key.
+    ///     Gets an atom manifest by its fully qualified key.
     /// </summary>
     public AtomManifest? GetAtom(string key)
     {
@@ -132,7 +126,7 @@ public sealed class ManifestRegistry : IManifestRegistry
     }
 
     /// <summary>
-    /// Gets an atom manifest by name (searches all scopes).
+    ///     Gets an atom manifest by name (searches all scopes).
     /// </summary>
     public AtomManifest? GetAtomByName(string name)
     {
@@ -141,7 +135,7 @@ public sealed class ManifestRegistry : IManifestRegistry
     }
 
     /// <summary>
-    /// Gets a molecule manifest by its fully qualified key.
+    ///     Gets a molecule manifest by its fully qualified key.
     /// </summary>
     public MoleculeManifest? GetMolecule(string key)
     {
@@ -149,7 +143,7 @@ public sealed class ManifestRegistry : IManifestRegistry
     }
 
     /// <summary>
-    /// Gets atoms by tag.
+    ///     Gets atoms by tag.
     /// </summary>
     public IEnumerable<AtomManifest> GetAtomsByTag(string tag)
     {
@@ -158,7 +152,7 @@ public sealed class ManifestRegistry : IManifestRegistry
     }
 
     /// <summary>
-    /// Gets atoms by kind.
+    ///     Gets atoms by kind.
     /// </summary>
     public IEnumerable<AtomManifest> GetAtomsByKind(string kind)
     {
@@ -167,7 +161,7 @@ public sealed class ManifestRegistry : IManifestRegistry
     }
 
     /// <summary>
-    /// Gets atoms in a specific scope (sink.coordinator).
+    ///     Gets atoms in a specific scope (sink.coordinator).
     /// </summary>
     public IEnumerable<AtomManifest> GetAtomsInScope(string sink, string? coordinator = null)
     {
@@ -184,7 +178,7 @@ public sealed class ManifestRegistry : IManifestRegistry
     }
 
     /// <summary>
-    /// Finds atoms that emit a specific signal pattern.
+    ///     Finds atoms that emit a specific signal pattern.
     /// </summary>
     public IEnumerable<AtomManifest> FindProvidersOf(string signalPattern)
     {
@@ -192,7 +186,7 @@ public sealed class ManifestRegistry : IManifestRegistry
     }
 
     /// <summary>
-    /// Finds atoms that require a specific signal pattern.
+    ///     Finds atoms that require a specific signal pattern.
     /// </summary>
     public IEnumerable<AtomManifest> FindConsumersOf(string signalPattern)
     {
@@ -200,7 +194,7 @@ public sealed class ManifestRegistry : IManifestRegistry
     }
 
     /// <summary>
-    /// Validates that all signal dependencies are satisfied within the registry.
+    ///     Validates that all signal dependencies are satisfied within the registry.
     /// </summary>
     public ValidationResult Validate()
     {
@@ -216,33 +210,25 @@ public sealed class ManifestRegistry : IManifestRegistry
             {
                 var providers = FindProvidersOf(required);
                 if (!providers.Any())
-                {
                     errors.Add($"Atom '{atom.Name}' requires signal '{required}' but no provider found");
-                }
             }
         }
 
         // Check for circular dependencies
         var graph = BuildDependencyGraph();
-        if (HasCycles(graph))
-        {
-            errors.Add("Circular dependency detected in signal graph");
-        }
+        if (HasCycles(graph)) errors.Add("Circular dependency detected in signal graph");
 
         return new ValidationResult(errors, warnings);
     }
 
     /// <summary>
-    /// Builds a dependency graph based on signal contracts.
+    ///     Builds a dependency graph based on signal contracts.
     /// </summary>
     public SignalDependencyGraph BuildDependencyGraph()
     {
         var graph = new SignalDependencyGraph();
 
-        foreach (var atom in _atoms.Values)
-        {
-            graph.AddNode(atom);
-        }
+        foreach (var atom in _atoms.Values) graph.AddNode(atom);
 
         foreach (var atom in _atoms.Values)
         {
@@ -252,10 +238,7 @@ public sealed class ManifestRegistry : IManifestRegistry
             foreach (var required in atom.Listens.Required)
             {
                 var providers = FindProvidersOf(required);
-                foreach (var provider in providers)
-                {
-                    graph.AddEdge(provider, atom, required);
-                }
+                foreach (var provider in providers) graph.AddEdge(provider, atom, required);
             }
         }
 
@@ -263,7 +246,7 @@ public sealed class ManifestRegistry : IManifestRegistry
     }
 
     /// <summary>
-    /// Returns atoms in topological order (providers before consumers).
+    ///     Returns atoms in topological order (providers before consumers).
     /// </summary>
     public IReadOnlyList<AtomManifest> TopologicalSort()
     {
@@ -320,10 +303,8 @@ public sealed class ManifestRegistry : IManifestRegistry
         var recursionStack = new HashSet<string>();
 
         foreach (var node in graph.Nodes)
-        {
             if (HasCyclesDfs(node.Name, graph, visited, recursionStack))
                 return true;
-        }
 
         return false;
     }
@@ -344,10 +325,8 @@ public sealed class ManifestRegistry : IManifestRegistry
         recursionStack.Add(current);
 
         foreach (var edge in graph.GetOutgoingEdges(current))
-        {
             if (HasCyclesDfs(edge.Target.Name, graph, visited, recursionStack))
                 return true;
-        }
 
         recursionStack.Remove(current);
         return false;
@@ -355,28 +334,28 @@ public sealed class ManifestRegistry : IManifestRegistry
 }
 
 /// <summary>
-/// Options for configuring the manifest registry.
+///     Options for configuring the manifest registry.
 /// </summary>
 public sealed class ManifestRegistryOptions
 {
     /// <summary>
-    /// Whether to auto-discover from loaded assemblies.
+    ///     Whether to auto-discover from loaded assemblies.
     /// </summary>
     public bool AutoDiscover { get; init; } = false;
 
     /// <summary>
-    /// Directories to scan for manifests.
+    ///     Directories to scan for manifests.
     /// </summary>
     public List<string> ScanDirectories { get; init; } = new();
 
     /// <summary>
-    /// NuGet sources for package resolution.
+    ///     NuGet sources for package resolution.
     /// </summary>
     public List<NuGetSource> NuGetSources { get; init; } = new();
 }
 
 /// <summary>
-/// A NuGet source for package resolution.
+///     A NuGet source for package resolution.
 /// </summary>
 public sealed class NuGetSource
 {
@@ -386,7 +365,7 @@ public sealed class NuGetSource
 }
 
 /// <summary>
-/// Result of manifest validation.
+///     Result of manifest validation.
 /// </summary>
 public sealed class ValidationResult
 {
@@ -402,12 +381,12 @@ public sealed class ValidationResult
 }
 
 /// <summary>
-/// A dependency graph based on signal contracts.
+///     A dependency graph based on signal contracts.
 /// </summary>
 public sealed class SignalDependencyGraph
 {
-    private readonly Dictionary<string, AtomManifest> _nodes = new(StringComparer.OrdinalIgnoreCase);
     private readonly List<SignalEdge> _edges = new();
+    private readonly Dictionary<string, AtomManifest> _nodes = new(StringComparer.OrdinalIgnoreCase);
 
     public IEnumerable<AtomManifest> Nodes => _nodes.Values;
     public IEnumerable<SignalEdge> Edges => _edges;
@@ -433,7 +412,7 @@ public sealed class SignalDependencyGraph
     }
 
     /// <summary>
-    /// Returns nodes in topological order (providers before consumers).
+    ///     Returns nodes in topological order (providers before consumers).
     /// </summary>
     public IReadOnlyList<AtomManifest> TopologicalSort()
     {
@@ -442,12 +421,8 @@ public sealed class SignalDependencyGraph
         var temp = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         foreach (var node in _nodes.Values.OrderByDescending(n => GetPriority(n)))
-        {
             if (!visited.Contains(node.Name))
-            {
                 TopologicalSortVisit(node, visited, temp, result);
-            }
-        }
 
         result.Reverse();
         return result;
@@ -467,10 +442,7 @@ public sealed class SignalDependencyGraph
 
         temp.Add(node.Name);
 
-        foreach (var edge in GetOutgoingEdges(node.Name))
-        {
-            TopologicalSortVisit(edge.Target, visited, temp, result);
-        }
+        foreach (var edge in GetOutgoingEdges(node.Name)) TopologicalSortVisit(edge.Target, visited, temp, result);
 
         temp.Remove(node.Name);
         visited.Add(node.Name);
@@ -484,7 +456,7 @@ public sealed class SignalDependencyGraph
 }
 
 /// <summary>
-/// An edge in the dependency graph representing a signal flow.
+///     An edge in the dependency graph representing a signal flow.
 /// </summary>
 public sealed class SignalEdge
 {
@@ -501,7 +473,7 @@ public sealed class SignalEdge
 }
 
 /// <summary>
-/// Interface for manifest registry operations.
+///     Interface for manifest registry operations.
 /// </summary>
 public interface IManifestRegistry
 {

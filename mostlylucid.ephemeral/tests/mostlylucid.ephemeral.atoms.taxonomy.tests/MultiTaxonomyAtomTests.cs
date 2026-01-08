@@ -1,7 +1,3 @@
-using System.Threading;
-using System.Threading.Tasks;
-using Mostlylucid.Ephemeral;
-using Mostlylucid.Ephemeral.Atoms.Taxonomy;
 using Xunit;
 
 namespace Mostlylucid.Ephemeral.Atoms.Taxonomy.Tests;
@@ -60,7 +56,7 @@ public class MultiTaxonomyAtomTests
         var tcs = new TaskCompletionSource<SignalEvent<int>>(TaskCreationOptions.RunContinuationsAsynchronously);
         typed.TypedSignalRaised += evt => tcs.TrySetResult(evt);
 
-        await using var atom = new MultiTaxonomyAtom<int, int>(typed, Handler, shards, outputSignal: "multi.output");
+        await using var atom = new MultiTaxonomyAtom<int, int>(typed, Handler, shards, "multi.output");
         var result = await atom.RunAsync(5);
 
         Assert.Equal(6, result);
@@ -69,7 +65,10 @@ public class MultiTaxonomyAtomTests
         Assert.Equal(6, evt.Payload);
     }
 
-    private static Task<int> Handler(int input, CancellationToken _) => Task.FromResult(input + 1);
+    private static Task<int> Handler(int input, CancellationToken _)
+    {
+        return Task.FromResult(input + 1);
+    }
 
     private static async Task<T> WaitForSignalAsync<T>(Task<T> task, int timeoutMs = 1000)
     {

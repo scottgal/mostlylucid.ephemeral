@@ -1,36 +1,30 @@
-using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Linq;
 
 namespace Mostlylucid.Ephemeral.Atoms.Taxonomy.Ledger;
 
 /// <summary>
-/// The evidence accumulator for detection systems.
-/// This is the core ledger that BotDetection, ThreatDetection, etc. use directly.
+///     The evidence accumulator for detection systems.
+///     This is the core ledger that BotDetection, ThreatDetection, etc. use directly.
 /// </summary>
 /// <remarks>
-/// **Flow:**
-/// ```
-/// Request → SignalSink (shared) → Detectors → DetectionLedger → Verdict
-///                                                    ↓
-///                                          (high salience signals)
-///                                                    ↓
-///                                            Learning System
-/// ```
-///
-/// The ledger is the single source of truth for detection evidence.
-/// All detectors write contributions to the same ledger instance.
-/// The ledger aggregates evidence and produces the final verdict.
+///     **Flow:**
+///     ```
+///     Request → SignalSink (shared) → Detectors → DetectionLedger → Verdict
+///     ↓
+///     (high salience signals)
+///     ↓
+///     Learning System
+///     ```
+///     The ledger is the single source of truth for detection evidence.
+///     All detectors write contributions to the same ledger instance.
+///     The ledger aggregates evidence and produces the final verdict.
 /// </remarks>
 public class DetectionLedger
 {
-    private readonly ConcurrentDictionary<string, LedgerSignal> _signals = new(StringComparer.OrdinalIgnoreCase);
     private readonly List<DetectionContribution> _contributions = new();
     private readonly HashSet<string> _failedDetectors = new(StringComparer.OrdinalIgnoreCase);
     private readonly object _lock = new();
-
-    private DetectionContribution? _earlyExitContribution;
+    private readonly ConcurrentDictionary<string, LedgerSignal> _signals = new(StringComparer.OrdinalIgnoreCase);
 
     public DetectionLedger(string requestId, string? fingerprint = null)
     {
@@ -40,22 +34,22 @@ public class DetectionLedger
     }
 
     /// <summary>
-    /// Request/session identifier.
+    ///     Request/session identifier.
     /// </summary>
     public string RequestId { get; }
 
     /// <summary>
-    /// Privacy-preserving fingerprint (hashed composite of request attributes).
+    ///     Privacy-preserving fingerprint (hashed composite of request attributes).
     /// </summary>
     public string? Fingerprint { get; }
 
     /// <summary>
-    /// When this ledger was created.
+    ///     When this ledger was created.
     /// </summary>
     public DateTimeOffset CreatedAt { get; }
 
     /// <summary>
-    /// All evidence contributions from detectors.
+    ///     All evidence contributions from detectors.
     /// </summary>
     public IReadOnlyList<DetectionContribution> Contributions
     {
@@ -69,42 +63,42 @@ public class DetectionLedger
     }
 
     /// <summary>
-    /// Current aggregated bot probability (0.0 = human, 1.0 = bot).
+    ///     Current aggregated bot probability (0.0 = human, 1.0 = bot).
     /// </summary>
     public double BotProbability { get; private set; } = 0.5;
 
     /// <summary>
-    /// Confidence in the probability (0.0 - 1.0).
+    ///     Confidence in the probability (0.0 - 1.0).
     /// </summary>
-    public double Confidence { get; private set; } = 0.0;
+    public double Confidence { get; private set; }
 
     /// <summary>
-    /// Whether early exit was triggered.
+    ///     Whether early exit was triggered.
     /// </summary>
-    public bool EarlyExit => _earlyExitContribution != null;
+    public bool EarlyExit => EarlyExitContribution != null;
 
     /// <summary>
-    /// The contribution that triggered early exit.
+    ///     The contribution that triggered early exit.
     /// </summary>
-    public DetectionContribution? EarlyExitContribution => _earlyExitContribution;
+    public DetectionContribution? EarlyExitContribution { get; private set; }
 
     /// <summary>
-    /// Primary detected bot type.
+    ///     Primary detected bot type.
     /// </summary>
     public string? BotType { get; private set; }
 
     /// <summary>
-    /// Primary detected bot name.
+    ///     Primary detected bot name.
     /// </summary>
     public string? BotName { get; private set; }
 
     /// <summary>
-    /// Total processing time across all contributions.
+    ///     Total processing time across all contributions.
     /// </summary>
     public double TotalProcessingTimeMs { get; private set; }
 
     /// <summary>
-    /// Which detectors contributed evidence.
+    ///     Which detectors contributed evidence.
     /// </summary>
     public IReadOnlySet<string> ContributingDetectors
     {
@@ -118,7 +112,7 @@ public class DetectionLedger
     }
 
     /// <summary>
-    /// Which detectors failed or timed out.
+    ///     Which detectors failed or timed out.
     /// </summary>
     public IReadOnlySet<string> FailedDetectors
     {
@@ -132,12 +126,12 @@ public class DetectionLedger
     }
 
     /// <summary>
-    /// All signals recorded in the ledger.
+    ///     All signals recorded in the ledger.
     /// </summary>
     public IReadOnlyDictionary<string, LedgerSignal> Signals => _signals;
 
     /// <summary>
-    /// Gets the merged signals from all contributions.
+    ///     Gets the merged signals from all contributions.
     /// </summary>
     public IReadOnlyDictionary<string, object> MergedSignals
     {
@@ -147,19 +141,16 @@ public class DetectionLedger
             lock (_lock)
             {
                 foreach (var contrib in _contributions)
-                {
-                    foreach (var (key, value) in contrib.Signals)
-                    {
-                        result[key] = value;
-                    }
-                }
+                foreach (var (key, value) in contrib.Signals)
+                    result[key] = value;
             }
+
             return result;
         }
     }
 
     /// <summary>
-    /// Category breakdown for explainability.
+    ///     Category breakdown for explainability.
     /// </summary>
     public IReadOnlyDictionary<string, CategoryScore> CategoryBreakdown
     {
@@ -185,7 +176,7 @@ public class DetectionLedger
     }
 
     /// <summary>
-    /// Records a signal in the ledger.
+    ///     Records a signal in the ledger.
     /// </summary>
     public void Record(
         string key,
@@ -210,7 +201,7 @@ public class DetectionLedger
     }
 
     /// <summary>
-    /// Adds a detection contribution from a detector.
+    ///     Adds a detection contribution from a detector.
     /// </summary>
     public void AddContribution(DetectionContribution contribution)
     {
@@ -220,21 +211,14 @@ public class DetectionLedger
             TotalProcessingTimeMs += contribution.ProcessingTimeMs;
 
             // Check for early exit
-            if (contribution.TriggerEarlyExit && _earlyExitContribution == null)
-            {
-                _earlyExitContribution = contribution;
-            }
+            if (contribution.TriggerEarlyExit && EarlyExitContribution == null) EarlyExitContribution = contribution;
 
             // Update bot type if provided with higher confidence
             if (!string.IsNullOrEmpty(contribution.BotType) && contribution.ConfidenceDelta > 0)
-            {
                 BotType = contribution.BotType;
-            }
 
             if (!string.IsNullOrEmpty(contribution.BotName) && contribution.ConfidenceDelta > 0)
-            {
                 BotName = contribution.BotName;
-            }
         }
 
         // Record as signal
@@ -247,20 +231,18 @@ public class DetectionLedger
 
         // Add detector-specific signals
         foreach (var (key, val) in contribution.Signals)
-        {
             Record(
                 $"detector.{contribution.DetectorName}.{key}",
                 val,
                 contribution.Salience,
                 contribution.DetectorName);
-        }
 
         // Recalculate aggregated probability
         Aggregate();
     }
 
     /// <summary>
-    /// Records a detector failure.
+    ///     Records a detector failure.
     /// </summary>
     public void RecordFailure(string detectorName)
     {
@@ -273,7 +255,7 @@ public class DetectionLedger
     }
 
     /// <summary>
-    /// Recalculates the aggregated bot probability using sigmoid function.
+    ///     Recalculates the aggregated bot probability using sigmoid function.
     /// </summary>
     protected virtual void Aggregate()
     {
@@ -313,7 +295,7 @@ public class DetectionLedger
     }
 
     /// <summary>
-    /// Gets signals matching a pattern.
+    ///     Gets signals matching a pattern.
     /// </summary>
     public IReadOnlyList<LedgerSignal> GetSignals(string pattern)
     {
@@ -335,7 +317,7 @@ public class DetectionLedger
     }
 
     /// <summary>
-    /// Gets signals above a salience threshold (for escalation).
+    ///     Gets signals above a salience threshold (for escalation).
     /// </summary>
     public IReadOnlyList<LedgerSignal> GetHighSalienceSignals(double threshold = 0.8)
     {
@@ -346,8 +328,8 @@ public class DetectionLedger
     }
 
     /// <summary>
-    /// Creates a learning record for the heuristic system.
-    /// Only returns a record for high-confidence detections.
+    ///     Creates a learning record for the heuristic system.
+    ///     Only returns a record for high-confidence detections.
     /// </summary>
     public LearningRecord? ToLearningRecord(double confidenceThreshold = 0.85)
     {
@@ -377,7 +359,7 @@ public class DetectionLedger
     }
 
     /// <summary>
-    /// Extracts feature vector for heuristic learning.
+    ///     Extracts feature vector for heuristic learning.
     /// </summary>
     protected virtual Dictionary<string, double> ExtractFeatures()
     {
@@ -385,20 +367,11 @@ public class DetectionLedger
 
         // Extract numeric signals as features
         foreach (var (key, signal) in _signals)
-        {
             if (signal.Value is double d)
-            {
                 features[key] = d;
-            }
             else if (signal.Value is bool b)
-            {
                 features[key] = b ? 1.0 : 0.0;
-            }
-            else if (signal.Value is int i)
-            {
-                features[key] = i;
-            }
-        }
+            else if (signal.Value is int i) features[key] = i;
 
         // Add contribution deltas as features
         lock (_lock)
@@ -413,17 +386,24 @@ public class DetectionLedger
         return features;
     }
 
-    public bool HasSignal(string key) => _signals.ContainsKey(key);
+    public bool HasSignal(string key)
+    {
+        return _signals.ContainsKey(key);
+    }
 
-    public LedgerSignal? GetSignal(string key) =>
-        _signals.TryGetValue(key, out var signal) ? signal : null;
+    public LedgerSignal? GetSignal(string key)
+    {
+        return _signals.TryGetValue(key, out var signal) ? signal : null;
+    }
 
-    public T? GetSignalValue<T>(string key) =>
-        _signals.TryGetValue(key, out var signal) && signal.Value is T value ? value : default;
+    public T? GetSignalValue<T>(string key)
+    {
+        return _signals.TryGetValue(key, out var signal) && signal.Value is T value ? value : default;
+    }
 }
 
 /// <summary>
-/// Score breakdown for a single category.
+///     Score breakdown for a single category.
 /// </summary>
 public sealed class CategoryScore
 {
@@ -435,7 +415,7 @@ public sealed class CategoryScore
 }
 
 /// <summary>
-/// A contribution from a detector to the detection ledger.
+///     A contribution from a detector to the detection ledger.
 /// </summary>
 public sealed record DetectionContribution
 {
@@ -456,7 +436,7 @@ public sealed record DetectionContribution
     public string? EarlyExitVerdict { get; init; }
 
     /// <summary>
-    /// Creates a bot-indicating contribution.
+    ///     Creates a bot-indicating contribution.
     /// </summary>
     public static DetectionContribution Bot(
         string detectorName,
@@ -483,7 +463,7 @@ public sealed record DetectionContribution
     }
 
     /// <summary>
-    /// Creates a human-indicating contribution.
+    ///     Creates a human-indicating contribution.
     /// </summary>
     public static DetectionContribution Human(
         string detectorName,
@@ -506,7 +486,7 @@ public sealed record DetectionContribution
     }
 
     /// <summary>
-    /// Creates a neutral/informational contribution.
+    ///     Creates a neutral/informational contribution.
     /// </summary>
     public static DetectionContribution Info(
         string detectorName,
@@ -527,7 +507,7 @@ public sealed record DetectionContribution
     }
 
     /// <summary>
-    /// Creates an early exit contribution (verified bot).
+    ///     Creates an early exit contribution (verified bot).
     /// </summary>
     public static DetectionContribution VerifiedBot(
         string detectorName,
@@ -551,7 +531,7 @@ public sealed record DetectionContribution
     }
 
     /// <summary>
-    /// Creates an early exit contribution for verified good bots.
+    ///     Creates an early exit contribution for verified good bots.
     /// </summary>
     public static DetectionContribution VerifiedGoodBot(
         string detectorName,
@@ -575,7 +555,7 @@ public sealed record DetectionContribution
 }
 
 /// <summary>
-/// A record for training the heuristic model.
+///     A record for training the heuristic model.
 /// </summary>
 public sealed class LearningRecord
 {
@@ -593,15 +573,17 @@ public sealed class LearningRecord
 }
 
 /// <summary>
-/// Store for persisting detection ledgers and learning records.
+///     Store for persisting detection ledgers and learning records.
 /// </summary>
 public interface IDetectionLedgerStore
 {
     Task SaveLedgerAsync(DetectionLedger ledger, CancellationToken ct = default);
     Task SaveLearningRecordAsync(LearningRecord record, CancellationToken ct = default);
+
     Task<IReadOnlyList<LearningRecord>> GetLearningRecordsAsync(
         int limit = 1000,
         DateTimeOffset? since = null,
         CancellationToken ct = default);
+
     Task<DetectionLedger?> GetLedgerAsync(string requestId, CancellationToken ct = default);
 }

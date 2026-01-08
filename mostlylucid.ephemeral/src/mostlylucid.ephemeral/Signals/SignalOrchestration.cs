@@ -23,8 +23,8 @@ public sealed class SignalWaveExecutor : IAsyncDisposable
     private readonly IReadOnlyCollection<string> _earlyExitPatterns;
     private readonly SignalSink _sink;
     private readonly IReadOnlyList<SignalStage> _stages;
-    private IDisposable? _subscription;
     private bool _started;
+    private IDisposable? _subscription;
 
     public SignalWaveExecutor(
         SignalSink sink,

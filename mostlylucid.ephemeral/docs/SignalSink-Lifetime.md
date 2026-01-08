@@ -2,9 +2,12 @@
 
 ## Overview
 
-`SignalSink` is a **shared, long-lived signal repository** that acts as a global event bus for ephemeral operations. Unlike coordinators (which manage work execution), a sink is purely observational - it collects, stores, and makes signals queryable across multiple coordinators.
+`SignalSink` is a **shared, long-lived signal repository** that acts as a global event bus for ephemeral operations.
+Unlike coordinators (which manage work execution), a sink is purely observational - it collects, stores, and makes
+signals queryable across multiple coordinators.
 
 This document covers:
+
 - SignalSink lifetime management
 - Sharing sinks across coordinators
 - Memory management and cleanup
@@ -25,6 +28,7 @@ public sealed class SignalSink
 ```
 
 A `SignalSink`:
+
 - Stores `SignalEvent` structs in a bounded `ConcurrentQueue<SignalEvent>`
 - Auto-cleans based on **capacity** (size-based eviction) and **age** (time-based eviction)
 - Provides push-based notification via `Subscribe()` and `SignalRaised` event
@@ -34,13 +38,13 @@ A `SignalSink`:
 
 ### Key Characteristics
 
-| Property | Behavior |
-|----------|----------|
-| **Lifetime** | Lives as long as you hold a reference - no explicit disposal needed |
-| **Thread-Safety** | Fully concurrent - safe to share across threads and coordinators |
-| **Memory Model** | Bounded sliding window with automatic cleanup |
-| **Cleanup** | Periodic (every ~1024 raises) with limited scan budget |
-| **Ownership** | Shared reference - multiple coordinators can reference the same sink |
+| Property          | Behavior                                                             |
+|-------------------|----------------------------------------------------------------------|
+| **Lifetime**      | Lives as long as you hold a reference - no explicit disposal needed  |
+| **Thread-Safety** | Fully concurrent - safe to share across threads and coordinators     |
+| **Memory Model**  | Bounded sliding window with automatic cleanup                        |
+| **Cleanup**       | Periodic (every ~1024 raises) with limited scan budget               |
+| **Ownership**     | Shared reference - multiple coordinators can reference the same sink |
 
 ---
 
@@ -92,7 +96,8 @@ var sink = new SignalSink();
 // Cleanup happens automatically via periodic maintenance
 ```
 
-**Why?** SignalSink is a passive data structure with no background threads or unmanaged resources. The `ConcurrentQueue` is managed memory that GC will collect.
+**Why?** SignalSink is a passive data structure with no background threads or unmanaged resources. The `ConcurrentQueue`
+is managed memory that GC will collect.
 
 ### Memory Management
 
@@ -108,6 +113,7 @@ var sink = new SignalSink(maxCapacity: 1000);
 ```
 
 From `Signals.cs:590-600`:
+
 ```csharp
 private void Cleanup()
 {
@@ -134,6 +140,7 @@ var sink = new SignalSink(
 ```
 
 **Cleanup Trigger:**
+
 - Runs every ~1024 signal raises (see `Signals.cs:418`)
 - Limited to processing 1000 items per cleanup pass (prevents hangs)
 - Not guaranteed to remove ALL expired items immediately (eventual consistency)
@@ -232,7 +239,8 @@ var coord = new EphemeralWorkCoordinator<T>(body, new() { Signals = null });
 // If it were possible, coord would reference a dead sink
 ```
 
-**Key Point:** Since `EphemeralOptions.Signals` is set at construction time via `init`, you **cannot** accidentally orphan a coordinator by disposing its sink early.
+**Key Point:** Since `EphemeralOptions.Signals` is set at construction time via `init`, you **cannot** accidentally
+orphan a coordinator by disposing its sink early.
 
 ---
 
@@ -279,6 +287,7 @@ await using var coord2 = new EphemeralWorkCoordinator<int>(
 ```
 
 **What happens:**
+
 1. Coord1 emits "coord1.started" → sent to `sink`
 2. `sink` fires `SignalRaised` event → both `OnSignal` callbacks see it
 3. `sink` stores signal in window (queryable by both coordinators)
@@ -304,6 +313,7 @@ sink.Subscribe(signal =>
 ```
 
 From `EphemeralIdGenerator.cs`:
+
 ```csharp
 public static long NextId()
 {
@@ -336,15 +346,16 @@ await Task.WhenAll(task1, task2, task3);  // All safe
 
 ### Concurrency Guarantees
 
-| Operation | Thread-Safety | Guarantee |
-|-----------|---------------|-----------|
-| `Raise()` | Lock-free | Signal always enqueued |
-| `Sense()` | Lock-free | Snapshot at moment of call |
-| `Detect()` | Lock-free | May miss signals added during scan |
-| `Subscribe()` | Locked | Consistent listener array update |
-| `Cleanup()` | Lock-free | Bounded iteration, may skip items |
+| Operation     | Thread-Safety | Guarantee                          |
+|---------------|---------------|------------------------------------|
+| `Raise()`     | Lock-free     | Signal always enqueued             |
+| `Sense()`     | Lock-free     | Snapshot at moment of call         |
+| `Detect()`    | Lock-free     | May miss signals added during scan |
+| `Subscribe()` | Locked        | Consistent listener array update   |
+| `Cleanup()`   | Lock-free     | Bounded iteration, may skip items  |
 
-**Important:** Cleanup is **eventually consistent** - signals may survive slightly past expiration during concurrent access.
+**Important:** Cleanup is **eventually consistent** - signals may survive slightly past expiration during concurrent
+access.
 
 ---
 
@@ -495,6 +506,7 @@ var sink = new SignalSink(maxCapacity: 10_000);
 ### Cleanup Budget
 
 From `Signals.cs:590-614`:
+
 ```csharp
 private void Cleanup()
 {
@@ -519,6 +531,7 @@ private void Cleanup()
 ```
 
 **Key Points:**
+
 - Cleanup is **bounded** - max 2000 items removed per pass
 - Cleanup runs every ~1024 raises (see `Signals.cs:418`)
 - **Not all expired signals are guaranteed to be removed immediately**
@@ -557,6 +570,7 @@ var coord2 = new EphemeralWorkCoordinator<T>(body2,
 ```
 
 **Fix:** Share a sink when coordinators need to coordinate:
+
 ```csharp
 var sink = new SignalSink();
 var coord1 = new EphemeralWorkCoordinator<T>(body1, new() { Signals = sink });
@@ -576,6 +590,7 @@ var sink = new SignalSink(
 ```
 
 **Fix:** Always set reasonable bounds:
+
 ```csharp
 var sink = new SignalSink(
     maxCapacity: 10_000,               // Reasonable limit
@@ -595,6 +610,7 @@ Assert.Equal(0, sink.Count);  // ❌ MAY FAIL - cleanup is eventual!
 ```
 
 **Fix:** Understand cleanup is periodic and bounded:
+
 ```csharp
 // Trigger cleanup by raising more signals
 for (int i = 0; i < 1100; i++)  // Force cleanup trigger
@@ -618,6 +634,7 @@ var signals = sink.Sense();
 ```
 
 **Fix:** Use timestamps or propagation chains for causality:
+
 ```csharp
 var signals = sink.Sense().OrderBy(s => s.Timestamp).ToList();
 // Now ordered by time
@@ -753,22 +770,24 @@ public class MyController : ControllerBase
 
 ## Performance Characteristics
 
-| Operation | Complexity | Notes |
-|-----------|------------|-------|
-| `Raise()` | O(1) | Lock-free enqueue + bounded listener invocation |
-| `Sense()` | O(n) | Snapshot of entire window |
-| `Sense(predicate)` | O(n) | Linear scan with filtering |
-| `Detect()` | O(n) worst, O(1) best | Short-circuits on first match |
-| `Subscribe()` | O(1) | Array copy under lock |
-| `Cleanup()` | O(1) amortized | Bounded to 2000 items/pass, runs every ~1024 raises |
+| Operation          | Complexity            | Notes                                               |
+|--------------------|-----------------------|-----------------------------------------------------|
+| `Raise()`          | O(1)                  | Lock-free enqueue + bounded listener invocation     |
+| `Sense()`          | O(n)                  | Snapshot of entire window                           |
+| `Sense(predicate)` | O(n)                  | Linear scan with filtering                          |
+| `Detect()`         | O(n) worst, O(1) best | Short-circuits on first match                       |
+| `Subscribe()`      | O(1)                  | Array copy under lock                               |
+| `Cleanup()`        | O(1) amortized        | Bounded to 2000 items/pass, runs every ~1024 raises |
 
 **From `ParallelResizeDemo.cs:299`:**
+
 ```csharp
 // Window sized for ~2 batches: 80 images × 3 sizes × 6 signals × 2 batches = ~2880 signals
 var sink = new SignalSink(maxCapacity: 3000, maxAge: TimeSpan.FromSeconds(30));
 ```
 
-Capacity planning: `maxCapacity` should be sized for **2-3× your active signal window** to avoid excessive cleanup overhead.
+Capacity planning: `maxCapacity` should be sized for **2-3× your active signal window** to avoid excessive cleanup
+overhead.
 
 ---
 
@@ -786,11 +805,13 @@ Capacity planning: `maxCapacity` should be sized for **2-3× your active signal 
 ### When to Share a Sink
 
 **Share when:**
+
 - Coordinators need to react to each other's signals
 - You want unified signal history across subsystems
 - Monitoring/logging needs to see all signals in one place
 
 **Don't share when:**
+
 - Coordinators are completely independent
 - You want signal isolation (e.g., per-tenant, per-request)
 - Different coordinators have vastly different signal lifetimes
@@ -814,4 +835,5 @@ No explicit cleanup needed for any scope - GC handles it when references are gon
 - [Signals.cs source](../src/mostlylucid.ephemeral/Signals/Signals.cs) - Full implementation
 - [SignalSinkTests.cs](../tests/mostlylucid.ephemeral.tests/SignalSinkTests.cs) - Test coverage
 - [ParallelResizeDemo.cs](../demos/mostlylucid.ephemeral.demo/ParallelResizeDemo.cs) - Real-world usage
-- [ControlledFanOut.cs](../src/mostlylucid.ephemeral.patterns.controlledfanout/ControlledFanOut.cs) - Multi-coordinator pattern
+- [ControlledFanOut.cs](../src/mostlylucid.ephemeral.patterns.controlledfanout/ControlledFanOut.cs) - Multi-coordinator
+  pattern

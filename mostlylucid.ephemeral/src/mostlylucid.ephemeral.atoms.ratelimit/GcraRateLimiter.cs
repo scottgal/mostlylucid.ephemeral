@@ -3,45 +3,41 @@ using System.Diagnostics;
 namespace Mostlylucid.Ephemeral.Atoms.RateLimit;
 
 /// <summary>
-/// Generic Cell Rate Algorithm (GCRA) rate limiter.
-///
-/// GCRA is a leaky bucket variant that uses a "theoretical arrival time" (TAT)
-/// to track when the next request can be admitted without violating rate limits.
-///
-/// Unlike token bucket which refills at intervals, GCRA smoothly spreads requests
-/// over time by calculating the minimum delay between requests.
-///
-/// See: https://en.wikipedia.org/wiki/Generic_cell_rate_algorithm
-/// Inspired by: https://github.com/boinkor-net/governor
+///     Generic Cell Rate Algorithm (GCRA) rate limiter.
+///     GCRA is a leaky bucket variant that uses a "theoretical arrival time" (TAT)
+///     to track when the next request can be admitted without violating rate limits.
+///     Unlike token bucket which refills at intervals, GCRA smoothly spreads requests
+///     over time by calculating the minimum delay between requests.
+///     See: https://en.wikipedia.org/wiki/Generic_cell_rate_algorithm
+///     Inspired by: https://github.com/boinkor-net/governor
 /// </summary>
 /// <remarks>
-/// GCRA works by maintaining a "theoretical arrival time" (TAT):
-/// - Each request increments TAT by the emission interval (1/rate)
-/// - TAT represents when the "virtual bucket" will be empty
-/// - Requests are allowed if: now >= TAT - burst_capacity
-/// - This creates smooth rate limiting without periodic token refills
-///
-/// Example with rate=10/s, burst=5:
-/// - Emission interval = 100ms
-/// - Burst capacity = 500ms (5 * 100ms)
-/// - If TAT is at time T:
-///   - Request at T-400ms: ALLOWED (within burst capacity)
-///   - Request at T+100ms: DENIED (would exceed rate)
+///     GCRA works by maintaining a "theoretical arrival time" (TAT):
+///     - Each request increments TAT by the emission interval (1/rate)
+///     - TAT represents when the "virtual bucket" will be empty
+///     - Requests are allowed if: now >= TAT - burst_capacity
+///     - This creates smooth rate limiting without periodic token refills
+///     Example with rate=10/s, burst=5:
+///     - Emission interval = 100ms
+///     - Burst capacity = 500ms (5 * 100ms)
+///     - If TAT is at time T:
+///     - Request at T-400ms: ALLOWED (within burst capacity)
+///     - Request at T+100ms: DENIED (would exceed rate)
 /// </remarks>
 public sealed class GcraRateLimiter : IDisposable
 {
     private readonly object _lock = new();
     private readonly Stopwatch _stopwatch = Stopwatch.StartNew();
-
-    private long _tatTicks;  // Theoretical Arrival Time in Stopwatch ticks
-    private long _emissionIntervalTicks;  // Time between each request (1/rate)
-    private long _burstCapacityTicks;  // Maximum burst allowance
+    private long _burstCapacityTicks; // Maximum burst allowance
+    private int _burstSize;
+    private long _emissionIntervalTicks; // Time between each request (1/rate)
 
     private double _ratePerSecond;
-    private int _burstSize;
+
+    private long _tatTicks; // Theoretical Arrival Time in Stopwatch ticks
 
     /// <summary>
-    /// Creates a GCRA rate limiter.
+    ///     Creates a GCRA rate limiter.
     /// </summary>
     /// <param name="ratePerSecond">Maximum sustained rate (requests per second)</param>
     /// <param name="burstSize">Maximum burst size (requests that can be sent immediately)</param>
@@ -62,23 +58,40 @@ public sealed class GcraRateLimiter : IDisposable
     }
 
     /// <summary>
-    /// Current configured rate (requests per second).
+    ///     Current configured rate (requests per second).
     /// </summary>
     public double RatePerSecond
     {
-        get { lock (_lock) return _ratePerSecond; }
+        get
+        {
+            lock (_lock)
+            {
+                return _ratePerSecond;
+            }
+        }
     }
 
     /// <summary>
-    /// Current configured burst size.
+    ///     Current configured burst size.
     /// </summary>
     public int BurstSize
     {
-        get { lock (_lock) return _burstSize; }
+        get
+        {
+            lock (_lock)
+            {
+                return _burstSize;
+            }
+        }
+    }
+
+    public void Dispose()
+    {
+        _stopwatch.Stop();
     }
 
     /// <summary>
-    /// Updates rate parameters dynamically.
+    ///     Updates rate parameters dynamically.
     /// </summary>
     public void UpdateRate(double ratePerSecond, int? burstSize = null)
     {
@@ -98,7 +111,7 @@ public sealed class GcraRateLimiter : IDisposable
     }
 
     /// <summary>
-    /// Attempts to acquire a permit. Returns true if allowed, false if rate limited.
+    ///     Attempts to acquire a permit. Returns true if allowed, false if rate limited.
     /// </summary>
     public bool TryAcquire()
     {
@@ -111,10 +124,8 @@ public sealed class GcraRateLimiter : IDisposable
             var allowAt = _tatTicks - _burstCapacityTicks;
 
             if (now < allowAt)
-            {
                 // Request arrives too early - would exceed rate
                 return false;
-            }
 
             // Request is allowed
             // Update TAT: max(TAT, now) + emission_interval
@@ -126,7 +137,7 @@ public sealed class GcraRateLimiter : IDisposable
     }
 
     /// <summary>
-    /// Acquires a permit, waiting if necessary. Returns the delay that was applied.
+    ///     Acquires a permit, waiting if necessary. Returns the delay that was applied.
     /// </summary>
     public async ValueTask<TimeSpan> AcquireAsync(CancellationToken cancellationToken = default)
     {
@@ -153,14 +164,12 @@ public sealed class GcraRateLimiter : IDisposable
 
             // Wait outside the lock
             if (delay.HasValue && delay.Value > TimeSpan.Zero)
-            {
                 await Task.Delay(delay.Value, cancellationToken).ConfigureAwait(false);
-            }
         }
     }
 
     /// <summary>
-    /// Returns the estimated wait time until the next request can be admitted.
+    ///     Returns the estimated wait time until the next request can be admitted.
     /// </summary>
     public TimeSpan GetEstimatedWaitTime()
     {
@@ -177,7 +186,7 @@ public sealed class GcraRateLimiter : IDisposable
     }
 
     /// <summary>
-    /// Resets the limiter state (clears accumulated delay).
+    ///     Resets the limiter state (clears accumulated delay).
     /// </summary>
     public void Reset()
     {
@@ -197,10 +206,5 @@ public sealed class GcraRateLimiter : IDisposable
         // This is (burstSize - 1) * emission_interval
         // (burstSize - 1) because the first request doesn't need any accumulated capacity
         _burstCapacityTicks = Math.Max(0, burstSize - 1) * _emissionIntervalTicks;
-    }
-
-    public void Dispose()
-    {
-        _stopwatch.Stop();
     }
 }

@@ -1,36 +1,32 @@
 using System.Globalization;
-using Mostlylucid.Ephemeral;
 
 namespace Mostlylucid.Ephemeral.Atoms.RateLimit;
 
 /// <summary>
-/// Signal-driven GCRA rate limiter atom that integrates with Ephemeral's signal system.
-///
-/// Unlike token bucket which refills periodically, GCRA provides smooth rate limiting
-/// by calculating theoretical arrival times for each request.
-///
-/// Responds to control signals:
-/// - "rate.limit.gcra.set:{rate}" - Set rate per second
-/// - "rate.limit.gcra.burst:{size}" - Set burst size
-/// - "rate.limit.gcra.reset" - Reset accumulated delay
-///
-/// Emits signals:
-/// - "rate.limit.gcra.allowed" - Request was allowed
-/// - "rate.limit.gcra.delayed:{ms}" - Request delayed (with delay in ms)
-/// - "rate.limit.gcra.denied" - Request denied (when using TryAcquire)
-/// - "rate.limit.gcra.config:{rate},{burst}" - Configuration changed
+///     Signal-driven GCRA rate limiter atom that integrates with Ephemeral's signal system.
+///     Unlike token bucket which refills periodically, GCRA provides smooth rate limiting
+///     by calculating theoretical arrival times for each request.
+///     Responds to control signals:
+///     - "rate.limit.gcra.set:{rate}" - Set rate per second
+///     - "rate.limit.gcra.burst:{size}" - Set burst size
+///     - "rate.limit.gcra.reset" - Reset accumulated delay
+///     Emits signals:
+///     - "rate.limit.gcra.allowed" - Request was allowed
+///     - "rate.limit.gcra.delayed:{ms}" - Request delayed (with delay in ms)
+///     - "rate.limit.gcra.denied" - Request denied (when using TryAcquire)
+///     - "rate.limit.gcra.config:{rate},{burst}" - Configuration changed
 /// </summary>
 public sealed class GcraRateLimitAtom : IAsyncDisposable
 {
-    private readonly SignalSink _signals;
     private readonly string _controlPattern;
-    private readonly object _sync = new();
+    private readonly bool _emitSignals;
+    private readonly SignalSink _signals;
     private readonly IDisposable _subscription;
+    private readonly object _sync = new();
     private GcraRateLimiter _limiter;
-    private bool _emitSignals;
 
     /// <summary>
-    /// Creates a GCRA rate limit atom.
+    ///     Creates a GCRA rate limit atom.
     /// </summary>
     public GcraRateLimitAtom(SignalSink signals, GcraRateLimitOptions? options = null)
     {
@@ -46,41 +42,42 @@ public sealed class GcraRateLimitAtom : IAsyncDisposable
 
         _subscription = _signals.Subscribe(OnSignal);
 
-        if (_emitSignals)
-        {
-            _signals.Raise($"rate.limit.gcra.config:{_limiter.RatePerSecond},{_limiter.BurstSize}");
-        }
+        if (_emitSignals) _signals.Raise($"rate.limit.gcra.config:{_limiter.RatePerSecond},{_limiter.BurstSize}");
     }
 
     /// <summary>
-    /// Current configured throughput (requests per second).
+    ///     Current configured throughput (requests per second).
     /// </summary>
     public double RatePerSecond => _limiter.RatePerSecond;
 
     /// <summary>
-    /// Current burst size.
+    ///     Current burst size.
     /// </summary>
     public int BurstSize => _limiter.BurstSize;
 
+    public ValueTask DisposeAsync()
+    {
+        _subscription.Dispose();
+        _limiter.Dispose();
+        return ValueTask.CompletedTask;
+    }
+
     /// <summary>
-    /// Attempts to acquire a permit without waiting. Returns true if allowed.
-    /// Emits "rate.limit.gcra.allowed" or "rate.limit.gcra.denied" signals.
+    ///     Attempts to acquire a permit without waiting. Returns true if allowed.
+    ///     Emits "rate.limit.gcra.allowed" or "rate.limit.gcra.denied" signals.
     /// </summary>
     public bool TryAcquire()
     {
         var allowed = _limiter.TryAcquire();
 
-        if (_emitSignals)
-        {
-            _signals.Raise(allowed ? "rate.limit.gcra.allowed" : "rate.limit.gcra.denied");
-        }
+        if (_emitSignals) _signals.Raise(allowed ? "rate.limit.gcra.allowed" : "rate.limit.gcra.denied");
 
         return allowed;
     }
 
     /// <summary>
-    /// Acquires a permit, waiting if necessary.
-    /// Emits "rate.limit.gcra.allowed" or "rate.limit.gcra.delayed:{ms}" signals.
+    ///     Acquires a permit, waiting if necessary.
+    ///     Emits "rate.limit.gcra.allowed" or "rate.limit.gcra.delayed:{ms}" signals.
     /// </summary>
     public async ValueTask AcquireAsync(CancellationToken cancellationToken = default)
     {
@@ -89,32 +86,28 @@ public sealed class GcraRateLimitAtom : IAsyncDisposable
         if (_emitSignals)
         {
             if (delay > TimeSpan.Zero)
-            {
                 _signals.Raise($"rate.limit.gcra.delayed:{delay.TotalMilliseconds:F2}");
-            }
             else
-            {
                 _signals.Raise("rate.limit.gcra.allowed");
-            }
         }
     }
 
     /// <summary>
-    /// Gets the estimated wait time until the next request can be admitted.
+    ///     Gets the estimated wait time until the next request can be admitted.
     /// </summary>
-    public TimeSpan GetEstimatedWaitTime() => _limiter.GetEstimatedWaitTime();
+    public TimeSpan GetEstimatedWaitTime()
+    {
+        return _limiter.GetEstimatedWaitTime();
+    }
 
     /// <summary>
-    /// Resets accumulated delay (clears the virtual bucket).
+    ///     Resets accumulated delay (clears the virtual bucket).
     /// </summary>
     public void Reset()
     {
         _limiter.Reset();
 
-        if (_emitSignals)
-        {
-            _signals.Raise("rate.limit.gcra.reset");
-        }
+        if (_emitSignals) _signals.Raise("rate.limit.gcra.reset");
     }
 
     private void OnSignal(SignalEvent signal)
@@ -139,10 +132,7 @@ public sealed class GcraRateLimitAtom : IAsyncDisposable
         }
 
         // Reset: "rate.limit.gcra.reset"
-        if (signal.Signal.Equals("rate.limit.gcra.reset", StringComparison.OrdinalIgnoreCase))
-        {
-            Reset();
-        }
+        if (signal.Signal.Equals("rate.limit.gcra.reset", StringComparison.OrdinalIgnoreCase)) Reset();
     }
 
     private static bool TryParseDouble(string? rawValue, out double value)
@@ -165,42 +155,32 @@ public sealed class GcraRateLimitAtom : IAsyncDisposable
             oldLimiter.Dispose();
         }
 
-        if (_emitSignals)
-        {
-            _signals.Raise($"rate.limit.gcra.config:{_limiter.RatePerSecond},{_limiter.BurstSize}");
-        }
-    }
-
-    public ValueTask DisposeAsync()
-    {
-        _subscription.Dispose();
-        _limiter.Dispose();
-        return ValueTask.CompletedTask;
+        if (_emitSignals) _signals.Raise($"rate.limit.gcra.config:{_limiter.RatePerSecond},{_limiter.BurstSize}");
     }
 }
 
 /// <summary>
-/// Configuration options for GcraRateLimitAtom.
+///     Configuration options for GcraRateLimitAtom.
 /// </summary>
 public sealed class GcraRateLimitOptions
 {
     /// <summary>
-    /// Initial rate limit (requests per second). Default: 10.
+    ///     Initial rate limit (requests per second). Default: 10.
     /// </summary>
     public double InitialRatePerSecond { get; init; } = 10;
 
     /// <summary>
-    /// Initial burst size (immediate requests allowed). Default: 5.
+    ///     Initial burst size (immediate requests allowed). Default: 5.
     /// </summary>
     public int InitialBurstSize { get; init; } = 5;
 
     /// <summary>
-    /// Pattern for control signals. Default: "rate.limit.gcra.*"
+    ///     Pattern for control signals. Default: "rate.limit.gcra.*"
     /// </summary>
     public string ControlSignalPattern { get; init; } = "rate.limit.gcra.*";
 
     /// <summary>
-    /// Whether to emit signals on acquire/deny/config changes. Default: true.
+    ///     Whether to emit signals on acquire/deny/config changes. Default: true.
     /// </summary>
     public bool EmitSignals { get; init; } = true;
 }

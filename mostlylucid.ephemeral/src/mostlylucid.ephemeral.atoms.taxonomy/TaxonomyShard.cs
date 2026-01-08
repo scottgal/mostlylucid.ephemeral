@@ -1,15 +1,12 @@
-using System;
-using System.Collections.Generic;
-
 namespace Mostlylucid.Ephemeral.Atoms.Taxonomy;
 
 /// <summary>
-/// Value descriptor for composing multiple taxonomy kinds into a single contract.
+///     Value descriptor for composing multiple taxonomy kinds into a single contract.
 /// </summary>
 public readonly record struct TaxonomyShard
 {
     /// <summary>
-    /// Initializes a taxonomy shard descriptor.
+    ///     Initializes a taxonomy shard descriptor.
     /// </summary>
     /// <param name="kind">The taxonomy kind represented by the shard.</param>
     /// <param name="determinism">The determinism classification.</param>
@@ -43,49 +40,49 @@ public readonly record struct TaxonomyShard
     }
 
     /// <summary>
-    /// The taxonomy kind represented by the shard.
+    ///     The taxonomy kind represented by the shard.
     /// </summary>
     public AtomKind Kind { get; }
 
     /// <summary>
-    /// The determinism classification for the shard.
+    ///     The determinism classification for the shard.
     /// </summary>
     public AtomDeterminism Determinism { get; }
 
     /// <summary>
-    /// The persistence authority implied by the shard.
+    ///     The persistence authority implied by the shard.
     /// </summary>
     public AtomPersistence Persistence { get; }
 
     /// <summary>
-    /// Default output signal for this shard.
+    ///     Default output signal for this shard.
     /// </summary>
     public string DefaultOutputSignal { get; }
 
     /// <summary>
-    /// Optional read domains implied by this shard.
+    ///     Optional read domains implied by this shard.
     /// </summary>
     public IReadOnlyCollection<string> Reads { get; }
 
     /// <summary>
-    /// Optional write domains implied by this shard.
+    ///     Optional write domains implied by this shard.
     /// </summary>
     public IReadOnlyCollection<string> Writes { get; }
 
     /// <summary>
-    /// Optional budget constraints implied by this shard.
+    ///     Optional budget constraints implied by this shard.
     /// </summary>
     public AtomBudget? Budget { get; }
 
     /// <summary>
-    /// Optional evidence requirements implied by this shard.
+    ///     Optional evidence requirements implied by this shard.
     /// </summary>
     public string? EvidenceRequirements { get; }
 
     /// <summary>
-    /// Creates a taxonomy shard descriptor from a static shard definition.
+    ///     Creates a taxonomy shard descriptor from a static shard definition.
     /// </summary>
-    /// <typeparam name="TShard">The shard type implementing <see cref="ITaxonomyShard"/>.</typeparam>
+    /// <typeparam name="TShard">The shard type implementing <see cref="ITaxonomyShard" />.</typeparam>
     public static TaxonomyShard Create<TShard>() where TShard : ITaxonomyShard
     {
         return new TaxonomyShard(

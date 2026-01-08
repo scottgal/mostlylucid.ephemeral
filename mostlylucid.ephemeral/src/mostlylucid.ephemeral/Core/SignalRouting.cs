@@ -6,16 +6,16 @@ namespace Mostlylucid.Ephemeral;
 ///     sinks pull from coordinators based on patterns (signal-based).
 /// </summary>
 /// <example>
-/// <code>
+///     <code>
 /// var mainSink = new SignalSink();
 /// var errorSink = new SignalSink();
 /// var telemetrySink = new SignalSink();
-///
+/// 
 /// var coordinator = new EphemeralWorkCoordinator&lt;int&gt;(
 ///     async (item, ct) =&gt; { /* ... */ },
 ///     new EphemeralOptions { Signals = mainSink }
 /// );
-///
+/// 
 /// // Sinks subscribe to specific patterns from the main sink
 /// errorSink.SubscribeToPattern(mainSink, "error.*");
 /// telemetrySink.SubscribeToPattern(mainSink, "telemetry.*");
@@ -23,6 +23,20 @@ namespace Mostlylucid.Ephemeral;
 /// </example>
 public sealed class SignalSubscription
 {
+    private readonly IDisposable _subscription;
+
+    internal SignalSubscription(
+        string pattern,
+        IDisposable subscription,
+        Func<SignalEvent, (SignalEvent, bool)>? transform = null,
+        Action<SignalEvent>? onForwarded = null)
+    {
+        Pattern = pattern ?? throw new ArgumentNullException(nameof(pattern));
+        _subscription = subscription ?? throw new ArgumentNullException(nameof(subscription));
+        Transform = transform;
+        OnForwarded = onForwarded;
+    }
+
     /// <summary>
     ///     Pattern to match for this subscription.
     ///     Supports glob-style wildcards (* and ?).
@@ -39,20 +53,6 @@ public sealed class SignalSubscription
     ///     Optional callback when a signal is forwarded via this subscription.
     /// </summary>
     public Action<SignalEvent>? OnForwarded { get; }
-
-    private readonly IDisposable _subscription;
-
-    internal SignalSubscription(
-        string pattern,
-        IDisposable subscription,
-        Func<SignalEvent, (SignalEvent, bool)>? transform = null,
-        Action<SignalEvent>? onForwarded = null)
-    {
-        Pattern = pattern ?? throw new ArgumentNullException(nameof(pattern));
-        _subscription = subscription ?? throw new ArgumentNullException(nameof(subscription));
-        Transform = transform;
-        OnForwarded = onForwarded;
-    }
 
     /// <summary>
     ///     Unsubscribe - stops forwarding signals matching this pattern.
@@ -74,10 +74,7 @@ public sealed class SignalSubscription
         if (Transform != null)
         {
             var (transformed, forward) = Transform(signal);
-            if (forward)
-            {
-                OnForwarded?.Invoke(transformed);
-            }
+            if (forward) OnForwarded?.Invoke(transformed);
             return (transformed, forward);
         }
 
@@ -118,11 +115,8 @@ public static class SignalRoutingExtensions
         // Subscribe to source sink and capture the IDisposable
         var disposable = sourceSink.Subscribe(signal =>
         {
-            (SignalEvent forwarded, bool shouldForward) = subscription.HandleSignal(signal);
-            if (shouldForward)
-            {
-                targetSink.Raise(forwarded);
-            }
+            var (forwarded, shouldForward) = subscription.HandleSignal(signal);
+            if (shouldForward) targetSink.Raise(forwarded);
         });
 
         // Now create the subscription with the disposable

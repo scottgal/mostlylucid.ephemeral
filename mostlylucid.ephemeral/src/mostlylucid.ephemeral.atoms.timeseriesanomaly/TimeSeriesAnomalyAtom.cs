@@ -1,27 +1,24 @@
 using System.Collections.Concurrent;
 using System.IO.Hashing;
 using System.Text;
-using Mostlylucid.Ephemeral;
 
 namespace Mostlylucid.Ephemeral.Atoms.TimeSeriesAnomaly;
 
 /// <summary>
 ///     Time-series anomaly detection using Z-score statistical analysis.
-///
 ///     Detects outliers that are > N standard deviations from the mean.
 ///     Default threshold: 3.0 (99.7% confidence interval).
-///
 ///     Privacy-preserving: Uses XxHash64 for identity hashing.
 /// </summary>
 public class TimeSeriesAnomalyAtom : IAsyncDisposable
 {
-    private readonly ConcurrentDictionary<string, TrackedTimeSeries> _series = new();
     private readonly TimeSpan _analysisWindow;
-    private readonly int _minSamples;
-    private readonly double _zScoreThreshold;
-    private readonly SignalSink? _signals;
-    private readonly string _salt;
     private readonly Timer? _cleanupTimer;
+    private readonly int _minSamples;
+    private readonly string _salt;
+    private readonly ConcurrentDictionary<string, TrackedTimeSeries> _series = new();
+    private readonly SignalSink? _signals;
+    private readonly double _zScoreThreshold;
 
     public TimeSeriesAnomalyAtom(
         TimeSpan? analysisWindow = null,
@@ -37,6 +34,11 @@ public class TimeSeriesAnomalyAtom : IAsyncDisposable
         _salt = salt ?? Guid.NewGuid().ToString();
 
         _cleanupTimer = new Timer(CleanupOldEntries, null, TimeSpan.FromMinutes(1), TimeSpan.FromMinutes(1));
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_cleanupTimer != null) await _cleanupTimer.DisposeAsync();
     }
 
     /// <summary>
@@ -183,35 +185,16 @@ public class TimeSeriesAnomalyAtom : IAsyncDisposable
         var toRemove = new List<string>();
 
         foreach (var kvp in _series)
-        {
             lock (kvp.Value)
             {
                 kvp.Value.Values.RemoveAll(v => v.Timestamp < cutoff);
 
-                if (kvp.Value.Values.Count == 0)
-                {
-                    toRemove.Add(kvp.Key);
-                }
+                if (kvp.Value.Values.Count == 0) toRemove.Add(kvp.Key);
             }
-        }
 
-        foreach (var key in toRemove)
-        {
-            _series.TryRemove(key, out _);
-        }
+        foreach (var key in toRemove) _series.TryRemove(key, out _);
 
-        if (toRemove.Count > 0)
-        {
-            _signals?.Raise($"anomaly.cleanup:removed={toRemove.Count}");
-        }
-    }
-
-    public async ValueTask DisposeAsync()
-    {
-        if (_cleanupTimer != null)
-        {
-            await _cleanupTimer.DisposeAsync();
-        }
+        if (toRemove.Count > 0) _signals?.Raise($"anomaly.cleanup:removed={toRemove.Count}");
     }
 
     private class TrackedTimeSeries

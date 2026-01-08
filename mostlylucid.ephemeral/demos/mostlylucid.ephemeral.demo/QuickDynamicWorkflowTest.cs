@@ -1,12 +1,11 @@
 using System.Diagnostics;
-using Mostlylucid.Ephemeral;
 using Spectre.Console;
 
 namespace Mostlylucid.Ephemeral.Demo;
 
 /// <summary>
-/// Quick perf test for Dynamic Workflow multi-coordinator pattern.
-/// Tests hotspots without full BenchmarkDotNet overhead.
+///     Quick perf test for Dynamic Workflow multi-coordinator pattern.
+///     Tests hotspots without full BenchmarkDotNet overhead.
 /// </summary>
 public static class QuickDynamicWorkflowTest
 {
@@ -15,7 +14,7 @@ public static class QuickDynamicWorkflowTest
         AnsiConsole.MarkupLine("[yellow]Quick Dynamic Workflow Performance Test[/]");
         AnsiConsole.MarkupLine("[grey]Testing multi-coordinator shared sink hotspots[/]\n");
 
-        var globalSink = new SignalSink(maxCapacity: 5000);
+        var globalSink = new SignalSink(5000);
         var processorHealth = new Dictionary<int, bool> { [1] = true, [2] = true };
         var processorAFailureRate = 0.3;
         var processorBFailureRate = 0.05;
@@ -58,13 +57,9 @@ public static class QuickDynamicWorkflowTest
                 var success = Random.Shared.NextDouble() > processorBFailureRate;
 
                 if (success)
-                {
                     globalSink.Raise($"processing.complete:pri2:{widgetId}");
-                }
                 else
-                {
                     globalSink.Raise($"processing.failed:pri2:{widgetId}");
-                }
             },
             new EphemeralOptions { MaxConcurrency = 4, Signals = globalSink }
         );
@@ -86,70 +81,85 @@ public static class QuickDynamicWorkflowTest
         // Test 1: Signal raising hotspot
         AnsiConsole.MarkupLine("[cyan]Test 1: Signal raising to shared sink (1000 signals)[/]");
         var sw = Stopwatch.StartNew();
-        for (int i = 0; i < 1000; i++)
-        {
-            globalSink.Raise($"test.signal:{i}");
-        }
+        for (var i = 0; i < 1000; i++) globalSink.Raise($"test.signal:{i}");
         sw.Stop();
-        AnsiConsole.MarkupLine($"  Mean: [green]{sw.ElapsedMilliseconds}ms total[/] ([yellow]{sw.Elapsed.TotalMicroseconds / 1000:F2}µs per signal[/])");
+        AnsiConsole.MarkupLine(
+            $"  Mean: [green]{sw.ElapsedMilliseconds}ms total[/] ([yellow]{sw.Elapsed.TotalMicroseconds / 1000:F2}µs per signal[/])");
         AnsiConsole.MarkupLine($"  Throughput: [green]{1000 / sw.Elapsed.TotalSeconds:F0} signals/sec[/]\n");
 
         // Test 2: Signal Sense query hotspot
         // Pre-populate with test signals
-        for (int i = 0; i < 500; i++)
-        {
-            globalSink.Raise($"processing.failed:pri1:TEST-{i}");
-        }
+        for (var i = 0; i < 500; i++) globalSink.Raise($"processing.failed:pri1:TEST-{i}");
 
         AnsiConsole.MarkupLine("[cyan]Test 2a: Signal Sense query - OLD (1000 queries, LINQ + Contains)[/]");
         sw.Restart();
-        for (int i = 0; i < 1000; i++)
+        for (var i = 0; i < 1000; i++)
         {
             var results = globalSink.Sense(s =>
                 s.Signal.Contains("processing.failed") &&
                 s.Timestamp > DateTimeOffset.UtcNow.AddSeconds(-60));
             var count = results.Count;
         }
+
         sw.Stop();
-        AnsiConsole.MarkupLine($"  Mean: [green]{sw.ElapsedMilliseconds}ms total[/] ([yellow]{sw.Elapsed.TotalMicroseconds / 1000:F2}µs per query[/])");
+        AnsiConsole.MarkupLine(
+            $"  Mean: [green]{sw.ElapsedMilliseconds}ms total[/] ([yellow]{sw.Elapsed.TotalMicroseconds / 1000:F2}µs per query[/])");
         AnsiConsole.MarkupLine($"  Throughput: [green]{1000 / sw.Elapsed.TotalSeconds:F0} queries/sec[/]\n");
 
         AnsiConsole.MarkupLine("[cyan]Test 2b: CountRecentByContains - OPTIMIZED (1000 queries)[/]");
         sw.Restart();
-        for (int i = 0; i < 1000; i++)
+        for (var i = 0; i < 1000; i++)
         {
             var count = globalSink.CountRecentByContains("processing.failed", DateTimeOffset.UtcNow.AddSeconds(-60));
         }
+
         sw.Stop();
         var optimizedTime = sw.Elapsed.TotalMicroseconds / 1000;
-        AnsiConsole.MarkupLine($"  Mean: [green]{sw.ElapsedMilliseconds}ms total[/] ([yellow]{optimizedTime:F2}µs per query[/])");
+        AnsiConsole.MarkupLine(
+            $"  Mean: [green]{sw.ElapsedMilliseconds}ms total[/] ([yellow]{optimizedTime:F2}µs per query[/])");
         AnsiConsole.MarkupLine($"  Throughput: [green]{1000 / sw.Elapsed.TotalSeconds:F0} queries/sec[/]\n");
 
         AnsiConsole.MarkupLine("[cyan]Test 2c: CountRecentByPrefix - MOST OPTIMIZED (1000 queries)[/]");
         sw.Restart();
-        for (int i = 0; i < 1000; i++)
+        for (var i = 0; i < 1000; i++)
         {
             var count = globalSink.CountRecentByPrefix("processing.failed:", DateTimeOffset.UtcNow.AddSeconds(-60));
         }
+
         sw.Stop();
         var prefixTime = sw.Elapsed.TotalMicroseconds / 1000;
-        AnsiConsole.MarkupLine($"  Mean: [green]{sw.ElapsedMilliseconds}ms total[/] ([yellow]{prefixTime:F2}µs per query[/])");
+        AnsiConsole.MarkupLine(
+            $"  Mean: [green]{sw.ElapsedMilliseconds}ms total[/] ([yellow]{prefixTime:F2}µs per query[/])");
         AnsiConsole.MarkupLine($"  Throughput: [green]{1000 / sw.Elapsed.TotalSeconds:F0} queries/sec[/]");
-        AnsiConsole.MarkupLine($"  [yellow]Speedup vs LINQ: {(90.0 / prefixTime):F1}x faster[/]\n");
+        AnsiConsole.MarkupLine($"  [yellow]Speedup vs LINQ: {90.0 / prefixTime:F1}x faster[/]\n");
 
         // Test 3: Concurrent signal raising from 4 coordinators
         AnsiConsole.MarkupLine("[cyan]Test 3: Concurrent signal raising from 4 threads (400 signals each)[/]");
         sw.Restart();
         await Task.WhenAll(
-            Task.Run(() => { for (int i = 0; i < 400; i++) globalSink.Raise($"coord1:signal:{i}"); }),
-            Task.Run(() => { for (int i = 0; i < 400; i++) globalSink.Raise($"coord2:signal:{i}"); }),
-            Task.Run(() => { for (int i = 0; i < 400; i++) globalSink.Raise($"coord3:signal:{i}"); }),
-            Task.Run(() => { for (int i = 0; i < 400; i++) globalSink.Raise($"coord4:signal:{i}"); })
+            Task.Run(() =>
+            {
+                for (var i = 0; i < 400; i++) globalSink.Raise($"coord1:signal:{i}");
+            }),
+            Task.Run(() =>
+            {
+                for (var i = 0; i < 400; i++) globalSink.Raise($"coord2:signal:{i}");
+            }),
+            Task.Run(() =>
+            {
+                for (var i = 0; i < 400; i++) globalSink.Raise($"coord3:signal:{i}");
+            }),
+            Task.Run(() =>
+            {
+                for (var i = 0; i < 400; i++) globalSink.Raise($"coord4:signal:{i}");
+            })
         );
         sw.Stop();
-        AnsiConsole.MarkupLine($"  Mean: [green]{sw.ElapsedMilliseconds}ms total[/] ([yellow]{sw.Elapsed.TotalMicroseconds / 1600:F2}µs per signal[/])");
+        AnsiConsole.MarkupLine(
+            $"  Mean: [green]{sw.ElapsedMilliseconds}ms total[/] ([yellow]{sw.Elapsed.TotalMicroseconds / 1600:F2}µs per signal[/])");
         AnsiConsole.MarkupLine($"  Throughput: [green]{1600 / sw.Elapsed.TotalSeconds:F0} signals/sec[/] (4 threads)");
-        AnsiConsole.MarkupLine($"  Scaling: [cyan]{(1600 / sw.Elapsed.TotalSeconds) / (1000 / (sw.Elapsed.TotalSeconds / 4)):F2}x[/] vs single-threaded\n");
+        AnsiConsole.MarkupLine(
+            $"  Scaling: [cyan]{1600 / sw.Elapsed.TotalSeconds / (1000 / (sw.Elapsed.TotalSeconds / 4)):F2}x[/] vs single-threaded\n");
 
         // Test 4: End-to-end workflow
         AnsiConsole.MarkupLine("[cyan]Test 4: End-to-end workflow (100 widgets with realistic delays)[/]");
@@ -157,11 +167,12 @@ public static class QuickDynamicWorkflowTest
 
         var enqueueTask = Task.Run(async () =>
         {
-            for (int i = 0; i < 100; i++)
+            for (var i = 0; i < 100; i++)
             {
                 await router.EnqueueAsync($"WIDGET-{i}");
                 await Task.Delay(10); // Realistic submission rate
             }
+
             router.Complete();
         });
 

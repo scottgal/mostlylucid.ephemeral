@@ -1,14 +1,11 @@
-using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Linq;
 using System.Text.RegularExpressions;
 
 namespace Mostlylucid.Ephemeral.Atoms.Taxonomy.Ledger;
 
 /// <summary>
-/// Default implementation of entity ledger for signal accumulation.
-/// Thread-safe for concurrent atom execution.
+///     Default implementation of entity ledger for signal accumulation.
+///     Thread-safe for concurrent atom execution.
 /// </summary>
 public sealed class EntityLedger : IEntityLedger
 {
@@ -146,7 +143,7 @@ public sealed class EntityLedger : IEntityLedger
 }
 
 /// <summary>
-/// A filtered view over an entity ledger.
+///     A filtered view over an entity ledger.
 /// </summary>
 internal sealed class LedgerView : ILedgerView
 {
@@ -234,7 +231,8 @@ internal sealed class LedgerView : ILedgerView
             return null;
 
         if (Options.SourceKinds is { Count: > 0 } &&
-            (signal.SourceKind is null || !Options.SourceKinds.Contains(signal.SourceKind, StringComparer.OrdinalIgnoreCase)))
+            (signal.SourceKind is null ||
+             !Options.SourceKinds.Contains(signal.SourceKind, StringComparer.OrdinalIgnoreCase)))
             return null;
 
         if (Options.Since.HasValue && signal.Timestamp < Options.Since.Value)
@@ -245,7 +243,7 @@ internal sealed class LedgerView : ILedgerView
 }
 
 /// <summary>
-/// Default factory for entity ledgers.
+///     Default factory for entity ledgers.
 /// </summary>
 public sealed class EntityLedgerFactory : IEntityLedgerFactory
 {

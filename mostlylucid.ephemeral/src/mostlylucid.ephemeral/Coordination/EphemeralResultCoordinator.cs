@@ -309,7 +309,8 @@ public sealed class EphemeralResultCoordinator<TInput, TResult> : IAsyncDisposab
     ///     Enqueue multiple items for processing in bulk. More efficient than individual enqueues.
     ///     Useful for preloading work with deferred execution (via DeferOnSignals).
     /// </summary>
-    public async ValueTask<int> EnqueueManyAsync(IEnumerable<TInput> items, CancellationToken cancellationToken = default)
+    public async ValueTask<int> EnqueueManyAsync(IEnumerable<TInput> items,
+        CancellationToken cancellationToken = default)
     {
         if (_completed)
             throw new InvalidOperationException("Coordinator has been completed; no new items accepted.");
@@ -472,10 +473,8 @@ public sealed class EphemeralResultCoordinator<TInput, TResult> : IAsyncDisposab
                     hasResumeSignal = true;
                     break;
                 }
-                if (StringPatternMatcher.MatchesAny(signal, _options.DeferOnSignals))
-                {
-                    hasDeferSignal = true;
-                }
+
+                if (StringPatternMatcher.MatchesAny(signal, _options.DeferOnSignals)) hasDeferSignal = true;
             }
 
             if (hasResumeSignal) return;

@@ -2,7 +2,6 @@
 
 Interactive demonstration of the **Ephemeral Signals** pattern using Spectre.Console.
 
-> 🚨🚨 WARNING 🚨🚨 - Though in the 1.x range of version THINGS WILL STILL BREAK. This is the lab for developing this concept when stabilized it'll becoe the first *stylo*flow release 🚨🚨🚨
 
 
 ## What is the Ephemeral Signals Pattern?
@@ -12,6 +11,7 @@ The Ephemeral Signals pattern is based on a simple philosophy:
 > **"Hey, look at me!"**
 
 Signals are **notifications**, not state carriers. The pattern is:
+
 - **Signal provides context** (what happened)
 - **Atom holds state** (current truth)
 - **Listeners query atoms** (get authoritative data)
@@ -72,6 +72,7 @@ dotnet run
 ### Available Demos
 
 **Pattern Demonstrations:**
+
 1. **Pure Notification Pattern** - File save simulation with state queries
 2. **Context + Hint Pattern** - Order processing with double-safe optimization
 3. **Command Pattern** - WindowSizeAtom infrastructure control (exception)
@@ -79,6 +80,7 @@ dotnet run
 5. **Signal Chain Demo** - Cascading atoms (A→B→C)
 
 **Advanced Patterns:**
+
 6. **Circuit Breaker Pattern** - Failure detection and automatic recovery
 7. **Backpressure Demo** - Queue overflow protection via flow control
 8. **Metrics & Monitoring** - Real-time statistics with live dashboard
@@ -86,6 +88,7 @@ dotnet run
 10. **Live Signal Viewer** - Real-time signal visualization with filtering
 
 **Performance Analysis:**
+
 - **BenchmarkDotNet** - Memory diagnostics, allocation tracking, GC pressure analysis
 
 ### Benchmark Mode
@@ -109,6 +112,7 @@ cd bin/Release/net10.0
 If you try to run benchmarks in Debug mode, you'll see a helpful error message with instructions.
 
 **Benchmarks include:**
+
 - Signal raising (with/without listeners)
 - Pattern matching performance
 - Command parsing overhead
@@ -119,6 +123,7 @@ If you try to run benchmarks in Debug mode, you'll see a helpful error message w
 - Concurrent signal raising
 
 Results show:
+
 - Mean execution time
 - Memory allocations (Gen 0/1/2 GC)
 - Allocated bytes per operation
@@ -129,11 +134,13 @@ Results show:
 ### 1. Pure Notification Pattern (File Save)
 
 **Demonstrates:**
+
 - Signal: `file.save` → `file.saved` (no payload)
 - Multiple listeners query the same atom for different state
 - Notification vs state separation
 
 **Key Code:**
+
 ```csharp
 await using var fileAtom = new TestAtom(
     sink,
@@ -162,11 +169,13 @@ var notificationListener = new Action<SignalEvent>(signal =>
 ### 2. Context + Hint Pattern (Order Processing)
 
 **Demonstrates:**
+
 - Signal: `order.placed:ORD-123` (hint included)
 - Fast-path uses hint, but verifies with atom
 - Double-safe pattern balances performance and safety
 
 **Key Code:**
+
 ```csharp
 var emailListener = new Action<SignalEvent>(signal =>
 {
@@ -191,11 +200,13 @@ var emailListener = new Action<SignalEvent>(signal =>
 ### 3. Command Pattern (Window Size Control)
 
 **Demonstrates:**
+
 - Signal: `window.size.set:500` (imperative command)
 - WindowSizeAtom adjusts SignalSink capacity dynamically
 - Exception to the normal pattern (infrastructure only)
 
 **Key Code:**
+
 ```csharp
 await using var windowAtom = new WindowSizeAtom(sink);
 
@@ -213,12 +224,14 @@ sink.Raise("window.time.set:30s");
 ### 4. Complex Multi-Step System (Rate Limiting Pipeline)
 
 **Demonstrates:**
+
 - Signal chains: `api.request` → `request.validated` → `request.processed` → `request.complete`
 - Rate limiting with `RateLimitAtom` (1.5/s, burst 3)
 - Dynamic window sizing
 - Multiple atoms querying each other's state
 
 **Key Code:**
+
 ```csharp
 // Rate limiter controls throughput
 await using var rateLimiter = new RateLimitAtom(sink, new RateLimitOptions
@@ -243,11 +256,13 @@ if (lease.IsAcquired)
 ### 5. Signal Chain Demo (Cascading Atoms)
 
 **Demonstrates:**
+
 - Atoms emitting signals that trigger other atoms
 - Pipeline: `input` → `stepA.complete` → `stepB.complete` → `stepC.complete`
 - Each atom processes and passes to next stage
 
 **Key Code:**
+
 ```csharp
 await using var atomA = new TestAtom(
     sink, "AtomA",
@@ -269,12 +284,14 @@ sink.Raise("input"); // Triggers chain: A → B → C
 ### 6. Live Signal Viewer
 
 **Demonstrates:**
+
 - Real-time signal visualization
 - ConsoleSignalLoggerAtom with filtering
 - Color-coded log levels (error=red, warning=yellow, etc.)
 - Signal window dump
 
 **Key Code:**
+
 ```csharp
 await using var logger = new ConsoleSignalLoggerAtom(sink, new ConsoleSignalLoggerOptions
 {
@@ -296,6 +313,7 @@ logger.DumpWindow(); // Print all signals in window
 Simulated atom for demonstration purposes.
 
 **Features:**
+
 - Configurable signal listeners (glob pattern matching)
 - Configurable signal responses (emit signals in response to received signals)
 - Simulated processing delay (`Task.Delay`)
@@ -303,6 +321,7 @@ Simulated atom for demonstration purposes.
 - State query methods demonstrating the pattern
 
 **Example:**
+
 ```csharp
 await using var atom = new TestAtom(
     sink,
@@ -326,6 +345,7 @@ var isBusy = atom.IsBusy();
 Captures signals and outputs to console with filtering and sampling.
 
 **Features:**
+
 - Auto-output to console
 - Window size limiting
 - Include/exclude pattern filtering (glob)
@@ -335,6 +355,7 @@ Captures signals and outputs to console with filtering and sampling.
 - Window dump to table
 
 **Example:**
+
 ```csharp
 await using var logger = new ConsoleSignalLoggerAtom(sink, new ConsoleSignalLoggerOptions
 {
@@ -358,6 +379,7 @@ Console.WriteLine($"Received: {stats.TotalReceived}, Logged: {stats.TotalLogged}
 Dynamic SignalSink capacity and retention management via signals.
 
 **Commands:**
+
 - `window.size.set:N` - Set absolute capacity
 - `window.size.increase:N` - Increase capacity by N
 - `window.size.decrease:N` - Decrease capacity by N
@@ -366,6 +388,7 @@ Dynamic SignalSink capacity and retention management via signals.
 - `window.time.decrease:VALUE` - Reduce retention
 
 **Example:**
+
 ```csharp
 await using var windowAtom = new WindowSizeAtom(sink);
 
@@ -378,18 +401,21 @@ sink.Raise("window.time.set:30s");
 Token bucket rate limiter for controlling throughput.
 
 **Features:**
+
 - Configurable rate per second
 - Burst capacity
 - Dynamic rate adjustment via signals
 - Integration with System.Threading.RateLimiting
 
 **Commands:**
+
 - `rate.limit.set:N` - Set rate to N tokens/second
 - `rate.limit.increase:N` - Increase rate by N
 - `rate.limit.decrease:N` - Decrease rate by N
 - `rate.limit.burst:N` - Set burst capacity
 
 **Example:**
+
 ```csharp
 await using var rateLimiter = new RateLimitAtom(sink, new RateLimitOptions
 {
@@ -412,26 +438,29 @@ sink.Raise("rate.limit.set:50");
 
 ### When to Use Each Model
 
-| Model | Use Case | Example |
-|-------|----------|---------|
-| **Pure Notification** | Domain events, state changes | `file.saved`, `user.registered`, `order.placed` |
-| **Context + Hint** | Performance optimization with safety | `cache.expired:key123`, `order.placed:ORD-123` |
-| **Command** | Infrastructure control, admin ops | `window.size.set:500`, `log.level.set:debug` |
+| Model                 | Use Case                             | Example                                         |
+|-----------------------|--------------------------------------|-------------------------------------------------|
+| **Pure Notification** | Domain events, state changes         | `file.saved`, `user.registered`, `order.placed` |
+| **Context + Hint**    | Performance optimization with safety | `cache.expired:key123`, `order.placed:ORD-123`  |
+| **Command**           | Infrastructure control, admin ops    | `window.size.set:500`, `log.level.set:debug`    |
 
 ### Anti-Patterns (Don't Do This)
 
 ❌ **Using signal as state carrier for domain logic:**
+
 ```csharp
 sink.Raise($"file.saved:{filename}:{fileSize}:{timestamp}");
 ```
 
 ❌ **Trusting hint without verification:**
+
 ```csharp
 var orderId = signal.Signal.Split(':')[1]; // Use blindly
 ProcessOrder(orderId); // Never verify with atom
 ```
 
 ❌ **Using command pattern for domain events:**
+
 ```csharp
 sink.Raise("user.register:john@example.com"); // Wrong!
 ```
@@ -439,12 +468,14 @@ sink.Raise("user.register:john@example.com"); // Wrong!
 ### Best Practices
 
 ✅ **Query atom for authoritative state:**
+
 ```csharp
 sink.Raise("file.saved");
 var filename = fileAtom.GetCurrentFilename(); // Query atom
 ```
 
 ✅ **Use hint, verify with atom:**
+
 ```csharp
 var hintId = ExtractHint(signal.Signal);
 UseHintForFastPath(hintId);
@@ -452,6 +483,7 @@ var actualId = atom.GetActualId(); // Verify
 ```
 
 ✅ **Command pattern for infrastructure only:**
+
 ```csharp
 sink.Raise("window.size.set:500"); // Config only
 ```
@@ -478,7 +510,8 @@ Signal Flow:
 
 ### Essential Reading
 
-- **[BEST_PRACTICES.md](../../BEST_PRACTICES.md)** ⭐ - Comprehensive best practices guide for production signal-based systems
+- **[BEST_PRACTICES.md](../../BEST_PRACTICES.md)** ⭐ - Comprehensive best practices guide for production signal-based
+  systems
 - **[SIGNALS_PATTERN.md](../../SIGNALS_PATTERN.md)** - Deep dive into the three signal models
 
 ### Additional Resources
@@ -492,6 +525,7 @@ Signal Flow:
 ### Note About Demo Code
 
 ⚠️ **The demos use simplified patterns for educational clarity:**
+
 - Flat signal names (not hierarchical scoped signals)
 - No operation ID filtering (acceptable for single-operation demos)
 - Manual subscription cleanup (Subscribe() pattern is safer)

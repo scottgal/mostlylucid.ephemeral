@@ -1,5 +1,4 @@
 using System.Collections.Concurrent;
-using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Threading.Channels;
 
@@ -10,7 +9,8 @@ namespace Mostlylucid.Ephemeral;
 ///     Unlike EphemeralForEachAsync (which processes a collection), this stays alive
 ///     and lets you enqueue items over time, inspect operations, and gracefully shutdown.
 /// </summary>
-public sealed class EphemeralWorkCoordinator<T> : IEphemeralCoordinator, IOperationPinning, IOperationFinalization, IOperationEvictor
+public sealed class EphemeralWorkCoordinator<T> : IEphemeralCoordinator, IOperationPinning, IOperationFinalization,
+    IOperationEvictor
 {
     private readonly Func<T, CancellationToken, Task> _body;
 
@@ -121,16 +121,6 @@ public sealed class EphemeralWorkCoordinator<T> : IEphemeralCoordinator, IOperat
     public int TotalFailed => Volatile.Read(ref _totalFailed);
 
     /// <summary>
-    ///     Whether Complete() has been called.
-    /// </summary>
-    public bool IsCompleted => Volatile.Read(ref _completed);
-
-    /// <summary>
-    ///     Whether all work is done (completed + drained).
-    /// </summary>
-    public bool IsDrained => IsCompleted && PendingCount == 0 && ActiveCount == 0;
-
-    /// <summary>
     ///     Whether the coordinator is paused.
     ///     When paused, no new items are pulled from the queue (but running operations continue).
     /// </summary>
@@ -140,6 +130,16 @@ public sealed class EphemeralWorkCoordinator<T> : IEphemeralCoordinator, IOperat
     ///     Current max concurrency (tracks dynamic changes when enabled).
     /// </summary>
     public int CurrentMaxConcurrency => Volatile.Read(ref _currentMaxConcurrency);
+
+    /// <summary>
+    ///     Whether Complete() has been called.
+    /// </summary>
+    public bool IsCompleted => Volatile.Read(ref _completed);
+
+    /// <summary>
+    ///     Whether all work is done (completed + drained).
+    /// </summary>
+    public bool IsDrained => IsCompleted && PendingCount == 0 && ActiveCount == 0;
 
     public async ValueTask DisposeAsync()
     {
@@ -158,6 +158,53 @@ public sealed class EphemeralWorkCoordinator<T> : IEphemeralCoordinator, IOperat
         await _concurrency.DisposeAsync().ConfigureAwait(false);
         _cts.Dispose();
         _pauseGate.Dispose();
+    }
+
+    /// <summary>
+    ///     Signal that no more items will be added. Processing continues until drained.
+    /// </summary>
+    public void Complete()
+    {
+        Volatile.Write(ref _completed, true);
+        _channel.Writer.Complete();
+    }
+
+    /// <summary>
+    ///     Wait for all enqueued work to complete.
+    ///     For manual enqueue mode, call Complete() first.
+    ///     For IAsyncEnumerable mode, waits for source to complete.
+    /// </summary>
+    public async Task DrainAsync(CancellationToken cancellationToken = default)
+    {
+        // For IAsyncEnumerable source, wait for it to complete first
+        if (_sourceConsumerTask is not null)
+        {
+            using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, _cts.Token);
+            await _sourceConsumerTask.WaitAsync(linkedCts.Token).ConfigureAwait(false);
+        }
+        else if (!_completed)
+        {
+            throw new InvalidOperationException("Call Complete() before DrainAsync().");
+        }
+
+        using var linkedCts2 = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, _cts.Token);
+        await _processingTask.WaitAsync(linkedCts2.Token).ConfigureAwait(false);
+    }
+
+    /// <inheritdoc />
+    public bool TryKill(long operationId)
+    {
+        if (operationId <= 0)
+            return false;
+
+        if (!TryRemoveOperation(operationId, out var candidate) || candidate is null)
+            return false;
+
+        if (candidate.Completed is null) candidate.Completed = DateTimeOffset.UtcNow;
+        candidate.IsPinned = false;
+        NotifyOperationFinalized(candidate);
+        CleanupWindow();
+        return true;
     }
 
     /// <summary>
@@ -259,10 +306,8 @@ public sealed class EphemeralWorkCoordinator<T> : IEphemeralCoordinator, IOperat
         var index = 0;
 
         foreach (var op in _recent)
-        {
             if (index < count)
                 result[index++] = op.ToSnapshot();
-        }
 
         // Handle race condition where count changed during enumeration
         if (index < count)
@@ -283,10 +328,8 @@ public sealed class EphemeralWorkCoordinator<T> : IEphemeralCoordinator, IOperat
         var result = new List<EphemeralOperationSnapshot>(_recent.Count / 2); // Heuristic: ~50% running
 
         foreach (var op in _recent)
-        {
             if (op.Completed is null)
                 result.Add(op.ToSnapshot());
-        }
 
         return result;
     }
@@ -303,10 +346,8 @@ public sealed class EphemeralWorkCoordinator<T> : IEphemeralCoordinator, IOperat
         var result = new List<EphemeralOperationSnapshot>(_recent.Count / 2); // Heuristic: ~50% completed
 
         foreach (var op in _recent)
-        {
             if (op.Completed is not null)
                 result.Add(op.ToSnapshot());
-        }
 
         return result;
     }
@@ -323,10 +364,8 @@ public sealed class EphemeralWorkCoordinator<T> : IEphemeralCoordinator, IOperat
         var result = new List<EphemeralOperationSnapshot>(_recent.Count / 10); // Heuristic: ~10% failed
 
         foreach (var op in _recent)
-        {
             if (op.Error is not null)
                 result.Add(op.ToSnapshot());
-        }
 
         return result;
     }
@@ -702,37 +741,6 @@ public sealed class EphemeralWorkCoordinator<T> : IEphemeralCoordinator, IOperat
     }
 
     /// <summary>
-    ///     Signal that no more items will be added. Processing continues until drained.
-    /// </summary>
-    public void Complete()
-    {
-        Volatile.Write(ref _completed, true);
-        _channel.Writer.Complete();
-    }
-
-    /// <summary>
-    ///     Wait for all enqueued work to complete.
-    ///     For manual enqueue mode, call Complete() first.
-    ///     For IAsyncEnumerable mode, waits for source to complete.
-    /// </summary>
-    public async Task DrainAsync(CancellationToken cancellationToken = default)
-    {
-        // For IAsyncEnumerable source, wait for it to complete first
-        if (_sourceConsumerTask is not null)
-        {
-            using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, _cts.Token);
-            await _sourceConsumerTask.WaitAsync(linkedCts.Token).ConfigureAwait(false);
-        }
-        else if (!_completed)
-        {
-            throw new InvalidOperationException("Call Complete() before DrainAsync().");
-        }
-
-        using var linkedCts2 = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, _cts.Token);
-        await _processingTask.WaitAsync(linkedCts2.Token).ConfigureAwait(false);
-    }
-
-    /// <summary>
     ///     Cancel all pending work and stop accepting new items.
     /// </summary>
     public void Cancel()
@@ -850,7 +858,6 @@ public sealed class EphemeralWorkCoordinator<T> : IEphemeralCoordinator, IOperat
                 continue;
 
             foreach (var signal in op._signals)
-            {
                 if (StringPatternMatcher.MatchesAny(signal, _options.ClearOnSignals))
                 {
                     // Found a clear signal - clear the sink
@@ -875,9 +882,9 @@ public sealed class EphemeralWorkCoordinator<T> : IEphemeralCoordinator, IOperat
                         // Clear entire sink
                         _options.Signals.Clear();
                     }
-                    return;  // Only clear once per check
+
+                    return; // Only clear once per check
                 }
-            }
         }
     }
 
@@ -897,7 +904,6 @@ public sealed class EphemeralWorkCoordinator<T> : IEphemeralCoordinator, IOperat
         var recentSignals = _options.Signals.Sense();
 
         foreach (var signalEvent in recentSignals)
-        {
             if (StringPatternMatcher.MatchesAny(signalEvent.Signal, _options.DrainOnSignals))
             {
                 // Check if this drain signal applies to us
@@ -907,7 +913,8 @@ public sealed class EphemeralWorkCoordinator<T> : IEphemeralCoordinator, IOperat
                     Complete();
                     return;
                 }
-                else if (signalEvent.Signal == "coordinator.drain.id" && _options.CoordinatorId != null)
+
+                if (signalEvent.Signal == "coordinator.drain.id" && _options.CoordinatorId != null)
                 {
                     // Targeted drain by ID
                     if (signalEvent.Key == _options.CoordinatorId)
@@ -919,14 +926,14 @@ public sealed class EphemeralWorkCoordinator<T> : IEphemeralCoordinator, IOperat
                 else if (signalEvent.Signal == "coordinator.drain.pattern" && _options.CoordinatorId != null)
                 {
                     // Pattern-based drain
-                    if (signalEvent.Key != null && StringPatternMatcher.Matches(_options.CoordinatorId, signalEvent.Key))
+                    if (signalEvent.Key != null &&
+                        StringPatternMatcher.Matches(_options.CoordinatorId, signalEvent.Key))
                     {
                         Complete();
                         return;
                     }
                 }
             }
-        }
     }
 
     private bool ShouldCancelDueToSignals()
@@ -974,10 +981,7 @@ public sealed class EphemeralWorkCoordinator<T> : IEphemeralCoordinator, IOperat
                     break;
                 }
 
-                if (StringPatternMatcher.MatchesAny(signal, _options.DeferOnSignals))
-                {
-                    hasDeferSignal = true;
-                }
+                if (StringPatternMatcher.MatchesAny(signal, _options.DeferOnSignals)) hasDeferSignal = true;
             }
 
             // Resume signal overrides defer
@@ -1106,24 +1110,6 @@ public sealed class EphemeralWorkCoordinator<T> : IEphemeralCoordinator, IOperat
             : new FixedConcurrencyGate(options.MaxConcurrency);
     }
 
-    private readonly record struct WorkItem(T Item, long? Id);
-
-    /// <inheritdoc />
-    public bool TryKill(long operationId)
-    {
-        if (operationId <= 0)
-            return false;
-
-        if (!TryRemoveOperation(operationId, out var candidate) || candidate is null)
-            return false;
-
-        if (candidate.Completed is null) candidate.Completed = DateTimeOffset.UtcNow;
-        candidate.IsPinned = false;
-        NotifyOperationFinalized(candidate);
-        CleanupWindow();
-        return true;
-    }
-
     private bool TryRemoveOperation(long operationId, out EphemeralOperation? removed)
     {
         removed = null;
@@ -1150,4 +1136,6 @@ public sealed class EphemeralWorkCoordinator<T> : IEphemeralCoordinator, IOperat
 
         return found;
     }
+
+    private readonly record struct WorkItem(T Item, long? Id);
 }

@@ -153,10 +153,7 @@ public class SignalSinkClearTests
         );
 
         // Enqueue several items
-        for (int i = 0; i < 10; i++)
-        {
-            await coordinator.EnqueueAsync(i);
-        }
+        for (var i = 0; i < 10; i++) await coordinator.EnqueueAsync(i);
 
         coordinator.Complete();
         await coordinator.DrainAsync();
@@ -176,10 +173,7 @@ public class SignalSinkClearTests
         var clearTriggered = false;
 
         await using var coordinator = new EphemeralWorkCoordinator<int>(
-            async (item, ct) =>
-            {
-                await Task.Delay(10);
-            },
+            async (item, ct) => { await Task.Delay(10); },
             new EphemeralOptions
             {
                 Signals = sink,
@@ -192,10 +186,7 @@ public class SignalSinkClearTests
         var initialCount = sink.Count;
 
         // Enqueue and process items
-        for (int i = 0; i < 5; i++)
-        {
-            await coordinator.EnqueueAsync(i);
-        }
+        for (var i = 0; i < 5; i++) await coordinator.EnqueueAsync(i);
 
         // Manually emit a clear signal that matches the pattern
         sink.Raise("clear.all");
@@ -210,16 +201,13 @@ public class SignalSinkClearTests
     [Fact]
     public void ClearMatching_ThreadSafe()
     {
-        var sink = new SignalSink(maxCapacity: 10000);
+        var sink = new SignalSink(10000);
 
         // Add signals concurrently
         var addTasks = Enumerable.Range(0, 100).Select(i =>
             Task.Run(() =>
             {
-                for (int j = 0; j < 100; j++)
-                {
-                    sink.Raise($"task.{i}.signal.{j}");
-                }
+                for (var j = 0; j < 100; j++) sink.Raise($"task.{i}.signal.{j}");
             })
         ).ToArray();
 

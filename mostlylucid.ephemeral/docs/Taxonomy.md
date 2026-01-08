@@ -192,6 +192,7 @@ types (including `MultiTaxonomyAtom`), while each atom kind ships as its own pac
 `mostlylucid.ephemeral.atoms.taxonomy.*`.
 
 The **Ledger** namespace (`Mostlylucid.Ephemeral.Atoms.Taxonomy.Ledger`) provides evidence accumulation types:
+
 - `DetectionLedger` - Core accumulator for detection systems (BotDetection, ThreatDetection)
 - `DetectionContribution` - Single detector's evidence with factory methods (`Bot()`, `Human()`, `VerifiedBot()`, etc.)
 - `CategoryScore` - Category breakdown with `TotalWeight` for explainability

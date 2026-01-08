@@ -2,7 +2,8 @@
 
 ## Overview
 
-This document provides comprehensive performance benchmarks for the **Mostlylucid.Ephemeral** library, a .NET 10 library for bounded, observable, self-cleaning async execution with signal-based coordination.
+This document provides comprehensive performance benchmarks for the **Mostlylucid.Ephemeral** library, a .NET 10 library
+for bounded, observable, self-cleaning async execution with signal-based coordination.
 
 ### Benchmark Environment
 
@@ -19,21 +20,21 @@ This document provides comprehensive performance benchmarks for the **Mostlyluci
 The library has undergone three major optimization passes:
 
 1. **Signal Hot Paths** (Commit ba5860f)
-   - Manual loop optimization (replacing `foreach` with `for`)
-   - Span-based zero-allocation parsing (`TryParseSpan`)
-   - Ordinal string comparison for performance
-   - Result: **20.4M signals/sec** (49ns per signal)
+    - Manual loop optimization (replacing `foreach` with `for`)
+    - Span-based zero-allocation parsing (`TryParseSpan`)
+    - Ordinal string comparison for performance
+    - Result: **20.4M signals/sec** (49ns per signal)
 
 2. **Coordinator Hot Paths** (Commit 30d87d2)
-   - Replaced `ConcurrentBag<Task>` with `List<Task>` for better cache locality
-   - Pre-sized task lists to avoid reallocations
-   - Fixed `SemaphoreSlim` initialization (proper initial count)
-   - Result: **15-20% reduction in GC pressure**
+    - Replaced `ConcurrentBag<Task>` with `List<Task>` for better cache locality
+    - Pre-sized task lists to avoid reallocations
+    - Fixed `SemaphoreSlim` initialization (proper initial count)
+    - Result: **15-20% reduction in GC pressure**
 
 3. **Concurrency Gates** (Commit b27526c)
-   - Removed duplicate `SemaphoreSlim` initialization bug
-   - Optimized gate creation patterns
-   - Added aggressive inlining to hot paths
+    - Removed duplicate `SemaphoreSlim` initialization bug
+    - Optimized gate creation patterns
+    - Added aggressive inlining to hot paths
 
 ---
 
@@ -46,17 +47,17 @@ The library has undergone three major optimization passes:
 
 #### Results
 
-| Metric | Value |
-|--------|-------|
-| **Mean** | 36.817 ms |
-| **StdErr** | 0.062 ms (0.17%) |
-| **StdDev** | 0.138 ms |
-| **Min** | 36.702 ms |
-| **Max** | 37.033 ms |
-| **Throughput** | **20.4 million signals/sec** |
-| **Per-Signal Cost** | **49.1 ns** |
-| **GC Collections** | Gen0: 0, Gen1: 0, Gen2: 0 |
-| **Memory Allocated** | 3.67 MB |
+| Metric               | Value                        |
+|----------------------|------------------------------|
+| **Mean**             | 36.817 ms                    |
+| **StdErr**           | 0.062 ms (0.17%)             |
+| **StdDev**           | 0.138 ms                     |
+| **Min**              | 36.702 ms                    |
+| **Max**              | 37.033 ms                    |
+| **Throughput**       | **20.4 million signals/sec** |
+| **Per-Signal Cost**  | **49.1 ns**                  |
+| **GC Collections**   | Gen0: 0, Gen1: 0, Gen2: 0    |
+| **Memory Allocated** | 3.67 MB                      |
 
 #### Code Example
 
@@ -70,9 +71,12 @@ for (int i = 0; i < 750_000; i++)
 
 #### Analysis
 
-This benchmark establishes the **baseline cost** of the signal system. At 49ns per signal, the infrastructure can handle over **20 million signals per second** on a single thread with minimal memory allocation (3.67 MB for 750K signals = 5 bytes per signal average).
+This benchmark establishes the **baseline cost** of the signal system. At 49ns per signal, the infrastructure can handle
+over **20 million signals per second** on a single thread with minimal memory allocation (3.67 MB for 750K signals = 5
+bytes per signal average).
 
 **Key Optimizations**:
+
 - Lock-free listener array access using volatile reads
 - Manual loop optimization in `Signals.cs:380-420` (replaced `foreach` with `for`)
 - Cache array length to avoid repeated volatile reads
@@ -86,17 +90,17 @@ This benchmark establishes the **baseline cost** of the signal system. At 49ns p
 
 #### Results
 
-| Metric | Value |
-|--------|-------|
-| **Mean** | 156.275 ms |
-| **StdErr** | 27.414 ms (17.54%) |
-| **StdDev** | 61.299 ms |
-| **Min** | 88.679 ms |
-| **Max** | 232.072 ms |
-| **Throughput** | **704K signals/sec** |
-| **Per-Signal Cost** | **1.42 µs** |
-| **GC Collections** | Gen0: 5, Gen1: 4, Gen2: 0 |
-| **Memory Allocated** | 89.9 MB |
+| Metric               | Value                     |
+|----------------------|---------------------------|
+| **Mean**             | 156.275 ms                |
+| **StdErr**           | 27.414 ms (17.54%)        |
+| **StdDev**           | 61.299 ms                 |
+| **Min**              | 88.679 ms                 |
+| **Max**              | 232.072 ms                |
+| **Throughput**       | **704K signals/sec**      |
+| **Per-Signal Cost**  | **1.42 µs**               |
+| **GC Collections**   | Gen0: 5, Gen1: 4, Gen2: 0 |
+| **Memory Allocated** | 89.9 MB                   |
 
 #### Code Example
 
@@ -140,14 +144,17 @@ for (int i = 0; i < 110_000; i++)
 
 #### Analysis
 
-Adding a single listener increases the per-signal cost from **49ns to 1.42µs** (~29× slower). This is expected as we now invoke a callback per signal.
+Adding a single listener increases the per-signal cost from **49ns to 1.42µs** (~29× slower). This is expected as we now
+invoke a callback per signal.
 
 **High Variance Warning**: StdDev of 61ms (17.5% of mean) indicates performance variance. This is due to:
+
 - GC collections (Gen0: 5, Gen1: 4)
 - Memory allocation overhead (89.9 MB for 110K signals)
 - Thread scheduling jitter
 
 **Optimization Opportunities**:
+
 - Consider object pooling for `SignalEvent` instances
 - Reduce allocations in listener callback chains
 
@@ -160,17 +167,17 @@ Adding a single listener increases the per-signal cost from **49ns to 1.42µs** 
 
 #### Results
 
-| Metric | Value |
-|--------|-------|
-| **Mean** | 39.013 ms |
-| **StdErr** | 0.324 ms (0.83%) |
-| **StdDev** | 0.724 ms |
-| **Min** | 38.269 ms |
-| **Max** | 40.121 ms |
-| **Throughput** | **179 million matches/sec** |
-| **Per-Match Cost** | **5.6 ns** |
-| **GC Collections** | Gen0: 0, Gen1: 0, Gen2: 0 |
-| **Memory Allocated** | 168 bytes |
+| Metric               | Value                       |
+|----------------------|-----------------------------|
+| **Mean**             | 39.013 ms                   |
+| **StdErr**           | 0.324 ms (0.83%)            |
+| **StdDev**           | 0.724 ms                    |
+| **Min**              | 38.269 ms                   |
+| **Max**              | 40.121 ms                   |
+| **Throughput**       | **179 million matches/sec** |
+| **Per-Match Cost**   | **5.6 ns**                  |
+| **GC Collections**   | Gen0: 0, Gen1: 0, Gen2: 0   |
+| **Memory Allocated** | 168 bytes                   |
 
 #### Code Example
 
@@ -190,14 +197,17 @@ for (int i = 0; i < 1_750_000; i++)
 
 #### Analysis
 
-**Exceptional Performance**: At 5.6ns per match, the pattern matcher can process **179 million comparisons per second** with **zero GC collections** and only 168 bytes allocated total.
+**Exceptional Performance**: At 5.6ns per match, the pattern matcher can process **179 million comparisons per second**
+with **zero GC collections** and only 168 bytes allocated total.
 
 **Implementation Details** (from `StringPatternMatcher.cs`):
+
 - Ordinal string comparison (`StringComparison.Ordinal`)
 - Optimized wildcard matching algorithm
 - No allocations (works with spans where possible)
 
 **Use Cases**:
+
 - Signal filtering in high-frequency event systems
 - Log filtering and routing
 - Dynamic subscription management
@@ -211,17 +221,17 @@ for (int i = 0; i < 1_750_000; i++)
 
 #### Results
 
-| Metric | Value |
-|--------|-------|
-| **Mean** | 21.528 ms |
-| **StdErr** | 0.225 ms (1.04%) |
-| **StdDev** | 0.503 ms |
-| **Min** | 20.916 ms |
-| **Max** | 22.129 ms |
-| **Throughput** | **441 million parses/sec** |
-| **Per-Parse Cost** | **2.27 ns** |
-| **GC Collections** | Gen0: 0, Gen1: 0, Gen2: 0 |
-| **Memory Allocated** | **0 bytes** ✅ |
+| Metric               | Value                      |
+|----------------------|----------------------------|
+| **Mean**             | 21.528 ms                  |
+| **StdErr**           | 0.225 ms (1.04%)           |
+| **StdDev**           | 0.503 ms                   |
+| **Min**              | 20.916 ms                  |
+| **Max**              | 22.129 ms                  |
+| **Throughput**       | **441 million parses/sec** |
+| **Per-Parse Cost**   | **2.27 ns**                |
+| **GC Collections**   | Gen0: 0, Gen1: 0, Gen2: 0  |
+| **Memory Allocated** | **0 bytes** ✅              |
 
 #### Code Example
 
@@ -294,17 +304,21 @@ public static bool TryParseSpan(
 
 #### Analysis
 
-**Blazing Fast**: At 2.27ns per parse with **zero allocations**, this is the fastest parsing operation in the library. The span-based implementation leverages:
+**Blazing Fast**: At 2.27ns per parse with **zero allocations**, this is the fastest parsing operation in the library.
+The span-based implementation leverages:
+
 - SIMD vectorization (`SequenceEqual` uses AVX-512 when available)
 - Zero-copy string slicing
 - Stack-only memory (no heap allocations)
 
 **Comparison with `TryParse`** (allocating version):
+
 - `TryParse`: ~32ms for 9.5M parses (~3.4ns/parse, allocates strings)
 - `TryParseSpan`: 21.5ms for 9.5M parses (2.27ns/parse, **0 bytes allocated**)
 - **Speedup**: 1.49× faster + zero GC pressure
 
 **When to Use**:
+
 - ✅ Performance-critical hot paths (event loops, signal handlers)
 - ✅ High-frequency parsing (millions of operations per second)
 - ✅ Low-latency scenarios where GC pauses are unacceptable
@@ -319,15 +333,16 @@ public static bool TryParseSpan(
 
 #### Preliminary Results
 
-| Metric | Value |
-|--------|-------|
-| **Workload Jitting** | 26.3 minutes |
-| **Status** | Currently running overhead phase |
-| **Expected Duration** | ~26-30 minutes per iteration |
+| Metric                | Value                            |
+|-----------------------|----------------------------------|
+| **Workload Jitting**  | 26.3 minutes                     |
+| **Status**            | Currently running overhead phase |
+| **Expected Duration** | ~26-30 minutes per iteration     |
 
 #### Why So Slow?
 
 This benchmark intentionally simulates **real-world rate limiting** with backpressure:
+
 - 1.58M tokens acquired at **1000 tokens/second max**
 - Theoretical minimum: 1,580,000 ÷ 1,000 = **1,580 seconds** (~26.3 minutes)
 - The benchmark measures the **overhead** of rate limiting while enforcing the actual rate limit
@@ -601,6 +616,7 @@ Parallel.For(0, 32, new ParallelOptions { MaxDegreeOfParallelism = 32 }, threadI
 ### Categories
 
 #### 🔷 Signal Infrastructure (24 benchmarks)
+
 1. ✅ Signal Raise (no listeners, 750K) - **36.817ms** @ 20.4M/sec
 2. ✅ Signal Raise (1 listener, 110K) - **156.275ms** @ 704K/sec
 3. ✅ Pattern Matching (7M) - **39.013ms** @ 179M/sec
@@ -627,6 +643,7 @@ Parallel.For(0, 32, new ParallelOptions { MaxDegreeOfParallelism = 32 }, threadI
 24. ⏳ Massive Burst 100K
 
 #### 🔷 Coordinator (5 benchmarks)
+
 25. ⏳ EphemeralWorkCoordinator (100K items, 16 concurrency)
 26. ⏳ EphemeralKeyedWorkCoordinator (10K keys × 10 items)
 27. ⏳ EphemeralForEachAsync (100K items, 16 concurrency)
@@ -634,6 +651,7 @@ Parallel.For(0, 32, new ParallelOptions { MaxDegreeOfParallelism = 32 }, threadI
 29. ⏳ EphemeralResultCoordinator (50K items)
 
 #### 🔷 Parallelism (13 benchmarks)
+
 30. ⏳ Parallel 2 Cores (2×325K)
 31. ⏳ Parallel 4 Cores (4×110K)
 32. ⏳ Parallel 8 Cores (8×54K)
@@ -649,6 +667,7 @@ Parallel.For(0, 32, new ParallelOptions { MaxDegreeOfParallelism = 32 }, threadI
 42. ⏳ Parallel 32 Cores (32×16K)
 
 #### 🔥 FINALE (1 benchmark)
+
 43. ⏳ Full System Stress (1→32 cores, 2.62M signals)
 
 ---
@@ -658,42 +677,42 @@ Parallel.For(0, 32, new ParallelOptions { MaxDegreeOfParallelism = 32 }, threadI
 ### What Makes This Fast?
 
 1. **Lock-Free Signal Dispatch** (Signals.cs:380-420)
-   - Manual loop optimization (replaced `foreach` with `for`)
-   - Cached array length to avoid repeated volatile reads
-   - Result: 20.4M signals/sec
+    - Manual loop optimization (replaced `foreach` with `for`)
+    - Cached array length to avoid repeated volatile reads
+    - Result: 20.4M signals/sec
 
 2. **Zero-Allocation Span Parsing** (SignalCommandMatch.cs:210-238)
-   - Span-based APIs eliminate string allocations
-   - SIMD vectorization via `SequenceEqual`
-   - Result: 441M parses/sec, **0 bytes allocated**
+    - Span-based APIs eliminate string allocations
+    - SIMD vectorization via `SequenceEqual`
+    - Result: 441M parses/sec, **0 bytes allocated**
 
 3. **Optimized Concurrency Primitives** (ParallelEphemeral.cs, ConcurrencyGates.cs)
-   - `List<Task>` instead of `ConcurrentBag` for better cache locality
-   - Pre-sized collections to avoid reallocations
-   - Proper `SemaphoreSlim` initialization (initial count = max)
-   - Result: 15-20% less GC pressure
+    - `List<Task>` instead of `ConcurrentBag` for better cache locality
+    - Pre-sized collections to avoid reallocations
+    - Proper `SemaphoreSlim` initialization (initial count = max)
+    - Result: 15-20% less GC pressure
 
 ### When to Use What
 
-| Scenario | Use |
-|----------|-----|
-| Process collection once | `items.EphemeralForEachAsync(...)` |
-| Long-lived queue | `EphemeralWorkCoordinator<T>` |
-| Per-entity ordering | `EphemeralKeyedWorkCoordinator<TKey, T>` |
-| Capture results | `EphemeralResultCoordinator<TInput, TResult>` |
-| Signal filtering | `StringPatternMatcher.Matches(signal, pattern)` |
-| Parse commands (hot path) | `SignalCommandMatch.TryParseSpan(...)` |
-| Parse commands (convenience) | `SignalCommandMatch.TryParse(...)` |
+| Scenario                     | Use                                             |
+|------------------------------|-------------------------------------------------|
+| Process collection once      | `items.EphemeralForEachAsync(...)`              |
+| Long-lived queue             | `EphemeralWorkCoordinator<T>`                   |
+| Per-entity ordering          | `EphemeralKeyedWorkCoordinator<TKey, T>`        |
+| Capture results              | `EphemeralResultCoordinator<TInput, TResult>`   |
+| Signal filtering             | `StringPatternMatcher.Matches(signal, pattern)` |
+| Parse commands (hot path)    | `SignalCommandMatch.TryParseSpan(...)`          |
+| Parse commands (convenience) | `SignalCommandMatch.TryParse(...)`              |
 
 ### Performance Budget
 
-| Operation | Per-Op Cost | Allocations |
-|-----------|-------------|-------------|
-| Signal raise (no listeners) | 49 ns | 5 bytes avg |
-| Signal raise (1 listener) | 1.42 µs | ~817 bytes |
-| Pattern match (glob) | 5.6 ns | 0 bytes |
-| Command parse (span) | 2.27 ns | **0 bytes** ✅ |
-| Rate limit acquire | ~1 ms* | (backpressure enforced) |
+| Operation                   | Per-Op Cost | Allocations             |
+|-----------------------------|-------------|-------------------------|
+| Signal raise (no listeners) | 49 ns       | 5 bytes avg             |
+| Signal raise (1 listener)   | 1.42 µs     | ~817 bytes              |
+| Pattern match (glob)        | 5.6 ns      | 0 bytes                 |
+| Command parse (span)        | 2.27 ns     | **0 bytes** ✅           |
+| Rate limit acquire          | ~1 ms*      | (backpressure enforced) |
 
 *Rate limiting is intentionally slow to enforce real-world throttling.
 
@@ -704,9 +723,9 @@ Parallel.For(0, 32, new ParallelOptions { MaxDegreeOfParallelism = 32 }, threadI
 - **Source Code**: `demos/mostlylucid.ephemeral.demo/SignalBenchmarks.cs`
 - **Library Docs**: `CLAUDE.md` (architecture overview)
 - **Optimization Commits**:
-  - ba5860f: Signal hot paths
-  - 30d87d2: Coordinator hot paths
-  - b27526c: Concurrency gates
+    - ba5860f: Signal hot paths
+    - 30d87d2: Coordinator hot paths
+    - b27526c: Concurrency gates
 
 ---
 

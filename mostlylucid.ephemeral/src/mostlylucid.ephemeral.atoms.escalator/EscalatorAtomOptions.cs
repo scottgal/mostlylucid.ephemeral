@@ -1,6 +1,3 @@
-using System;
-using Mostlylucid.Ephemeral;
-
 namespace Mostlylucid.Ephemeral.Atoms.Escalator;
 
 public sealed class EscalatorAtomOptions<TPayload>

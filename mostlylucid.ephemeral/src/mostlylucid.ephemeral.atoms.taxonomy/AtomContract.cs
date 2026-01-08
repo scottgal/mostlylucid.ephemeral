@@ -1,15 +1,12 @@
-using System;
-using System.Collections.Generic;
-
 namespace Mostlylucid.Ephemeral.Atoms.Taxonomy;
 
 /// <summary>
-/// Captures the execution and persistence contract for an atom.
+///     Captures the execution and persistence contract for an atom.
 /// </summary>
 public sealed class AtomContract
 {
     /// <summary>
-    /// Initializes a contract with explicit metadata.
+    ///     Initializes a contract with explicit metadata.
     /// </summary>
     /// <param name="name">Human-friendly name for the atom.</param>
     /// <param name="kind">Taxonomy kind for the atom.</param>
@@ -46,52 +43,52 @@ public sealed class AtomContract
     }
 
     /// <summary>
-    /// The human-friendly name for this atom.
+    ///     The human-friendly name for this atom.
     /// </summary>
     public string Name { get; }
 
     /// <summary>
-    /// The taxonomy kind for this atom.
+    ///     The taxonomy kind for this atom.
     /// </summary>
     public AtomKind Kind { get; }
 
     /// <summary>
-    /// The taxonomy kinds represented by this atom, including the primary kind.
+    ///     The taxonomy kinds represented by this atom, including the primary kind.
     /// </summary>
     public IReadOnlyCollection<AtomKind> Kinds { get; }
 
     /// <summary>
-    /// Determinism classification for outputs.
+    ///     Determinism classification for outputs.
     /// </summary>
     public AtomDeterminism Determinism { get; }
 
     /// <summary>
-    /// Persistence authority for outputs.
+    ///     Persistence authority for outputs.
     /// </summary>
     public AtomPersistence Persistence { get; }
 
     /// <summary>
-    /// Optional list of read domains.
+    ///     Optional list of read domains.
     /// </summary>
     public IReadOnlyCollection<string> Reads { get; }
 
     /// <summary>
-    /// Optional list of write domains.
+    ///     Optional list of write domains.
     /// </summary>
     public IReadOnlyCollection<string> Writes { get; }
 
     /// <summary>
-    /// Optional time, token, or cost limits.
+    ///     Optional time, token, or cost limits.
     /// </summary>
     public AtomBudget? Budget { get; }
 
     /// <summary>
-    /// Optional evidence requirements for outputs.
+    ///     Optional evidence requirements for outputs.
     /// </summary>
     public string? EvidenceRequirements { get; }
 
     /// <summary>
-    /// Creates a contract with defaults and a computed name.
+    ///     Creates a contract with defaults and a computed name.
     /// </summary>
     /// <param name="kind">Taxonomy kind for the atom.</param>
     /// <param name="determinism">Determinism classification for outputs.</param>
@@ -127,7 +124,7 @@ public sealed class AtomContract
     }
 
     /// <summary>
-    /// Creates a composite contract from multiple taxonomy shards.
+    ///     Creates a composite contract from multiple taxonomy shards.
     /// </summary>
     /// <param name="shards">The shard descriptors to compose.</param>
     /// <param name="name">Optional name override.</param>
@@ -186,13 +183,13 @@ public sealed class AtomContract
 
         var normalized = new List<AtomKind>(kinds.Count + 1);
         foreach (var kind in kinds)
-        {
             if (!normalized.Contains(kind))
                 normalized.Add(kind);
-        }
 
         if (!normalized.Contains(primary))
+        {
             normalized.Insert(0, primary);
+        }
         else if (normalized[0] != primary)
         {
             normalized.Remove(primary);
@@ -205,10 +202,8 @@ public sealed class AtomContract
     private static AtomDeterminism CombineDeterminism(IEnumerable<TaxonomyShard> shards)
     {
         foreach (var shard in shards)
-        {
             if (shard.Determinism == AtomDeterminism.Probabilistic)
                 return AtomDeterminism.Probabilistic;
-        }
 
         return AtomDeterminism.Deterministic;
     }
@@ -218,10 +213,8 @@ public sealed class AtomContract
         var resolved = AtomPersistence.EphemeralOnly;
 
         foreach (var shard in shards)
-        {
             if (shard.Persistence > resolved)
                 resolved = shard.Persistence;
-        }
 
         return resolved;
     }
@@ -234,16 +227,12 @@ public sealed class AtomContract
         var merged = new HashSet<string>(StringComparer.Ordinal);
 
         foreach (var shard in shards)
-        {
-            foreach (var value in selector(shard))
-                merged.Add(value);
-        }
+        foreach (var value in selector(shard))
+            merged.Add(value);
 
         if (extra is not null)
-        {
             foreach (var value in extra)
                 merged.Add(value);
-        }
 
         return merged.Count == 0 ? Array.Empty<string>() : new List<string>(merged);
     }
@@ -284,10 +273,8 @@ public sealed class AtomContract
             return null;
 
         if (merged.Count == 1)
-        {
             foreach (var value in merged)
                 return value;
-        }
 
         return string.Join(" | ", merged);
     }

@@ -1,69 +1,63 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
-using Mostlylucid.Ephemeral;
 using Mostlylucid.Ephemeral.Atoms.Taxonomy.Ledger;
 
 namespace Mostlylucid.Ephemeral.Atoms.Taxonomy.Atoms;
 
 /// <summary>
-/// Base interface for detection atoms (bot detection, threat detection, etc.).
-/// Reads from shared SignalSink, writes contributions to DetectionLedger.
+///     Base interface for detection atoms (bot detection, threat detection, etc.).
+///     Reads from shared SignalSink, writes contributions to DetectionLedger.
 /// </summary>
 /// <remarks>
-/// **Flow:**
-/// ```
-/// Request → SignalSink (shared by coordinator)
-///               ↓
-///         DetectorAtom (reads signals, runs detection)
-///               ↓
-///         DetectionLedger (accumulates evidence)
-///               ↓
-///         Escalator (persists high-salience for learning)
-/// ```
+///     **Flow:**
+///     ```
+///     Request → SignalSink (shared by coordinator)
+///     ↓
+///     DetectorAtom (reads signals, runs detection)
+///     ↓
+///     DetectionLedger (accumulates evidence)
+///     ↓
+///     Escalator (persists high-salience for learning)
+///     ```
 /// </remarks>
 public interface IDetectorAtom
 {
     /// <summary>
-    /// Unique name of this detector.
+    ///     Unique name of this detector.
     /// </summary>
     string Name { get; }
 
     /// <summary>
-    /// Category (e.g., "UserAgent", "IP", "Behavioral").
+    ///     Category (e.g., "UserAgent", "IP", "Behavioral").
     /// </summary>
     string Category { get; }
 
     /// <summary>
-    /// Execution priority (lower = runs earlier).
+    ///     Execution priority (lower = runs earlier).
     /// </summary>
     int Priority { get; }
 
     /// <summary>
-    /// Whether this detector is currently enabled.
+    ///     Whether this detector is currently enabled.
     /// </summary>
     bool IsEnabled { get; }
 
     /// <summary>
-    /// Maximum execution time.
+    ///     Maximum execution time.
     /// </summary>
     TimeSpan Timeout { get; }
 
     /// <summary>
-    /// Whether failure of this detector is acceptable.
+    ///     Whether failure of this detector is acceptable.
     /// </summary>
     bool IsOptional { get; }
 
     /// <summary>
-    /// Signal patterns that must be present for this detector to run.
-    /// Uses glob patterns (e.g., "request.headers.*", "ip.geo.*").
+    ///     Signal patterns that must be present for this detector to run.
+    ///     Uses glob patterns (e.g., "request.headers.*", "ip.geo.*").
     /// </summary>
     IReadOnlyList<string> RequiredSignals { get; }
 
     /// <summary>
-    /// Executes the detector against the current signals.
+    ///     Executes the detector against the current signals.
     /// </summary>
     /// <param name="sink">Shared signal sink for reading context.</param>
     /// <param name="sessionId">Session/request identifier.</param>
@@ -76,7 +70,7 @@ public interface IDetectorAtom
 }
 
 /// <summary>
-/// Base class for detector atoms with common functionality.
+///     Base class for detector atoms with common functionality.
 /// </summary>
 public abstract class DetectorAtomBase : IDetectorAtom
 {
@@ -100,7 +94,7 @@ public abstract class DetectorAtomBase : IDetectorAtom
         CancellationToken ct = default);
 
     /// <summary>
-    /// Returns a single contribution.
+    ///     Returns a single contribution.
     /// </summary>
     protected IReadOnlyList<DetectionContribution> Single(DetectionContribution contribution)
     {
@@ -108,7 +102,7 @@ public abstract class DetectorAtomBase : IDetectorAtom
     }
 
     /// <summary>
-    /// Returns multiple contributions.
+    ///     Returns multiple contributions.
     /// </summary>
     protected IReadOnlyList<DetectionContribution> Multiple(params DetectionContribution[] contributions)
     {
@@ -116,7 +110,7 @@ public abstract class DetectorAtomBase : IDetectorAtom
     }
 
     /// <summary>
-    /// Returns no contributions.
+    ///     Returns no contributions.
     /// </summary>
     protected IReadOnlyList<DetectionContribution> None()
     {
@@ -124,7 +118,7 @@ public abstract class DetectorAtomBase : IDetectorAtom
     }
 
     /// <summary>
-    /// Creates a bot-indicating contribution.
+    ///     Creates a bot-indicating contribution.
     /// </summary>
     protected DetectionContribution Bot(
         double confidence,
@@ -138,7 +132,7 @@ public abstract class DetectorAtomBase : IDetectorAtom
     }
 
     /// <summary>
-    /// Creates a human-indicating contribution.
+    ///     Creates a human-indicating contribution.
     /// </summary>
     protected DetectionContribution Human(
         double confidence,
@@ -150,20 +144,18 @@ public abstract class DetectorAtomBase : IDetectorAtom
     }
 
     /// <summary>
-    /// Checks if a signal pattern exists in the sink.
+    ///     Checks if a signal pattern exists in the sink.
     /// </summary>
     protected bool HasSignal(SignalSink sink, string pattern)
     {
         if (pattern.Contains('*') || pattern.Contains('?'))
-        {
             // Pattern matching
             return sink.Sense(s => StringPatternMatcher.Matches(s.Signal, pattern)).Count > 0;
-        }
         return sink.Detect(pattern);
     }
 
     /// <summary>
-    /// Gets signals matching a pattern.
+    ///     Gets signals matching a pattern.
     /// </summary>
     protected IReadOnlyList<SignalEvent> GetSignals(SignalSink sink, string pattern)
     {
@@ -171,7 +163,7 @@ public abstract class DetectorAtomBase : IDetectorAtom
     }
 
     /// <summary>
-    /// Counts signals matching a pattern.
+    ///     Counts signals matching a pattern.
     /// </summary>
     protected int CountSignals(SignalSink sink, string pattern, TimeSpan? since = null)
     {
@@ -183,17 +175,16 @@ public abstract class DetectorAtomBase : IDetectorAtom
 }
 
 /// <summary>
-/// Orchestrates detector atoms against a detection ledger.
-/// Manages wave-based execution and early exit.
+///     Orchestrates detector atoms against a detection ledger.
+///     Manages wave-based execution and early exit.
 /// </summary>
 /// <remarks>
-/// **Wave Execution:**
-/// - Wave 0: Detectors with no required signals (can run immediately)
-/// - Wave N: Detectors whose required signals are now satisfied
-///
-/// **Early Exit:**
-/// - Verified bot/human triggers immediate exit
-/// - Quorum-based exit when confidence exceeds threshold
+///     **Wave Execution:**
+///     - Wave 0: Detectors with no required signals (can run immediately)
+///     - Wave N: Detectors whose required signals are now satisfied
+///     **Early Exit:**
+///     - Verified bot/human triggers immediate exit
+///     - Quorum-based exit when confidence exceeds threshold
 /// </remarks>
 public sealed class DetectorOrchestrator
 {
@@ -206,7 +197,7 @@ public sealed class DetectorOrchestrator
     }
 
     /// <summary>
-    /// Registers a detector.
+    ///     Registers a detector.
     /// </summary>
     public void Register(IDetectorAtom detector)
     {
@@ -214,7 +205,7 @@ public sealed class DetectorOrchestrator
     }
 
     /// <summary>
-    /// Registers multiple detectors.
+    ///     Registers multiple detectors.
     /// </summary>
     public void RegisterMany(IEnumerable<IDetectorAtom> detectors)
     {
@@ -222,7 +213,7 @@ public sealed class DetectorOrchestrator
     }
 
     /// <summary>
-    /// Runs all detectors against the shared signal sink.
+    ///     Runs all detectors against the shared signal sink.
     /// </summary>
     /// <param name="sink">Shared signal sink for the request.</param>
     /// <param name="sessionId">Session/request identifier.</param>
@@ -278,23 +269,15 @@ public sealed class DetectorOrchestrator
         var laterWaves = new List<IDetectorAtom>();
 
         foreach (var detector in _detectors.Where(d => d.IsEnabled).OrderBy(d => d.Priority))
-        {
             if (detector.RequiredSignals.Count == 0)
-            {
                 // No dependencies - can run in wave 0
                 wave0.Add(detector);
-            }
             else if (AllSignalsSatisfied(sink, detector.RequiredSignals))
-            {
                 // Dependencies already satisfied - can run in wave 0
                 wave0.Add(detector);
-            }
             else
-            {
                 // Has unsatisfied dependencies - run in later wave
                 laterWaves.Add(detector);
-            }
-        }
 
         var result = new List<(int, List<IDetectorAtom>)>();
         if (wave0.Count > 0)
@@ -309,7 +292,6 @@ public sealed class DetectorOrchestrator
     private bool AllSignalsSatisfied(SignalSink sink, IReadOnlyList<string> patterns)
     {
         foreach (var pattern in patterns)
-        {
             if (pattern.Contains('*') || pattern.Contains('?'))
             {
                 if (sink.Sense(s => StringPatternMatcher.Matches(s.Signal, pattern)).Count == 0)
@@ -320,7 +302,7 @@ public sealed class DetectorOrchestrator
                 if (!sink.Detect(pattern))
                     return false;
             }
-        }
+
         return true;
     }
 
@@ -335,18 +317,14 @@ public sealed class DetectorOrchestrator
         var tasks = detectors.Select(d => RunDetectorAsync(d, sink, sessionId, ledger, ct));
 
         if (_options.ParallelWaveExecution)
-        {
             await Task.WhenAll(tasks);
-        }
         else
-        {
             foreach (var task in tasks)
             {
                 await task;
                 if (ledger.EarlyExit)
                     break;
             }
-        }
     }
 
     private async Task RunDetectorAsync(
@@ -369,9 +347,7 @@ public sealed class DetectorOrchestrator
             var elapsed = (DateTimeOffset.UtcNow - startTime).TotalMilliseconds;
 
             foreach (var contribution in contributions)
-            {
                 ledger.AddContribution(contribution with { ProcessingTimeMs = elapsed });
-            }
 
             sink.Raise($"detector.{detector.Name}.completed", sessionId);
         }
@@ -381,56 +357,50 @@ public sealed class DetectorOrchestrator
             var elapsed = (DateTimeOffset.UtcNow - startTime).TotalMilliseconds;
             sink.Raise($"detector.{detector.Name}.timeout", sessionId);
 
-            if (!detector.IsOptional)
-            {
-                ledger.Record($"detector.failed.{detector.Name}", "timeout", 0.1, "orchestrator");
-            }
+            if (!detector.IsOptional) ledger.Record($"detector.failed.{detector.Name}", "timeout", 0.1, "orchestrator");
         }
         catch (Exception ex)
         {
             sink.Raise($"detector.{detector.Name}.error", sessionId);
 
-            if (!detector.IsOptional)
-            {
-                ledger.Record($"detector.error.{detector.Name}", ex.Message, 0.1, "orchestrator");
-            }
+            if (!detector.IsOptional) ledger.Record($"detector.error.{detector.Name}", ex.Message, 0.1, "orchestrator");
         }
     }
 }
 
 /// <summary>
-/// Options for the detector orchestrator.
+///     Options for the detector orchestrator.
 /// </summary>
 public sealed class DetectorOrchestratorOptions
 {
     /// <summary>
-    /// Whether to run detectors in parallel within a wave.
+    ///     Whether to run detectors in parallel within a wave.
     /// </summary>
     public bool ParallelWaveExecution { get; init; } = true;
 
     /// <summary>
-    /// Whether to enable quorum-based early exit.
+    ///     Whether to enable quorum-based early exit.
     /// </summary>
     public bool EnableQuorumExit { get; init; } = true;
 
     /// <summary>
-    /// Confidence threshold for quorum exit.
+    ///     Confidence threshold for quorum exit.
     /// </summary>
     public double QuorumConfidenceThreshold { get; init; } = 0.9;
 
     /// <summary>
-    /// Maximum waves to execute.
+    ///     Maximum waves to execute.
     /// </summary>
     public int MaxWaves { get; init; } = 10;
 
     /// <summary>
-    /// Overall timeout for detection.
+    ///     Overall timeout for detection.
     /// </summary>
     public TimeSpan Timeout { get; init; } = TimeSpan.FromSeconds(30);
 }
 
 /// <summary>
-/// Adapter to wrap legacy IContributingDetector implementations.
+///     Adapter to wrap legacy IContributingDetector implementations.
 /// </summary>
 /// <typeparam name="TDetector">The legacy detector type.</typeparam>
 public abstract class LegacyDetectorAdapter<TDetector> : DetectorAtomBase

@@ -129,7 +129,7 @@ public sealed class ScheduledTasksAtom : IAsyncDisposable
             {
                 NextRun = definition.GetNextOccurrence(now, true);
                 if (NextRun is not null && NextRun <= now)
-                    NextRun = definition.GetNextOccurrence(now.AddTicks(1), false);
+                    NextRun = definition.GetNextOccurrence(now.AddTicks(1));
             }
         }
 
@@ -139,7 +139,7 @@ public sealed class ScheduledTasksAtom : IAsyncDisposable
         public void ScheduleNext()
         {
             var reference = NextRun ?? _clock();
-            NextRun = Definition.GetNextOccurrence(reference, false);
+            NextRun = Definition.GetNextOccurrence(reference);
         }
     }
 }

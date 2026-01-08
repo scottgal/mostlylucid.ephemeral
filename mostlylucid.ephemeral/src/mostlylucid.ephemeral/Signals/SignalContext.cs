@@ -11,7 +11,7 @@ namespace Mostlylucid.Ephemeral;
 ///     - **Atom**: Individual operation (e.g., "ResizeImageJob", "ValidateRequest")
 /// </remarks>
 /// <example>
-/// <code>
+///     <code>
 /// var ctx = new SignalContext(
 ///     Sink: "request",
 ///     Coordinator: "gateway",
@@ -33,19 +33,25 @@ public readonly record struct SignalContext(
     ///     Create a sink-scoped context (all coordinators, all atoms).
     /// </summary>
     public static SignalContext ForSink(string sink)
-        => new(sink, Wildcard, Wildcard);
+    {
+        return new SignalContext(sink, Wildcard, Wildcard);
+    }
 
     /// <summary>
     ///     Create a coordinator-scoped context (all atoms).
     /// </summary>
     public static SignalContext ForCoordinator(string sink, string coordinator)
-        => new(sink, coordinator, Wildcard);
+    {
+        return new SignalContext(sink, coordinator, Wildcard);
+    }
 
     /// <summary>
     ///     Format as hierarchical path: sink.coordinator.atom
     /// </summary>
     public override string ToString()
-        => $"{Sink}.{Coordinator}.{Atom}";
+    {
+        return $"{Sink}.{Coordinator}.{Atom}";
+    }
 }
 
 /// <summary>
@@ -60,15 +66,15 @@ public readonly record struct SignalContext(
 ///     - Dashboards can aggregate correctly
 /// </remarks>
 /// <example>
-/// <code>
+///     <code>
 /// // Atom-level signal
 /// var key = new ScopedSignalKey("request", "gateway", "ResizeImageJob", "completed");
 /// // → "request.gateway.ResizeImageJob.completed"
-///
+/// 
 /// // Coordinator-level signal
 /// var key = new ScopedSignalKey("request", "gateway", "*", "batch.completed");
 /// // → "request.gateway.*.batch.completed"
-///
+/// 
 /// // Sink-level signal
 /// var key = new ScopedSignalKey("request", "*", "*", "health.failed");
 /// // → "request.*.*.health.failed"
@@ -87,11 +93,11 @@ public readonly record struct ScopedSignalKey(
     /// </summary>
     public override string ToString()
     {
-        int totalLength = Sink.Length + Coordinator.Length + Atom.Length + Name.Length + 3; // 3 dots
+        var totalLength = Sink.Length + Coordinator.Length + Atom.Length + Name.Length + 3; // 3 dots
 
         return string.Create(totalLength, (Sink, Coordinator, Atom, Name), static (span, state) =>
         {
-            int pos = 0;
+            var pos = 0;
             state.Sink.AsSpan().CopyTo(span.Slice(pos));
             pos += state.Sink.Length;
             span[pos++] = '.';
@@ -121,10 +127,10 @@ public readonly record struct ScopedSignalKey(
             return false;
         }
 
-        ReadOnlySpan<char> span = signal.AsSpan();
+        var span = signal.AsSpan();
 
         // Find first dot (sink/coordinator separator)
-        int firstDot = span.IndexOf('.');
+        var firstDot = span.IndexOf('.');
         if (firstDot < 0)
         {
             key = default;
@@ -132,31 +138,33 @@ public readonly record struct ScopedSignalKey(
         }
 
         // Find second dot (coordinator/atom separator)
-        ReadOnlySpan<char> afterFirst = span.Slice(firstDot + 1);
-        int secondDot = afterFirst.IndexOf('.');
+        var afterFirst = span.Slice(firstDot + 1);
+        var secondDot = afterFirst.IndexOf('.');
         if (secondDot < 0)
         {
             key = default;
             return false;
         }
-        int secondDotAbsolute = firstDot + 1 + secondDot;
+
+        var secondDotAbsolute = firstDot + 1 + secondDot;
 
         // Find third dot (atom/name separator)
-        ReadOnlySpan<char> afterSecond = span.Slice(secondDotAbsolute + 1);
-        int thirdDot = afterSecond.IndexOf('.');
+        var afterSecond = span.Slice(secondDotAbsolute + 1);
+        var thirdDot = afterSecond.IndexOf('.');
         if (thirdDot < 0)
         {
             key = default;
             return false;
         }
-        int thirdDotAbsolute = secondDotAbsolute + 1 + thirdDot;
+
+        var thirdDotAbsolute = secondDotAbsolute + 1 + thirdDot;
 
         // Extract parts using substring (already allocated string)
         key = new ScopedSignalKey(
-            Sink: signal.Substring(0, firstDot),
-            Coordinator: signal.Substring(firstDot + 1, secondDot),
-            Atom: signal.Substring(secondDotAbsolute + 1, thirdDot),
-            Name: signal.Substring(thirdDotAbsolute + 1)
+            signal.Substring(0, firstDot),
+            signal.Substring(firstDot + 1, secondDot),
+            signal.Substring(secondDotAbsolute + 1, thirdDot),
+            signal.Substring(thirdDotAbsolute + 1)
         );
         return true;
     }
@@ -165,17 +173,23 @@ public readonly record struct ScopedSignalKey(
     ///     Create an atom-scoped key (most specific).
     /// </summary>
     public static ScopedSignalKey ForAtom(SignalContext ctx, string name)
-        => new(ctx.Sink, ctx.Coordinator, ctx.Atom, name);
+    {
+        return new ScopedSignalKey(ctx.Sink, ctx.Coordinator, ctx.Atom, name);
+    }
 
     /// <summary>
     ///     Create a coordinator-scoped key (all atoms).
     /// </summary>
     public static ScopedSignalKey ForCoordinator(SignalContext ctx, string name)
-        => new(ctx.Sink, ctx.Coordinator, SignalContext.Wildcard, name);
+    {
+        return new ScopedSignalKey(ctx.Sink, ctx.Coordinator, SignalContext.Wildcard, name);
+    }
 
     /// <summary>
     ///     Create a sink-scoped key (all coordinators, all atoms).
     /// </summary>
     public static ScopedSignalKey ForSink(SignalContext ctx, string name)
-        => new(ctx.Sink, SignalContext.Wildcard, SignalContext.Wildcard, name);
+    {
+        return new ScopedSignalKey(ctx.Sink, SignalContext.Wildcard, SignalContext.Wildcard, name);
+    }
 }

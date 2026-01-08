@@ -2,14 +2,15 @@
 
 Bounded rate limiting for coordinators with signal-driven control.
 
-> 🚨🚨 WARNING 🚨🚨 - Though in the 1.x range of version THINGS WILL STILL BREAK. This is the lab for developing this concept when stabilized it'll becoe the first *stylo*flow release 🚨🚨🚨
 
 
 ## Key ideas
 
 - `RateLimitAtom` wraps a token-bucket limiter and emits signals whenever the configuration changes.
-- Listens for `rate.limit.*` commands (e.g., `rate.limit.increase:1`, `rate.limit.decrease:2`, `rate.limit.set:100`, `rate.limit.burst:50`) so operators can control throughput at runtime.
-- Call `AcquireAsync` before starting a unit of work to honor the current rate and keep the rest of the system self-regulating.
+- Listens for `rate.limit.*` commands (e.g., `rate.limit.increase:1`, `rate.limit.decrease:2`, `rate.limit.set:100`,
+  `rate.limit.burst:50`) so operators can control throughput at runtime.
+- Call `AcquireAsync` before starting a unit of work to honor the current rate and keep the rest of the system
+  self-regulating.
 
 ## Example
 

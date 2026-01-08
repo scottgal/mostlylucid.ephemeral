@@ -1,29 +1,23 @@
-using System;
-using System.Collections.Generic;
-using System.Threading;
-using System.Threading.Tasks;
-using Mostlylucid.Ephemeral;
-
 namespace Mostlylucid.Ephemeral.Atoms.Escalator;
 
 /// <summary>
-/// Promotes typed, ephemeral signals into durable sinks.
+///     Promotes typed, ephemeral signals into durable sinks.
 /// </summary>
 /// <remarks>
-/// EscalatorAtom is the membrane between in-memory coordination and persistent substrate updates.
-/// It listens to typed signals, applies the escalation filter, and persists to each configured target.
+///     EscalatorAtom is the membrane between in-memory coordination and persistent substrate updates.
+///     It listens to typed signals, applies the escalation filter, and persists to each configured target.
 /// </remarks>
 public sealed class EscalatorAtom<TPayload> : IAsyncDisposable
 {
-    private readonly SignalSink _signals;
-    private readonly TypedSignalSink<TPayload> _typedSignals;
-    private readonly EscalatorAtomOptions<TPayload> _options;
-    private readonly IReadOnlyList<EscalationTarget<TPayload>> _targets;
     private readonly EphemeralWorkCoordinator<SignalEvent<TPayload>> _coordinator;
+    private readonly EscalatorAtomOptions<TPayload> _options;
+    private readonly SignalSink _signals;
+    private readonly IReadOnlyList<EscalationTarget<TPayload>> _targets;
+    private readonly TypedSignalSink<TPayload> _typedSignals;
     private bool _disposed;
 
     /// <summary>
-    /// Initializes an EscalatorAtom with one or more persistence targets.
+    ///     Initializes an EscalatorAtom with one or more persistence targets.
     /// </summary>
     /// <param name="signals">Signal sink used to emit success or failure signals.</param>
     /// <param name="typedSignals">Typed signal source to observe for escalation.</param>
@@ -54,6 +48,21 @@ public sealed class EscalatorAtom<TPayload> : IAsyncDisposable
         _typedSignals.TypedSignalRaised += OnTypedSignal;
     }
 
+    /// <summary>
+    ///     Stops listening for signals and drains any pending escalations.
+    /// </summary>
+    public async ValueTask DisposeAsync()
+    {
+        if (_disposed)
+            return;
+
+        _disposed = true;
+        _typedSignals.TypedSignalRaised -= OnTypedSignal;
+        _coordinator.Complete();
+        await _coordinator.DrainAsync().ConfigureAwait(false);
+        await _coordinator.DisposeAsync().ConfigureAwait(false);
+    }
+
     private void OnTypedSignal(SignalEvent<TPayload> evt)
     {
         if (_disposed)
@@ -76,7 +85,6 @@ public sealed class EscalatorAtom<TPayload> : IAsyncDisposable
         try
         {
             foreach (var target in _targets)
-            {
                 try
                 {
                     await target.PersistAsync(evt, ct).ConfigureAwait(false);
@@ -88,7 +96,6 @@ public sealed class EscalatorAtom<TPayload> : IAsyncDisposable
                         $"Escalation target '{target.Name}' failed.",
                         ex));
                 }
-            }
 
             if (failures is not null)
                 throw failures.Count == 1 ? failures[0] : new AggregateException(failures);
@@ -96,29 +103,14 @@ public sealed class EscalatorAtom<TPayload> : IAsyncDisposable
             _options.OnEscalated?.Invoke(evt);
 
             if (!string.IsNullOrWhiteSpace(_options.EmitOnSuccess))
-                _signals.Raise(_options.EmitOnSuccess!, key: evt.Key);
+                _signals.Raise(_options.EmitOnSuccess!, evt.Key);
         }
         catch (Exception ex)
         {
             _options.OnFailed?.Invoke(evt, ex);
 
             if (!string.IsNullOrWhiteSpace(_options.EmitOnFailure))
-                _signals.Raise($"{_options.EmitOnFailure!}:{ex.GetType().Name}", key: evt.Key);
+                _signals.Raise($"{_options.EmitOnFailure!}:{ex.GetType().Name}", evt.Key);
         }
-    }
-
-    /// <summary>
-    /// Stops listening for signals and drains any pending escalations.
-    /// </summary>
-    public async ValueTask DisposeAsync()
-    {
-        if (_disposed)
-            return;
-
-        _disposed = true;
-        _typedSignals.TypedSignalRaised -= OnTypedSignal;
-        _coordinator.Complete();
-        await _coordinator.DrainAsync().ConfigureAwait(false);
-        await _coordinator.DisposeAsync().ConfigureAwait(false);
     }
 }

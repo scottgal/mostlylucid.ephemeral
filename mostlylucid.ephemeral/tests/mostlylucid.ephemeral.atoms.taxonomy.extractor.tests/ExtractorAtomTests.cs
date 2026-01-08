@@ -1,7 +1,3 @@
-using System.Threading;
-using System.Threading.Tasks;
-using Mostlylucid.Ephemeral;
-using Mostlylucid.Ephemeral.Atoms.Taxonomy;
 using Xunit;
 
 namespace Mostlylucid.Ephemeral.Atoms.Taxonomy.Extractor.Tests;
@@ -85,7 +81,10 @@ public class ExtractorAtomTests
         Assert.Null(atom.OutputSignal);
     }
 
-    private static Task<int> Handler(int input, CancellationToken _) => Task.FromResult(input + 1);
+    private static Task<int> Handler(int input, CancellationToken _)
+    {
+        return Task.FromResult(input + 1);
+    }
 
     private static async Task<T> WaitForSignalAsync<T>(Task<T> task, int timeoutMs = 1000)
     {

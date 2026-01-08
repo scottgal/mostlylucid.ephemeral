@@ -1,8 +1,5 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
 using System.Reflection;
+using System.Text;
 using System.Text.RegularExpressions;
 using YamlDotNet.Serialization;
 using YamlDotNet.Serialization.NamingConventions;
@@ -10,12 +7,12 @@ using YamlDotNet.Serialization.NamingConventions;
 namespace Mostlylucid.Ephemeral.Atoms.Taxonomy.Manifests;
 
 /// <summary>
-/// Loads and validates atom and molecule manifests from YAML files.
+///     Loads and validates atom and molecule manifests from YAML files.
 /// </summary>
 public sealed class ManifestLoader
 {
-    private readonly IDeserializer _deserializer;
     private readonly Dictionary<string, AtomManifest> _atomManifests = new(StringComparer.OrdinalIgnoreCase);
+    private readonly IDeserializer _deserializer;
     private readonly Dictionary<string, MoleculeManifest> _moleculeManifests = new(StringComparer.OrdinalIgnoreCase);
 
     public ManifestLoader()
@@ -27,17 +24,17 @@ public sealed class ManifestLoader
     }
 
     /// <summary>
-    /// All loaded atom manifests by name.
+    ///     All loaded atom manifests by name.
     /// </summary>
     public IReadOnlyDictionary<string, AtomManifest> AtomManifests => _atomManifests;
 
     /// <summary>
-    /// All loaded molecule manifests by name.
+    ///     All loaded molecule manifests by name.
     /// </summary>
     public IReadOnlyDictionary<string, MoleculeManifest> MoleculeManifests => _moleculeManifests;
 
     /// <summary>
-    /// Loads atom manifests from embedded resources in an assembly.
+    ///     Loads atom manifests from embedded resources in an assembly.
     /// </summary>
     /// <param name="assembly">Assembly containing embedded YAML resources.</param>
     /// <param name="resourcePattern">Regex pattern to match resource names (default: *.atom.yaml).</param>
@@ -65,7 +62,7 @@ public sealed class ManifestLoader
     }
 
     /// <summary>
-    /// Loads molecule manifests from embedded resources in an assembly.
+    ///     Loads molecule manifests from embedded resources in an assembly.
     /// </summary>
     /// <param name="assembly">Assembly containing embedded YAML resources.</param>
     /// <param name="resourcePattern">Regex pattern to match resource names (default: *.molecule.yaml).</param>
@@ -93,7 +90,7 @@ public sealed class ManifestLoader
     }
 
     /// <summary>
-    /// Loads atom manifests from a directory.
+    ///     Loads atom manifests from a directory.
     /// </summary>
     /// <param name="directory">Directory containing YAML files.</param>
     /// <param name="searchPattern">File search pattern (default: *.atom.yaml).</param>
@@ -113,7 +110,7 @@ public sealed class ManifestLoader
     }
 
     /// <summary>
-    /// Loads molecule manifests from a directory.
+    ///     Loads molecule manifests from a directory.
     /// </summary>
     /// <param name="directory">Directory containing YAML files.</param>
     /// <param name="searchPattern">File search pattern (default: *.molecule.yaml).</param>
@@ -133,7 +130,7 @@ public sealed class ManifestLoader
     }
 
     /// <summary>
-    /// Gets an atom manifest by name.
+    ///     Gets an atom manifest by name.
     /// </summary>
     public AtomManifest? GetAtom(string name)
     {
@@ -141,7 +138,7 @@ public sealed class ManifestLoader
     }
 
     /// <summary>
-    /// Gets a molecule manifest by name.
+    ///     Gets a molecule manifest by name.
     /// </summary>
     public MoleculeManifest? GetMolecule(string name)
     {
@@ -149,7 +146,7 @@ public sealed class ManifestLoader
     }
 
     /// <summary>
-    /// Gets all atom manifests ordered by priority (descending).
+    ///     Gets all atom manifests ordered by priority (descending).
     /// </summary>
     public IReadOnlyList<AtomManifest> GetOrderedAtoms()
     {
@@ -160,7 +157,7 @@ public sealed class ManifestLoader
     }
 
     /// <summary>
-    /// Gets all molecule manifests ordered by priority (descending).
+    ///     Gets all molecule manifests ordered by priority (descending).
     /// </summary>
     public IReadOnlyList<MoleculeManifest> GetOrderedMolecules()
     {
@@ -171,7 +168,7 @@ public sealed class ManifestLoader
     }
 
     /// <summary>
-    /// Builds a dependency graph of atoms based on signal dependencies.
+    ///     Builds a dependency graph of atoms based on signal dependencies.
     /// </summary>
     /// <returns>Dictionary mapping atom name to set of dependency atom names.</returns>
     public Dictionary<string, HashSet<string>> BuildAtomDependencyGraph()
@@ -182,16 +179,12 @@ public sealed class ManifestLoader
         foreach (var (name, manifest) in _atomManifests)
         {
             foreach (var signal in manifest.Emits.OnComplete)
-            {
                 if (!string.IsNullOrWhiteSpace(signal.Key))
                     signalProducers[signal.Key] = name;
-            }
 
             foreach (var signal in manifest.Emits.Conditional)
-            {
                 if (!string.IsNullOrWhiteSpace(signal.Key))
                     signalProducers[signal.Key] = name;
-            }
         }
 
         // Second pass: build dependency graph
@@ -204,16 +197,12 @@ public sealed class ManifestLoader
             if (manifest.Listens is not null)
             {
                 foreach (var signal in manifest.Listens.Required)
-                {
                     if (signalProducers.TryGetValue(signal, out var producer) && producer != name)
                         dependencies.Add(producer);
-                }
 
                 foreach (var signal in manifest.Listens.Optional)
-                {
                     if (signalProducers.TryGetValue(signal, out var producer) && producer != name)
                         dependencies.Add(producer);
-                }
             }
 
             graph[name] = dependencies;
@@ -223,7 +212,7 @@ public sealed class ManifestLoader
     }
 
     /// <summary>
-    /// Gets atoms that can run given the currently available signals.
+    ///     Gets atoms that can run given the currently available signals.
     /// </summary>
     /// <param name="availableSignals">Set of currently available signal keys.</param>
     public IReadOnlyList<AtomManifest> GetRunnableAtoms(IReadOnlySet<string> availableSignals)
@@ -235,46 +224,36 @@ public sealed class ManifestLoader
     }
 
     /// <summary>
-    /// Checks if an atom can run given available signals.
+    ///     Checks if an atom can run given available signals.
     /// </summary>
     public bool CanRun(AtomManifest manifest, IReadOnlySet<string> availableSignals)
     {
         // Check skip conditions first
         if (manifest.Triggers?.SkipWhen is not null)
-        {
             foreach (var condition in manifest.Triggers.SkipWhen)
-            {
                 if (EvaluateCondition(condition, availableSignals))
                     return false;
-            }
-        }
 
         // Check required conditions
         if (manifest.Triggers?.Requires is not null)
-        {
             foreach (var condition in manifest.Triggers.Requires)
-            {
                 if (!EvaluateCondition(condition, availableSignals))
                     return false;
-            }
-        }
 
         // Check required signals in listens
         if (manifest.Listens?.Required is not null)
-        {
             foreach (var signal in manifest.Listens.Required)
             {
                 var expandedSignal = ExpandSignalTemplate(signal, manifest);
                 if (!availableSignals.Contains(expandedSignal))
                     return false;
             }
-        }
 
         return true;
     }
 
     /// <summary>
-    /// Gets all signals emitted by all loaded atoms.
+    ///     Gets all signals emitted by all loaded atoms.
     /// </summary>
     public IReadOnlySet<string> GetAllEmittedSignals()
     {
@@ -286,37 +265,32 @@ public sealed class ManifestLoader
                 signals.Add(ExpandSignalTemplate(signal, manifest));
 
             foreach (var signal in manifest.Emits.OnComplete)
-            {
                 if (!string.IsNullOrWhiteSpace(signal.Key))
                     signals.Add(ExpandSignalTemplate(signal.Key, manifest));
-            }
 
             foreach (var signal in manifest.Emits.OnFailure)
-            {
                 if (!string.IsNullOrWhiteSpace(signal.Key))
                     signals.Add(ExpandSignalTemplate(signal.Key, manifest));
-            }
 
             foreach (var signal in manifest.Emits.Conditional)
-            {
                 if (!string.IsNullOrWhiteSpace(signal.Key))
                     signals.Add(ExpandSignalTemplate(signal.Key, manifest));
-            }
         }
 
         return signals;
     }
 
     /// <summary>
-    /// Generates a human/LLM-readable summary of all signal contracts.
+    ///     Generates a human/LLM-readable summary of all signal contracts.
     /// </summary>
     public string GetSignalContractsSummary()
     {
-        var sb = new System.Text.StringBuilder();
+        var sb = new StringBuilder();
 
         foreach (var manifest in GetOrderedAtoms())
         {
-            sb.AppendLine($"Atom: {manifest.Name} (kind: {manifest.Taxonomy.Kind}, priority: {manifest.Lane?.Priority ?? 50})");
+            sb.AppendLine(
+                $"Atom: {manifest.Name} (kind: {manifest.Taxonomy.Kind}, priority: {manifest.Lane?.Priority ?? 50})");
             sb.AppendLine($"  Scope: {manifest.Scope.Sink}.{manifest.Scope.Coordinator}.{manifest.Scope.Atom}");
 
             if (manifest.Listens?.Required?.Count > 0)
@@ -347,7 +321,7 @@ public sealed class ManifestLoader
     }
 
     /// <summary>
-    /// Converts a manifest to an AtomContract for runtime use.
+    ///     Converts a manifest to an AtomContract for runtime use.
     /// </summary>
     public AtomContract ToContract(AtomManifest manifest)
     {
@@ -375,8 +349,9 @@ public sealed class ManifestLoader
             budget = new AtomBudget(maxDuration, manifest.Budget.MaxTokens, manifest.Budget.MaxCost);
         }
 
-        var reads = manifest.Listens?.Required?.Concat(manifest.Listens?.Optional ?? Enumerable.Empty<string>()).ToList()
-            ?? new List<string>();
+        var reads = manifest.Listens?.Required?.Concat(manifest.Listens?.Optional ?? Enumerable.Empty<string>())
+                        .ToList()
+                    ?? new List<string>();
 
         var writes = manifest.Emits.OnComplete.Select(s => s.Key)
             .Concat(manifest.Emits.Conditional.Select(s => s.Key))

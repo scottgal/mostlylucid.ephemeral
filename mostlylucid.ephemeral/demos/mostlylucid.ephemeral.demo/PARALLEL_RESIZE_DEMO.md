@@ -2,7 +2,8 @@
 
 ## Overview
 
-The `ParallelResizeImageAtom` demonstrates the **nested coordinator pattern** - an atom that internally uses `EphemeralForEachAsync` to manage bounded parallel execution while propagating operation-scoped signals.
+The `ParallelResizeImageAtom` demonstrates the **nested coordinator pattern** - an atom that internally uses
+`EphemeralForEachAsync` to manage bounded parallel execution while propagating operation-scoped signals.
 
 ## Key Pattern: Operation ID Propagation
 
@@ -11,19 +12,19 @@ The `ParallelResizeImageAtom` demonstrates the **nested coordinator pattern** - 
 Operation ID propagation is **already integrated into core Ephemeral**:
 
 1. **SignalEvent struct** (`Signals.cs`):
-   - `OperationId` is a required parameter in the record struct
-   - Every signal carries its operation ID automatically
-   - Zero-allocation hot path (~48 bytes on stack)
+    - `OperationId` is a required parameter in the record struct
+    - Every signal carries its operation ID automatically
+    - Zero-allocation hot path (~48 bytes on stack)
 
 2. **EphemeralOperation** (`EphemeralOperation.cs`):
-   - `EmitCausedInternal` automatically attaches operation ID to every signal
-   - Line 100/304: `new SignalEvent(signal, Id, Key, DateTimeOffset.UtcNow, cause)`
-   - `Id` property is the operation ID
+    - `EmitCausedInternal` automatically attaches operation ID to every signal
+    - Line 100/304: `new SignalEvent(signal, Id, Key, DateTimeOffset.UtcNow, cause)`
+    - `Id` property is the operation ID
 
 3. **Nested Operations**:
-   - When an atom uses `EphemeralForEachAsync`, each item gets its own sub-operation
-   - Sub-operations have unique operation IDs
-   - Signals from sub-operations propagate to main SignalSink with proper operation IDs
+    - When an atom uses `EphemeralForEachAsync`, each item gets its own sub-operation
+    - Sub-operations have unique operation IDs
+    - Signals from sub-operations propagate to main SignalSink with proper operation IDs
 
 ### How It Works
 
@@ -84,6 +85,7 @@ Parent Operation:
 **Location**: `src/mostlylucid.ephemeral.atoms.imagesharp/ImageProcessingAtoms.cs`
 
 **Key Features**:
+
 1. **Bounded Parallelism**: Configurable `MaxParallelism` parameter
 2. **Small Window Pattern**: Window size = `maxParallelism * 3` for short-lived operations
 3. **Automatic Sub-Operation Creation**: `EphemeralForEachAsync` creates operation per resize
@@ -91,6 +93,7 @@ Parent Operation:
 5. **Resource Management**: Proper disposal via `IAsyncDisposable`
 
 **Configuration**:
+
 ```csharp
 new ParallelResizeOptions
 {
@@ -112,6 +115,7 @@ new ParallelResizeOptions
 **Location**: `demos/mostlylucid.ephemeral.demo/ParallelResizeDemo.cs`
 
 **What It Shows**:
+
 1. Creates 6 different image sizes from a single source
 2. Processes 3 resizes concurrently (configurable)
 3. Captures and displays all signals with operation IDs
@@ -119,6 +123,7 @@ new ParallelResizeOptions
 5. Analyzes unique operation IDs and signals per operation
 
 **Running the Demo**:
+
 ```bash
 cd demos/mostlylucid.ephemeral.demo
 dotnet run
@@ -166,11 +171,13 @@ await using var pipeline = new ImagePipeline(sink)
 ### Allocation Efficiency
 
 ✓ **Zero-allocation signal emission**:
+
 - `SignalEvent` is a readonly struct (~48 bytes on stack)
 - Operation ID is a primitive `long` (no boxing)
 - No heap allocations in hot path
 
 ✓ **Small window pattern**:
+
 - Coordinator window = `maxParallelism * 3`
 - For 3 concurrent resizes: window size = 9 operations
 - Minimal memory overhead for short-lived operations
@@ -182,6 +189,7 @@ await using var pipeline = new ImagePipeline(sink)
 **Location**: `demos/mostlylucid.ephemeral.demo/SignalBenchmarks.cs`
 
 **Existing Benchmarks**:
+
 - Signal raise (no listeners): ~10-20ns
 - Signal raise (1 listener): ~40-60ns
 - Signal pattern matching
@@ -189,6 +197,7 @@ await using var pipeline = new ImagePipeline(sink)
 - EphemeralForEachAsync performance
 
 **Recommendation**: Add specific nested coordinator benchmarks:
+
 ```csharp
 [Benchmark(Description = "Nested coordinator with operation ID propagation")]
 public async Task NestedCoordinatorWithSignals()
@@ -215,17 +224,17 @@ public async Task NestedCoordinatorWithSignals()
 ### Updated Files
 
 1. **README.md** (`src/mostlylucid.ephemeral.atoms.imagesharp/README.md`):
-   - Added `ParallelResizeImageAtom` section
-   - Documented signals with operation ID notation
-   - Added usage example with signal subscription
-   - Explained nested coordinator pattern
+    - Added `ParallelResizeImageAtom` section
+    - Documented signals with operation ID notation
+    - Added usage example with signal subscription
+    - Explained nested coordinator pattern
 
 2. **ReleaseNotes.txt** (`src/mostlylucid.ephemeral.atoms.imagesharp/ReleaseNotes.txt`):
-   - Already includes nested coordinator feature in 1.0.0 release
+    - Already includes nested coordinator feature in 1.0.0 release
 
 3. **Demo Menu** (`demos/mostlylucid.ephemeral.demo/Program.cs`):
-   - Added option "12. Parallel Resize Demo (Nested Coordinator Pattern)"
-   - Integrated into interactive demo menu
+    - Added option "12. Parallel Resize Demo (Nested Coordinator Pattern)"
+    - Integrated into interactive demo menu
 
 ## Next Steps
 
@@ -253,4 +262,5 @@ This nested coordinator pattern can be applied to other domains:
 ✅ **Demo showcases operation ID tracking and signal propagation**
 ✅ **Documentation is comprehensive and up-to-date**
 
-**Key Insight**: The infrastructure was already there - we just needed to demonstrate the pattern with a real-world use case (parallel image resizing) to show how powerful operation-scoped signals are for cross-operation coordination.
+**Key Insight**: The infrastructure was already there - we just needed to demonstrate the pattern with a real-world use
+case (parallel image resizing) to show how powerful operation-scoped signals are for cross-operation coordination.

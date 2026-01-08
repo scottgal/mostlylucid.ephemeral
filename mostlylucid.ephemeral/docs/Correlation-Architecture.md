@@ -2,7 +2,11 @@
 
 ## Abstract
 
-Traditional observability systems use span/trace IDs for correlation within a single request and separate correlation IDs for linking related operations across time. Ephemeral's signal-based architecture reveals a more fundamental pattern: **coordinators themselves are correlation domains**, with operation IDs providing intra-domain tracing and coordinator keys providing cross-temporal entity correlation. This paper explores how this two-axis correlation model enables both real-time operational debugging and long-term behavioral analysis.
+Traditional observability systems use span/trace IDs for correlation within a single request and separate correlation
+IDs for linking related operations across time. Ephemeral's signal-based architecture reveals a more fundamental
+pattern: **coordinators themselves are correlation domains**, with operation IDs providing intra-domain tracing and
+coordinator keys providing cross-temporal entity correlation. This paper explores how this two-axis correlation model
+enables both real-time operational debugging and long-term behavioral analysis.
 
 ---
 
@@ -43,6 +47,7 @@ foreach (var signal in timeline)
 ```
 
 **Use cases:**
+
 - Debug a specific failed operation
 - Build flame graphs for a single execution
 - Trace signal propagation within one operation
@@ -76,6 +81,7 @@ var errorRate = signatureSignals.Count(s => s.Signal.StartsWith("error."))
 ```
 
 **Use cases:**
+
 - Detect behavioral anomalies for a specific user/tenant
 - Track signature behavior evolution over time
 - Correlate operations belonging to the same business entity
@@ -87,15 +93,15 @@ var errorRate = signatureSignals.Count(s => s.Signal.StartsWith("error."))
 
 The distinction becomes clear with this analogy:
 
-| Concept | Operation ID | Coordinator Key |
-|---------|-------------|-----------------|
-| **Metaphor** | Episode ID | Character ID |
-| **Scope** | Single execution | Entity lifetime |
-| **Question** | "What happened in this run?" | "What's this entity's story?" |
-| **Tracing equivalent** | Span/Trace ID | Correlation ID |
-| **Time horizon** | Milliseconds to seconds | Minutes to months |
-| **Cardinality** | High (millions) | Lower (thousands) |
-| **Cleanup** | Evicted by window size | Persistent in analytics |
+| Concept                | Operation ID                 | Coordinator Key               |
+|------------------------|------------------------------|-------------------------------|
+| **Metaphor**           | Episode ID                   | Character ID                  |
+| **Scope**              | Single execution             | Entity lifetime               |
+| **Question**           | "What happened in this run?" | "What's this entity's story?" |
+| **Tracing equivalent** | Span/Trace ID                | Correlation ID                |
+| **Time horizon**       | Milliseconds to seconds      | Minutes to months             |
+| **Cardinality**        | High (millions)              | Lower (thousands)             |
+| **Cleanup**            | Evicted by window size       | Persistent in analytics       |
 
 **Example:**
 
@@ -149,6 +155,7 @@ public class RequestHandler
 ```
 
 **Correlation question:** "What happened during request X?"
+
 - **Answer:** All signals where `Key == requestId`
 - **Drill-down:** Filter by `OperationId` to see specific task execution
 
@@ -176,6 +183,7 @@ public class TenantWorkProcessor
 ```
 
 **Correlation question:** "What is tenant ABC's usage pattern?"
+
 - **Answer:** All signals where `Key == "ABC"` over the past week
 - **Analysis:** Detect anomalies, track quota usage, identify abuse
 
@@ -208,6 +216,7 @@ public class SignatureCoordinator
 ```
 
 **Correlation question:** "How is this malware signature behaving in the wild?"
+
 - **Answer:** All signals where `Key == signatureId` across all scans
 - **Insights:** Variant evolution, false positive rates, geographic distribution
 
@@ -244,10 +253,11 @@ var tenantCoordinator = new EphemeralKeyedWorkCoordinator<Request, string>(
 ```
 
 **Signals now have:**
+
 - `OperationId` - specific task execution
 - `Key` - varies by which coordinator emitted:
-  - Tenant-level signals: `Key = tenantId`
-  - Request-level signals: `Key = requestId`
+    - Tenant-level signals: `Key = tenantId`
+    - Request-level signals: `Key = requestId`
 
 **Query patterns:**
 
@@ -280,28 +290,30 @@ var tenantActivity = sink.Sense(s => s.Signal.StartsWith($"tenant:{tenantId}:"))
 
 ### Distributed Tracing (OpenTelemetry, Jaeger)
 
-| Concept | Traditional Tracing | Ephemeral Signals |
-|---------|---------------------|-------------------|
-| **Trace ID** | Request-scoped identifier | Coordinator key (e.g., RequestId) |
-| **Span ID** | Operation within trace | Operation ID |
-| **Parent Span ID** | Hierarchical relationship | Signal propagation chain |
-| **Attributes** | Key-value metadata | Signal name + timestamp |
-| **Baggage** | Cross-service context | Shared SignalSink |
-| **Sampling** | Probabilistic retention | Window-based eviction |
+| Concept            | Traditional Tracing       | Ephemeral Signals                 |
+|--------------------|---------------------------|-----------------------------------|
+| **Trace ID**       | Request-scoped identifier | Coordinator key (e.g., RequestId) |
+| **Span ID**        | Operation within trace    | Operation ID                      |
+| **Parent Span ID** | Hierarchical relationship | Signal propagation chain          |
+| **Attributes**     | Key-value metadata        | Signal name + timestamp           |
+| **Baggage**        | Cross-service context     | Shared SignalSink                 |
+| **Sampling**       | Probabilistic retention   | Window-based eviction             |
 
-**Key difference:** Traces are **request-centric** (spans within a trace). Ephemeral is **entity-centric** (operations within a correlation domain).
+**Key difference:** Traces are **request-centric** (spans within a trace). Ephemeral is **entity-centric** (operations
+within a correlation domain).
 
 ### Application Performance Monitoring (APM)
 
-| Concept | APM Systems | Ephemeral Signals |
-|---------|-------------|-------------------|
-| **Transaction** | User-facing request | Coordinator + Key |
-| **Segment** | Internal operation | Operation ID |
-| **Custom Metrics** | Counters, gauges | Signal counts/patterns |
-| **Error Tracking** | Exception grouping | `error.*` signal patterns |
-| **User Context** | User ID, session | Coordinator key |
+| Concept            | APM Systems         | Ephemeral Signals         |
+|--------------------|---------------------|---------------------------|
+| **Transaction**    | User-facing request | Coordinator + Key         |
+| **Segment**        | Internal operation  | Operation ID              |
+| **Custom Metrics** | Counters, gauges    | Signal counts/patterns    |
+| **Error Tracking** | Exception grouping  | `error.*` signal patterns |
+| **User Context**   | User ID, session    | Coordinator key           |
 
-**Key difference:** APM systems **store everything** centrally. Ephemeral uses **bounded windows** with automatic eviction.
+**Key difference:** APM systems **store everything** centrally. Ephemeral uses **bounded windows** with automatic
+eviction.
 
 ---
 
@@ -431,6 +443,7 @@ var coordinator = new EphemeralKeyedWorkCoordinator<Work, string>(
 ```
 
 **Signals produced:**
+
 ```
 SignalEvent {
     Signal = "work.started",
@@ -652,6 +665,7 @@ public class TenantAnomalyDetector
 ### Principle 1: Coordinators Define Correlation Boundaries
 
 **Don't:** Add correlation IDs manually everywhere
+
 ```csharp
 // ❌ Manual correlation tracking
 op.Emit($"correlationId:{corrId}:task.started");
@@ -659,6 +673,7 @@ op.Emit($"correlationId:{corrId}:task.complete");
 ```
 
 **Do:** Let coordinator key define correlation
+
 ```csharp
 // ✅ Coordinator-defined correlation
 var coordinator = new EphemeralKeyedWorkCoordinator<Task, string>(
@@ -675,6 +690,7 @@ var coordinator = new EphemeralKeyedWorkCoordinator<Task, string>(
 ### Principle 2: Operation IDs for Episodes, Keys for Stories
 
 **Don't:** Use operation IDs for cross-operation correlation
+
 ```csharp
 // ❌ Trying to correlate different operations
 var relatedOps = sink.Sense(s =>
@@ -682,6 +698,7 @@ var relatedOps = sink.Sense(s =>
 ```
 
 **Do:** Use coordinator keys for correlation
+
 ```csharp
 // ✅ Correlate via shared key
 var entityOps = sink.Sense(s => s.Key == "ENTITY-123");
@@ -690,6 +707,7 @@ var entityOps = sink.Sense(s => s.Key == "ENTITY-123");
 ### Principle 3: Bounded Windows for Real-Time, Persistence for History
 
 **Don't:** Rely on SignalSink for long-term storage
+
 ```csharp
 // ❌ Sink will evict old signals
 var lastYearData = sink.Sense(s =>
@@ -697,6 +715,7 @@ var lastYearData = sink.Sense(s =>
 ```
 
 **Do:** Export signals for long-term analytics
+
 ```csharp
 // ✅ Real-time in sink, historical in storage
 sink.Subscribe(signal =>
@@ -715,12 +734,14 @@ var yearData = await _analyticsDb.GetSignals(entityId, from: DateTime.UtcNow.Add
 ### Principle 4: Signal Names for Filtering, Keys for Grouping
 
 **Don't:** Encode all context in signal names
+
 ```csharp
 // ❌ Over-encoded signals
 op.Emit($"tenant:ABC:user:john:request:456:task:auth:status:started");
 ```
 
 **Do:** Use coordinator keys + clean signal names
+
 ```csharp
 // ✅ Coordinator key provides context
 var coordinator = new EphemeralKeyedWorkCoordinator<Task, string>(
@@ -738,17 +759,17 @@ var coordinator = new EphemeralKeyedWorkCoordinator<Task, string>(
 
 ## Comparison Table
 
-| Aspect | Operation ID | Coordinator Key |
-|--------|-------------|-----------------|
-| **Scope** | Single operation execution | Entity/domain over time |
-| **Lifetime** | ms-seconds (operation duration) | minutes-days (entity lifetime) |
-| **Uniqueness** | Globally unique (counter) | Business-meaningful identifier |
-| **Cardinality** | Very high (millions) | Moderate (thousands) |
-| **Query pattern** | "Show me this one execution" | "Show me this entity's behavior" |
-| **Example values** | `42`, `127`, `99821` | `"TENANT-ABC"`, `"SIG-12345"`, `"REQ-456"` |
-| **Storage** | Bounded window (ephemeral) | Can persist (analytics DB) |
-| **Analogous to** | Span/Trace ID | Correlation ID / Session ID |
-| **Primary use** | Debugging, profiling | Behavioral analysis, monitoring |
+| Aspect             | Operation ID                    | Coordinator Key                            |
+|--------------------|---------------------------------|--------------------------------------------|
+| **Scope**          | Single operation execution      | Entity/domain over time                    |
+| **Lifetime**       | ms-seconds (operation duration) | minutes-days (entity lifetime)             |
+| **Uniqueness**     | Globally unique (counter)       | Business-meaningful identifier             |
+| **Cardinality**    | Very high (millions)            | Moderate (thousands)                       |
+| **Query pattern**  | "Show me this one execution"    | "Show me this entity's behavior"           |
+| **Example values** | `42`, `127`, `99821`            | `"TENANT-ABC"`, `"SIG-12345"`, `"REQ-456"` |
+| **Storage**        | Bounded window (ephemeral)      | Can persist (analytics DB)                 |
+| **Analogous to**   | Span/Trace ID                   | Correlation ID / Session ID                |
+| **Primary use**    | Debugging, profiling            | Behavioral analysis, monitoring            |
 
 ---
 
@@ -761,12 +782,15 @@ Ephemeral's correlation architecture reveals a fundamental truth about distribut
 3. **Coordinators themselves** are the correlation boundaries, not just execution managers
 
 This two-axis model enables:
+
 - **Real-time debugging** via operation timelines
 - **Behavioral analysis** via entity histories
 - **Hierarchical correlation** through nested coordinators
 - **Bounded memory** through window-based eviction
 
-By recognizing that **coordinators are correlation domains**, we shift from manually tracking correlation IDs everywhere to letting the infrastructure define correlation boundaries naturally. The result is cleaner code, better observability, and deeper insights into system behavior.
+By recognizing that **coordinators are correlation domains**, we shift from manually tracking correlation IDs everywhere
+to letting the infrastructure define correlation boundaries naturally. The result is cleaner code, better observability,
+and deeper insights into system behavior.
 
 ---
 

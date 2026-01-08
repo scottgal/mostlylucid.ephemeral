@@ -1,26 +1,25 @@
-using Mostlylucid.Ephemeral;
 using Microsoft.Extensions.Logging;
 using Spectre.Console;
 
 namespace Mostlylucid.Ephemeral.Demo;
 
 /// <summary>
-/// Captures all signals in a window and outputs to console with filtering and sampling.
-/// Demonstrates signal observation pattern with configurable output.
-/// Supports optional ILogger integration for structured logging.
+///     Captures all signals in a window and outputs to console with filtering and sampling.
+///     Demonstrates signal observation pattern with configurable output.
+///     Supports optional ILogger integration for structured logging.
 /// </summary>
 public class ConsoleSignalLoggerAtom : IAsyncDisposable
 {
-    private readonly SignalSink _sink;
-    private readonly ConsoleSignalLoggerOptions _options;
-    private readonly ILogger? _logger;
-    private readonly IDisposable _subscription;
-    private readonly List<SignalLogEntry> _logWindow = new();
     private readonly object _lock = new();
-    private int _totalReceived = 0;
-    private int _totalLogged = 0;
-    private int _totalFiltered = 0;
-    private int _sampleCounter = 0;
+    private readonly ILogger? _logger;
+    private readonly List<SignalLogEntry> _logWindow = new();
+    private readonly ConsoleSignalLoggerOptions _options;
+    private readonly SignalSink _sink;
+    private readonly IDisposable _subscription;
+    private int _sampleCounter;
+    private int _totalFiltered;
+    private int _totalLogged;
+    private int _totalReceived;
 
     public ConsoleSignalLoggerAtom(
         SignalSink sink,
@@ -28,9 +27,15 @@ public class ConsoleSignalLoggerAtom : IAsyncDisposable
         ILogger? logger = null)
     {
         _sink = sink;
-        _options = options ?? new();
+        _options = options ?? new ConsoleSignalLoggerOptions();
         _logger = logger;
         _subscription = _sink.Subscribe(OnSignal);
+    }
+
+    public ValueTask DisposeAsync()
+    {
+        _subscription.Dispose();
+        return default;
     }
 
     private void OnSignal(SignalEvent signal)
@@ -48,10 +53,7 @@ public class ConsoleSignalLoggerAtom : IAsyncDisposable
 
             // Apply sampling
             _sampleCounter++;
-            if (_sampleCounter % _options.SampleRate != 0)
-            {
-                return;
-            }
+            if (_sampleCounter % _options.SampleRate != 0) return;
 
             // Add to window
             var entry = new SignalLogEntry
@@ -65,16 +67,10 @@ public class ConsoleSignalLoggerAtom : IAsyncDisposable
             _totalLogged++;
 
             // Trim window
-            while (_logWindow.Count > _options.WindowSize)
-            {
-                _logWindow.RemoveAt(0);
-            }
+            while (_logWindow.Count > _options.WindowSize) _logWindow.RemoveAt(0);
 
             // Output to console if enabled
-            if (_options.AutoOutput)
-            {
-                OutputEntry(entry);
-            }
+            if (_options.AutoOutput) OutputEntry(entry);
 
             // Output to ILogger if provided
             if (_logger != null)
@@ -93,17 +89,13 @@ public class ConsoleSignalLoggerAtom : IAsyncDisposable
 
         // Check exclude patterns first
         foreach (var pattern in _options.ExcludePatterns)
-        {
             if (StringPatternMatcher.Matches(signal.Signal, pattern))
                 return false;
-        }
 
         // If include patterns specified, must match at least one
         if (_options.IncludePatterns.Count > 0)
-        {
             return _options.IncludePatterns.Any(pattern =>
                 StringPatternMatcher.Matches(signal.Signal, pattern));
-        }
 
         return true;
     }
@@ -113,7 +105,8 @@ public class ConsoleSignalLoggerAtom : IAsyncDisposable
         var timestamp = entry.Timestamp.ToString("HH:mm:ss.fff");
         var color = GetColorForSignal(entry.Signal);
 
-        AnsiConsole.MarkupLine($"[grey][[{timestamp}]][/] [{color}]{entry.SequenceNumber:D6}[/] {Markup.Escape(entry.Signal)}");
+        AnsiConsole.MarkupLine(
+            $"[grey][[{timestamp}]][/] [{color}]{entry.SequenceNumber:D6}[/] {Markup.Escape(entry.Signal)}");
     }
 
     private string GetColorForSignal(string signal)
@@ -154,7 +147,7 @@ public class ConsoleSignalLoggerAtom : IAsyncDisposable
     }
 
     /// <summary>
-    /// Dump current window contents to console
+    ///     Dump current window contents to console
     /// </summary>
     public void DumpWindow()
     {
@@ -177,23 +170,22 @@ public class ConsoleSignalLoggerAtom : IAsyncDisposable
                 .AddColumn("Signal");
 
             foreach (var entry in _logWindow)
-            {
                 table.AddRow(
                     $"[grey]{entry.SequenceNumber:D6}[/]",
                     $"[grey]{entry.Timestamp:HH:mm:ss.fff}[/]",
                     Markup.Escape(entry.Signal)
                 );
-            }
 
             AnsiConsole.Write(table);
             AnsiConsole.WriteLine();
-            AnsiConsole.MarkupLine($"[grey]Stats: {_totalReceived} received, {_totalLogged} logged, {_totalFiltered} filtered[/]");
+            AnsiConsole.MarkupLine(
+                $"[grey]Stats: {_totalReceived} received, {_totalLogged} logged, {_totalFiltered} filtered[/]");
             AnsiConsole.WriteLine();
         }
     }
 
     /// <summary>
-    /// Clear the log window
+    ///     Clear the log window
     /// </summary>
     public void Clear()
     {
@@ -208,7 +200,7 @@ public class ConsoleSignalLoggerAtom : IAsyncDisposable
     }
 
     /// <summary>
-    /// Get statistics about logged signals
+    ///     Get statistics about logged signals
     /// </summary>
     public ConsoleSignalLoggerStats GetStats()
     {
@@ -224,38 +216,32 @@ public class ConsoleSignalLoggerAtom : IAsyncDisposable
             };
         }
     }
-
-    public ValueTask DisposeAsync()
-    {
-        _subscription.Dispose();
-        return default;
-    }
 }
 
 public class ConsoleSignalLoggerOptions
 {
     /// <summary>
-    /// Maximum number of signals to keep in window
+    ///     Maximum number of signals to keep in window
     /// </summary>
     public int WindowSize { get; init; } = 100;
 
     /// <summary>
-    /// Sample rate: 1 = log every signal, 2 = log every 2nd signal, etc.
+    ///     Sample rate: 1 = log every signal, 2 = log every 2nd signal, etc.
     /// </summary>
     public int SampleRate { get; init; } = 1;
 
     /// <summary>
-    /// Automatically output signals to console as they arrive
+    ///     Automatically output signals to console as they arrive
     /// </summary>
     public bool AutoOutput { get; init; } = false;
 
     /// <summary>
-    /// Include only signals matching these patterns (empty = include all)
+    ///     Include only signals matching these patterns (empty = include all)
     /// </summary>
     public List<string> IncludePatterns { get; init; } = new();
 
     /// <summary>
-    /// Exclude signals matching these patterns
+    ///     Exclude signals matching these patterns
     /// </summary>
     public List<string> ExcludePatterns { get; init; } = new();
 }

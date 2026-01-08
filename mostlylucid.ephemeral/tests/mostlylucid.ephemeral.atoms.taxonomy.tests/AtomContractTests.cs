@@ -1,4 +1,3 @@
-using Mostlylucid.Ephemeral.Atoms.Taxonomy;
 using Xunit;
 
 namespace Mostlylucid.Ephemeral.Atoms.Taxonomy.Tests;

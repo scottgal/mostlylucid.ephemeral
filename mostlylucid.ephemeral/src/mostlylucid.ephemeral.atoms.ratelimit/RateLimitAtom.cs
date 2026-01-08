@@ -1,24 +1,23 @@
 using System.Globalization;
 using System.Threading.RateLimiting;
-using Mostlylucid.Ephemeral;
 
 namespace Mostlylucid.Ephemeral.Atoms.RateLimit;
 
 /// <summary>
-/// Controls a coordinator window by gating operations with a token bucket.
+///     Controls a coordinator window by gating operations with a token bucket.
 /// </summary>
 public sealed class RateLimitAtom : IAsyncDisposable
 {
-    private readonly SignalSink _signals;
     private readonly string _controlPattern;
-    private readonly object _sync = new();
+    private readonly SignalSink _signals;
     private readonly IDisposable _subscription;
+    private readonly object _sync = new();
+    private int _burst;
     private TokenBucketRateLimiter _limiter;
     private double _ratePerSecond;
-    private int _burst;
 
     /// <summary>
-    /// Creates a rate limit atom.
+    ///     Creates a rate limit atom.
     /// </summary>
     public RateLimitAtom(SignalSink signals, RateLimitOptions? options = null)
     {
@@ -32,20 +31,29 @@ public sealed class RateLimitAtom : IAsyncDisposable
     }
 
     /// <summary>
-    /// Current configured throughput (tokens per second).
+    ///     Current configured throughput (tokens per second).
     /// </summary>
     public double RatePerSecond => System.Threading.Volatile.Read(ref _ratePerSecond);
 
     /// <summary>
-    /// Current burst size (token bucket capacity).
+    ///     Current burst size (token bucket capacity).
     /// </summary>
     public int Burst => System.Threading.Volatile.Read(ref _burst);
 
+    public ValueTask DisposeAsync()
+    {
+        _subscription.Dispose();
+        _limiter.Dispose();
+        return default;
+    }
+
     /// <summary>
-    /// Acquires the requested tokens; await before starting work.
+    ///     Acquires the requested tokens; await before starting work.
     /// </summary>
-    public ValueTask<RateLimitLease> AcquireAsync(CancellationToken cancellationToken = default) =>
-        System.Threading.Volatile.Read(ref _limiter).AcquireAsync(1, cancellationToken);
+    public ValueTask<RateLimitLease> AcquireAsync(CancellationToken cancellationToken = default)
+    {
+        return System.Threading.Volatile.Read(ref _limiter).AcquireAsync(1, cancellationToken);
+    }
 
     private void OnSignal(SignalEvent signal)
     {
@@ -66,16 +74,15 @@ public sealed class RateLimitAtom : IAsyncDisposable
             return;
         }
 
-        if (SignalCommandMatch.TryParse(signal.Signal, "rate.limit.decrease", out match) && TryParseDouble(match.Payload, out parsed))
+        if (SignalCommandMatch.TryParse(signal.Signal, "rate.limit.decrease", out match) &&
+            TryParseDouble(match.Payload, out parsed))
         {
             UpdateRate(Math.Max(1, RatePerSecond - Math.Max(1, parsed)));
             return;
         }
 
-        if (SignalCommandMatch.TryParse(signal.Signal, "rate.limit.burst", out match) && TryParseDouble(match.Payload, out parsed) && parsed > 0)
-        {
-            UpdateBurst((int)Math.Max(1, parsed));
-        }
+        if (SignalCommandMatch.TryParse(signal.Signal, "rate.limit.burst", out match) &&
+            TryParseDouble(match.Payload, out parsed) && parsed > 0) UpdateBurst((int)Math.Max(1, parsed));
     }
 
     private static bool TryParseDouble(string? rawValue, out double value)
@@ -127,12 +134,5 @@ public sealed class RateLimitAtom : IAsyncDisposable
             ReplenishmentPeriod = TimeSpan.FromSeconds(1),
             TokensPerPeriod = tokensPerPeriod
         });
-    }
-
-    public ValueTask DisposeAsync()
-    {
-        _subscription.Dispose();
-        _limiter.Dispose();
-        return default;
     }
 }

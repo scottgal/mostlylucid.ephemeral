@@ -1,6 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using Mostlylucid.Ephemeral.Atoms.Taxonomy.Ledger;
 using Xunit;
 
@@ -141,7 +138,7 @@ public class DetectionLedgerTests
         ledger.Record("medium.signal", "val3", 0.7, "detector3");
 
         // Act
-        var highSalience = ledger.GetHighSalienceSignals(0.8);
+        var highSalience = ledger.GetHighSalienceSignals();
 
         // Assert
         Assert.Single(highSalience);
@@ -274,7 +271,7 @@ public class DetectionLedgerTests
         // Don't add any contributions - confidence stays at 0
 
         // Act
-        var record = ledger.ToLearningRecord(0.85);
+        var record = ledger.ToLearningRecord();
 
         // Assert
         Assert.Null(record);
@@ -286,13 +283,11 @@ public class DetectionLedgerTests
         // Arrange
         var ledger = new DetectionLedger("test-request", "fingerprint123");
         // Add high confidence contributions
-        for (int i = 0; i < 5; i++)
-        {
-            ledger.AddContribution(DetectionContribution.Bot($"D{i}", "cat", 0.9, $"Reason{i}", weight: 2.0));
-        }
+        for (var i = 0; i < 5; i++)
+            ledger.AddContribution(DetectionContribution.Bot($"D{i}", "cat", 0.9, $"Reason{i}", 2.0));
 
         // Act
-        var record = ledger.ToLearningRecord(0.85);
+        var record = ledger.ToLearningRecord();
 
         // Assert
         if (record != null)
@@ -309,7 +304,7 @@ public class DetectionLedgerTests
         // Act
         var contribution = DetectionContribution.Bot(
             "TestDetector", "category", 0.75, "Test reason",
-            weight: 1.5, botType: "crawler", botName: "TestBot");
+            1.5, "crawler", "TestBot");
 
         // Assert
         Assert.Equal("TestDetector", contribution.DetectorName);

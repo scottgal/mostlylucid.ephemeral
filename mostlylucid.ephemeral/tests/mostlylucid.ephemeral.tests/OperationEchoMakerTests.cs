@@ -34,9 +34,7 @@ public sealed class OperationEchoMakerTests
             "order-1",
             false,
             null,
-            TimeSpan.FromSeconds(5),
-            null,
-            false);
+            TimeSpan.FromSeconds(5));
 
         finalizer.Emit(snapshot);
 

@@ -1,7 +1,5 @@
-using System;
 using System.Collections.Concurrent;
 using System.Runtime.CompilerServices;
-using System.Threading;
 
 namespace Mostlylucid.Ephemeral;
 
@@ -307,13 +305,21 @@ public interface ISignalEmitter
     ///     Raise a coordinator-scoped signal (applies to all atoms in this coordinator).
     ///     Use for batch-level or coordinator-wide state: "batch.completed", "throttled".
     /// </summary>
-    void EmitCoordinatorSignal(string signal) => Emit(signal); // Default: same as Emit
+    void EmitCoordinatorSignal(string signal)
+    {
+        Emit(signal);
+        // Default: same as Emit
+    }
 
     /// <summary>
     ///     Raise a sink-scoped signal (applies to entire sink).
     ///     Use for global state: "health.failed", "shutdown".
     /// </summary>
-    void EmitSinkSignal(string signal) => Emit(signal); // Default: same as Emit
+    void EmitSinkSignal(string signal)
+    {
+        Emit(signal);
+        // Default: same as Emit
+    }
 
     /// <summary>
     ///     Raise a signal that was caused by another signal (for propagation tracking).
@@ -345,16 +351,16 @@ public interface ISignalEmitter
 /// </summary>
 public sealed class SignalSink
 {
-        private long _maxAgeTicks;
-        private int _maxCapacity;
+    private readonly object _listenersLock = new();
     private readonly ConcurrentQueue<SignalEvent> _window = new();
-    private long _raiseCounter;
 
     private readonly object _windowSizeLock = new();
 
     // Lock-free listener array for optimal performance
     private volatile Action<SignalEvent>[] _listeners = Array.Empty<Action<SignalEvent>>();
-    private readonly object _listenersLock = new();
+    private long _maxAgeTicks;
+    private int _maxCapacity;
+    private long _raiseCounter;
 
 
     public SignalSink(int maxCapacity = 1000, TimeSpan? maxAge = null)
@@ -366,6 +372,12 @@ public sealed class SignalSink
     public int MaxCapacity => Volatile.Read(ref _maxCapacity);
 
     public TimeSpan MaxAge => TimeSpan.FromTicks(Volatile.Read(ref _maxAgeTicks));
+
+    /// <summary>
+    ///     Approximate count of signals in the window.
+    ///     May include some expired signals between cleanup cycles.
+    /// </summary>
+    public int Count => _window.Count;
 
     public void UpdateWindowSize(int? maxCapacity = null, TimeSpan? maxAge = null)
     {
@@ -380,12 +392,6 @@ public sealed class SignalSink
     }
 
     /// <summary>
-    ///     Approximate count of signals in the window.
-    ///     May include some expired signals between cleanup cycles.
-    /// </summary>
-    public int Count => _window.Count;
-
-    /// <summary>
     ///     Raise a signal.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -398,8 +404,7 @@ public sealed class SignalSink
         var len = listeners.Length;
 
         // Manual loop for better inlining and branch prediction
-        for (int i = 0; i < len; i++)
-        {
+        for (var i = 0; i < len; i++)
             try
             {
                 listeners[i](signal);
@@ -408,7 +413,6 @@ public sealed class SignalSink
             {
                 /* never throw from signal fan-out */
             }
-        }
 
         // Only cleanup every ~1024 calls to avoid contention
         if ((Interlocked.Increment(ref _raiseCounter) & 0x3FF) == 0)
@@ -533,12 +537,10 @@ public sealed class SignalSink
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public int CountRecentByPrefix(string prefix, DateTimeOffset since)
     {
-        int count = 0;
+        var count = 0;
         foreach (var s in _window)
-        {
             if (s.Timestamp >= since && s.Signal.StartsWith(prefix, StringComparison.Ordinal))
                 count++;
-        }
         return count;
     }
 
@@ -549,12 +551,10 @@ public sealed class SignalSink
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public int CountRecentByContains(string substring, DateTimeOffset since)
     {
-        int count = 0;
+        var count = 0;
         foreach (var s in _window)
-        {
             if (s.Timestamp >= since && s.Signal.Contains(substring))
                 count++;
-        }
         return count;
     }
 
@@ -565,12 +565,10 @@ public sealed class SignalSink
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public int CountRecentExact(string signalName, DateTimeOffset since)
     {
-        int count = 0;
+        var count = 0;
         foreach (var s in _window)
-        {
             if (s.Timestamp >= since && string.Equals(s.Signal, signalName, StringComparison.Ordinal))
                 count++;
-        }
         return count;
     }
 
@@ -611,27 +609,6 @@ public sealed class SignalSink
         }
     }
 
-    private sealed class Subscription : IDisposable
-    {
-        private readonly SignalSink _sink;
-        private readonly Action<SignalEvent> _listener;
-        private int _disposed;
-
-        public Subscription(SignalSink sink, Action<SignalEvent> listener)
-        {
-            _sink = sink;
-            _listener = listener;
-        }
-
-        public void Dispose()
-        {
-            if (Interlocked.Exchange(ref _disposed, 1) == 0)
-            {
-                _sink.Unsubscribe(_listener);
-            }
-        }
-    }
-
     /// <summary>
     ///     Immediately clear all signals from the window.
     ///     Thread-safe but briefly blocks other window operations.
@@ -644,22 +621,17 @@ public sealed class SignalSink
         lock (_windowSizeLock)
         {
             count = 0;
-            while (_window.TryDequeue(out _))
-            {
-                count++;
-            }
+            while (_window.TryDequeue(out _)) count++;
         }
 
         // Emit meta-signal about the clear operation
         if (count > 0)
-        {
             Raise(new SignalEvent(
                 "sink.cleared",
                 EphemeralIdGenerator.NextId(),
                 count.ToString(), // Count in key field
                 DateTimeOffset.UtcNow
             ));
-        }
 
         return count;
     }
@@ -680,22 +652,13 @@ public sealed class SignalSink
             var removed = 0;
 
             while (_window.TryDequeue(out var signal))
-            {
                 if (predicate(signal))
-                {
-                    removed++;  // Don't re-add
-                }
+                    removed++; // Don't re-add
                 else
-                {
                     toKeep.Add(signal);
-                }
-            }
 
             // Re-enqueue kept signals
-            foreach (var signal in toKeep)
-            {
-                _window.Enqueue(signal);
-            }
+            foreach (var signal in toKeep) _window.Enqueue(signal);
 
             return removed;
         }
@@ -716,14 +679,12 @@ public sealed class SignalSink
 
         // Emit meta-signal about the pattern clear
         if (removed > 0)
-        {
             Raise(new SignalEvent(
                 "sink.cleared.pattern",
                 EphemeralIdGenerator.NextId(),
                 $"{pattern}:{removed}", // Pattern:count in key field
                 DateTimeOffset.UtcNow
             ));
-        }
 
         return removed;
     }
@@ -819,22 +780,35 @@ public sealed class SignalSink
 
         // Size-based - limit iterations to prevent unbounded cleanup
         var removed = 0;
-        while (_window.Count > maxCapacity && removed < 1000 && _window.TryDequeue(out _))
-        {
-            removed++;
-        }
+        while (_window.Count > maxCapacity && removed < 1000 && _window.TryDequeue(out _)) removed++;
 
         // Age-based - use safe TryDequeue pattern
         removed = 0;
         while (removed < 1000 && _window.TryDequeue(out var item))
         {
             if (item.Timestamp >= cutoff)
-            {
                 // Put it back if not expired - relies on timestamp ordering
                 // Note: This is a best-effort approach; concurrent modifications may skip items
                 break;
-            }
             removed++;
+        }
+    }
+
+    private sealed class Subscription : IDisposable
+    {
+        private readonly Action<SignalEvent> _listener;
+        private readonly SignalSink _sink;
+        private int _disposed;
+
+        public Subscription(SignalSink sink, Action<SignalEvent> listener)
+        {
+            _sink = sink;
+            _listener = listener;
+        }
+
+        public void Dispose()
+        {
+            if (Interlocked.Exchange(ref _disposed, 1) == 0) _sink.Unsubscribe(_listener);
         }
     }
 }
@@ -982,8 +956,8 @@ public sealed class AsyncSignalProcessor : IAsyncDisposable
 }
 
 /// <summary>
-/// Summary of an operation derived from its signal history.
-/// Provides a lightweight view of operation lifecycle without accessing coordinator state.
+///     Summary of an operation derived from its signal history.
+///     Provides a lightweight view of operation lifecycle without accessing coordinator state.
 /// </summary>
 public sealed record OperationSignalSummary(
     long OperationId,
@@ -993,29 +967,36 @@ public sealed record OperationSignalSummary(
     IReadOnlyList<SignalEvent> Signals)
 {
     /// <summary>
-    /// Duration between first and last signal.
+    ///     Duration between first and last signal.
     /// </summary>
     public TimeSpan Duration => LastSignalTime - FirstSignalTime;
 
     /// <summary>
-    /// Total number of signals emitted by this operation.
+    ///     Total number of signals emitted by this operation.
     /// </summary>
     public int SignalCount => Signals.Count;
 
     /// <summary>
-    /// Check if operation has a specific signal.
+    ///     Check if operation has a specific signal.
     /// </summary>
-    public bool HasSignal(string signal) => Signals.Any(s => s.Signal == signal);
+    public bool HasSignal(string signal)
+    {
+        return Signals.Any(s => s.Signal == signal);
+    }
 
     /// <summary>
-    /// Check if operation has signals matching a pattern.
+    ///     Check if operation has signals matching a pattern.
     /// </summary>
-    public bool HasSignalPattern(string pattern) =>
-        Signals.Any(s => StringPatternMatcher.Matches(s.Signal, pattern));
+    public bool HasSignalPattern(string pattern)
+    {
+        return Signals.Any(s => StringPatternMatcher.Matches(s.Signal, pattern));
+    }
 
     /// <summary>
-    /// Get all signals matching a pattern.
+    ///     Get all signals matching a pattern.
     /// </summary>
-    public IEnumerable<SignalEvent> GetSignals(string pattern) =>
-        Signals.Where(s => StringPatternMatcher.Matches(s.Signal, pattern));
+    public IEnumerable<SignalEvent> GetSignals(string pattern)
+    {
+        return Signals.Where(s => StringPatternMatcher.Matches(s.Signal, pattern));
+    }
 }

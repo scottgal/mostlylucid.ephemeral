@@ -1,23 +1,18 @@
-using System;
-using System.Threading;
-using System.Threading.Tasks;
-using Mostlylucid.Ephemeral;
-
 namespace Mostlylucid.Ephemeral.Atoms.Taxonomy;
 
 /// <summary>
-/// Deterministic extractor atom that turns raw content into stable semantic units.
+///     Deterministic extractor atom that turns raw content into stable semantic units.
 /// </summary>
 /// <remarks>
-/// Default contract: Kind = Extractor, Determinism = Deterministic, Persistence = PersistableViaEscalation.
-/// Output signals default to "atom.extractor.output" unless overridden.
+///     Default contract: Kind = Extractor, Determinism = Deterministic, Persistence = PersistableViaEscalation.
+///     Output signals default to "atom.extractor.output" unless overridden.
 /// </remarks>
 /// <typeparam name="TInput">The input payload type.</typeparam>
 /// <typeparam name="TOutput">The output payload type.</typeparam>
 public sealed class ExtractorAtom<TInput, TOutput> : SignalDrivenAtom<TInput, TOutput>
 {
     /// <summary>
-    /// Initializes an ExtractorAtom that emits to an untyped SignalSink.
+    ///     Initializes an ExtractorAtom that emits to an untyped SignalSink.
     /// </summary>
     /// <param name="signals">Signal sink that receives output signals.</param>
     /// <param name="handler">Handler invoked for each input.</param>
@@ -40,7 +35,7 @@ public sealed class ExtractorAtom<TInput, TOutput> : SignalDrivenAtom<TInput, TO
     }
 
     /// <summary>
-    /// Initializes an ExtractorAtom that emits to a TypedSignalSink.
+    ///     Initializes an ExtractorAtom that emits to a TypedSignalSink.
     /// </summary>
     /// <param name="typedSignals">Typed signal sink that receives output signals.</param>
     /// <param name="handler">Handler invoked for each input.</param>

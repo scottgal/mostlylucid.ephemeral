@@ -13,7 +13,7 @@ public static class EphemeralIdGenerator
 
     // Pre-compute process-unique seed by XORing ProcessStart and ProcessId
     // This provides good uniqueness without expensive hashing
-    private static readonly long ProcessSeed = Environment.TickCount64 ^  ((long)Environment.ProcessId << 32);
+    private static readonly long ProcessSeed = Environment.TickCount64 ^ ((long)Environment.ProcessId << 32);
 
     /// <summary>
     ///     Generates a fast, unique 64-bit ID using XOR mixing.

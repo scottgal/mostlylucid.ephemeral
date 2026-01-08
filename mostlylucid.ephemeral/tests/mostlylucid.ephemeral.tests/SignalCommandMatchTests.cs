@@ -146,15 +146,13 @@ public class SignalCommandMatchTests
     [InlineData("prefix.window.size.set:200", "window.size.set", true, "200")]
     [InlineData("no.match", "window.size.set", false, null)]
     [InlineData("", "window.size.set", false, null)]
-    public void TryParse_VariousInputs_ReturnsExpected(string signal, string command, bool expectedResult, string? expectedPayload)
+    public void TryParse_VariousInputs_ReturnsExpected(string signal, string command, bool expectedResult,
+        string? expectedPayload)
     {
         var result = SignalCommandMatch.TryParse(signal, command, out var match);
 
         Assert.Equal(expectedResult, result);
-        if (expectedResult)
-        {
-            Assert.Equal(expectedPayload, match.Payload);
-        }
+        if (expectedResult) Assert.Equal(expectedPayload, match.Payload);
     }
 
     // Edge case: Signal ends exactly at command boundary (the fix we added)

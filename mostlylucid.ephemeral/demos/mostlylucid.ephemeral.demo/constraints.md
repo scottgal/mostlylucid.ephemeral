@@ -246,7 +246,8 @@ Once atoms/coordinators are fingerprinted like this, a “prompt compiler” can
    Before it ever runs:
 
     * Check that every required input is provided by some upstream atom or external source.
-    * Check constraints: e.g. `FftBehaviorDetector` requires `SessionMetricsWindow.NonEmpty` ⇒ ensure aggregator runs first.
+    * Check constraints: e.g. `FftBehaviorDetector` requires `SessionMetricsWindow.NonEmpty` ⇒ ensure aggregator runs
+      first.
     * Check policies: `LlmExplanationAtom` allowed only on scrubbed / summarised data, etc.
 
 5. **Emit an executable Styloflow config**
@@ -257,7 +258,8 @@ Once atoms/coordinators are fingerprinted like this, a “prompt compiler” can
     * binds them to a `SignalSink`
     * defines the routing rules / patterns.
 
-The **magic**: the LLM doesn’t have to reason “from scratch about C#”; it only has to reason over **atoms-as-lego**, which have:
+The **magic**: the LLM doesn’t have to reason “from scratch about C#”; it only has to reason over **atoms-as-lego**,
+which have:
 
 * fingerprints,
 * interface specs,
@@ -286,4 +288,5 @@ If you like, next pass I can:
 
 * sketch a `AtomDescriptor`/`Fingerprint` C# model,
 * show how you’d embed BDD scenarios as attributes/tests, and
-* outline what a “prompt to Styloflow config” planner would look like (including guard rails so your “prompt-assembled workflows” can’t accidentally become unsafe or leaky).
+* outline what a “prompt to Styloflow config” planner would look like (including guard rails so your “prompt-assembled
+  workflows” can’t accidentally become unsafe or leaky).

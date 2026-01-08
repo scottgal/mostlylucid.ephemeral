@@ -2,10 +2,11 @@
 
 **ImageSharp integration atoms for signal-based image processing pipelines**
 
-> 🚨🚨 WARNING 🚨🚨 - Though in the 1.x range of version THINGS WILL STILL BREAK. This is the lab for developing this concept when stabilized it'll becoe the first *stylo*flow release 🚨🚨🚨
 
 
-This package provides production-ready atoms for image processing using ImageSharp with Ephemeral's signal-based coordination.
+
+This package provides production-ready atoms for image processing using ImageSharp with Ephemeral's signal-based
+coordination.
 
 ## Features
 
@@ -18,9 +19,11 @@ This package provides production-ready atoms for image processing using ImageSha
 ## Atoms
 
 ### LoadImageAtom
+
 Loads images from disk with file I/O tracking.
 
 **Signals:**
+
 - `image.loading` - Before load starts
 - `image.loaded` - After successful load
 - `image.dimensions:{width}x{height}` - Image size
@@ -29,9 +32,11 @@ Loads images from disk with file I/O tracking.
 - `image.error:{message}` - Error details
 
 ### ResizeImageAtom
+
 Creates multiple sized variants (thumbnail, medium, large) sequentially.
 
 **Signals:**
+
 - `resize.started` - Pipeline begins
 - `resize.count:{n}` - Number of sizes
 - `resize.{size}.started` - Per-size start
@@ -40,6 +45,7 @@ Creates multiple sized variants (thumbnail, medium, large) sequentially.
 - `resize.complete` - All sizes done
 
 **Configuration:**
+
 ```csharp
 new ResizeOptions
 {
@@ -54,9 +60,12 @@ new ResizeOptions
 ```
 
 ### ParallelResizeImageAtom
-**Nested Coordinator Pattern** - Creates multiple sized variants using bounded parallel execution. Demonstrates how an atom can internally use a coordinator to manage concurrent work while propagating operation-scoped signals.
+
+**Nested Coordinator Pattern** - Creates multiple sized variants using bounded parallel execution. Demonstrates how an
+atom can internally use a coordinator to manage concurrent work while propagating operation-scoped signals.
 
 **Signals:**
+
 - `resize.parallel.started` - Parallel pipeline begins
 - `resize.parallelism:{n}` - Max parallel resizes
 - `resize.{size}.started` - Per-size start (with sub-operation ID)
@@ -65,6 +74,7 @@ new ResizeOptions
 - `resize.parallel.complete` - All sizes done
 
 **Configuration:**
+
 ```csharp
 new ParallelResizeOptions
 {
@@ -79,12 +89,16 @@ new ParallelResizeOptions
 }
 ```
 
-**Pattern Highlight:** Each resize operation becomes a sub-operation with its own operation ID. The coordinator window is configured as `maxParallelism * 3` for short-lived operations. Signals from sub-operations propagate to the main SignalSink with proper operation IDs, enabling precise tracking and control.
+**Pattern Highlight:** Each resize operation becomes a sub-operation with its own operation ID. The coordinator window
+is configured as `maxParallelism * 3` for short-lived operations. Signals from sub-operations propagate to the main
+SignalSink with proper operation IDs, enabling precise tracking and control.
 
 ### ExifProcessingAtom
+
 Adds EXIF metadata to images.
 
 **Signals:**
+
 - `exif.processing` - Processing started
 - `exif.{size}.started` - Per-image start
 - `exif.{size}.complete` - Per-image done
@@ -92,6 +106,7 @@ Adds EXIF metadata to images.
 - `exif.complete` - All images processed
 
 **Configuration:**
+
 ```csharp
 new ExifOptions
 {
@@ -103,9 +118,11 @@ new ExifOptions
 ```
 
 ### WatermarkAtom
+
 Adds text watermarks to images.
 
 **Signals:**
+
 - `watermark.started` - Processing begins
 - `watermark.rendering` - Watermark being drawn
 - `watermark.complete` - Watermark added
@@ -114,6 +131,7 @@ Adds text watermarks to images.
 - `image.pipeline.complete:{n}` - Image number
 
 **Configuration:**
+
 ```csharp
 new WatermarkOptions
 {
@@ -280,12 +298,14 @@ sink.Raise("imagesharp.stop", operationId: 123);  // Cancels ONLY operation 123
 ```
 
 **Pattern 1: Explicit Stop Signal**
+
 ```csharp
 // Another coordinator/watcher decides to stop this operation
 sink.Raise("imagesharp.stop", operationId: 123);
 ```
 
 **Pattern 2: Automatic Dimension-Based Cancellation**
+
 ```csharp
 // Pipeline emits: image.dimensions:6000x4000 (opid: 123)
 // Hook configured with maxDimension: 5000 sees this
@@ -298,12 +318,14 @@ await using var pipeline = new ImagePipeline(sink)
 ```
 
 **Signals emitted by cancellation:**
+
 - `imagesharp.dimension.exceeded:{w}x{h}` - Image too large (opid-scoped)
 - `imagesharp.stopping` - Cancellation initiated (opid-scoped)
 - `imagesharp.stopped` - Cancellation token triggered (opid-scoped)
 - `pipeline.cancelled:{n}` - Specific image cancelled
 
 **How it works:**
+
 1. `WithCancellationHook(opId, maxDim)` creates operation-scoped hook
 2. Subscribes to signals WHERE `signal.OperationId == opId`
 3. Listens for `imagesharp.stop` OR `image.dimensions:` exceeding max
@@ -312,6 +334,7 @@ await using var pipeline = new ImagePipeline(sink)
 6. Resources are properly disposed via finally blocks
 
 **Example: Cross-Operation Coordination**
+
 ```csharp
 // Supervisor coordinator watches all image operations
 var supervisor = new SignalSink();
@@ -370,9 +393,11 @@ var results = await Task.WhenAll(tasks);
 ## Architecture
 
 ### ImageProcessingContext
+
 Flows through the pipeline, holding state and emitting signals.
 
 **Properties:**
+
 - `Job` - Original job specification
 - `Image` - Loaded image (disposed automatically)
 - `Outputs` - Dictionary of size name → output path
@@ -380,19 +405,23 @@ Flows through the pipeline, holding state and emitting signals.
 - `Width`, `Height`, `Format` - Image metadata
 
 **Methods:**
+
 - `ToResult()` - Converts to `ImageProcessingResult`
 - `DisposeAsync()` - Cleans up image resources
 
 ### ImagePipeline
+
 Fluent builder for configuring processing pipeline.
 
 **Builder Methods:**
+
 - `WithLoader()` - Add load atom
 - `WithResize(options?)` - Add resize atom
 - `WithExif(options?)` - Add EXIF atom
 - `WithWatermark(options?)` - Add watermark atom
 
 **Execution:**
+
 - `ProcessAsync(job, ct)` - Execute pipeline on job
 
 ## Signal Philosophy

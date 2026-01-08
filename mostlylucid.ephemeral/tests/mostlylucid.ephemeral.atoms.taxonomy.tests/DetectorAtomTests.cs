@@ -1,9 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
-using Mostlylucid.Ephemeral;
 using Mostlylucid.Ephemeral.Atoms.Taxonomy.Atoms;
 using Mostlylucid.Ephemeral.Atoms.Taxonomy.Ledger;
 using Xunit;
@@ -223,7 +217,9 @@ public class DetectorAtomTests
     // Test implementations
     private class TestBotDetector : DetectorAtomBase
     {
-        public TestBotDetector() : base("TestBotDetector", "test") { }
+        public TestBotDetector() : base("TestBotDetector", "test")
+        {
+        }
 
         public override Task<IReadOnlyList<DetectionContribution>> DetectAsync(
             SignalSink sink, string sessionId, CancellationToken ct = default)
@@ -234,7 +230,9 @@ public class DetectorAtomTests
 
     private class TestHumanDetector : DetectorAtomBase
     {
-        public TestHumanDetector() : base("TestHumanDetector", "test") { }
+        public TestHumanDetector() : base("TestHumanDetector", "test")
+        {
+        }
 
         public override Task<IReadOnlyList<DetectionContribution>> DetectAsync(
             SignalSink sink, string sessionId, CancellationToken ct = default)
@@ -245,7 +243,9 @@ public class DetectorAtomTests
 
     private class TestNeutralDetector : DetectorAtomBase
     {
-        public TestNeutralDetector() : base("TestNeutralDetector", "test") { }
+        public TestNeutralDetector() : base("TestNeutralDetector", "test")
+        {
+        }
 
         public override Task<IReadOnlyList<DetectionContribution>> DetectAsync(
             SignalSink sink, string sessionId, CancellationToken ct = default)
@@ -256,7 +256,9 @@ public class DetectorAtomTests
 
     private class TestMultipleContributionDetector : DetectorAtomBase
     {
-        public TestMultipleContributionDetector() : base("TestMultipleDetector", "test") { }
+        public TestMultipleContributionDetector() : base("TestMultipleDetector", "test")
+        {
+        }
 
         public override Task<IReadOnlyList<DetectionContribution>> DetectAsync(
             SignalSink sink, string sessionId, CancellationToken ct = default)
@@ -269,22 +271,24 @@ public class DetectorAtomTests
 
     private class TestSignalCheckDetector : DetectorAtomBase
     {
-        public TestSignalCheckDetector() : base("TestSignalCheckDetector", "test") { }
+        public TestSignalCheckDetector() : base("TestSignalCheckDetector", "test")
+        {
+        }
 
         public override Task<IReadOnlyList<DetectionContribution>> DetectAsync(
             SignalSink sink, string sessionId, CancellationToken ct = default)
         {
-            if (HasSignal(sink, "expected.signal"))
-            {
-                return Task.FromResult(Single(Bot(0.5, "signal_found")));
-            }
+            if (HasSignal(sink, "expected.signal")) return Task.FromResult(Single(Bot(0.5, "signal_found")));
             return Task.FromResult(None());
         }
     }
 
     private class TestEarlyExitDetector : DetectorAtomBase
     {
-        public TestEarlyExitDetector() : base("TestEarlyExitDetector", "test") { }
+        public TestEarlyExitDetector() : base("TestEarlyExitDetector", "test")
+        {
+        }
+
         public override int Priority => 1; // Run first
 
         public override Task<IReadOnlyList<DetectionContribution>> DetectAsync(
@@ -298,19 +302,25 @@ public class DetectorAtomTests
 
     private class TestHighConfidenceDetector : DetectorAtomBase
     {
-        public TestHighConfidenceDetector() : base("TestHighConfidenceDetector", "test") { }
+        public TestHighConfidenceDetector() : base("TestHighConfidenceDetector", "test")
+        {
+        }
+
         public override int Priority => 1;
 
         public override Task<IReadOnlyList<DetectionContribution>> DetectAsync(
             SignalSink sink, string sessionId, CancellationToken ct = default)
         {
-            return Task.FromResult(Single(Bot(0.95, "Very confident", weight: 5.0)));
+            return Task.FromResult(Single(Bot(0.95, "Very confident", 5.0)));
         }
     }
 
     private class TestSlowDetector : DetectorAtomBase
     {
-        public TestSlowDetector() : base("TestSlowDetector", "test") { }
+        public TestSlowDetector() : base("TestSlowDetector", "test")
+        {
+        }
+
         public override TimeSpan Timeout => TimeSpan.FromMilliseconds(50);
         public override bool IsOptional => true;
 

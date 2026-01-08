@@ -1,20 +1,19 @@
-using Mostlylucid.Ephemeral;
+using SixLabors.Fonts;
 using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.Drawing.Processing;
 using SixLabors.ImageSharp.Formats.Jpeg;
 using SixLabors.ImageSharp.Metadata.Profiles.Exif;
 using SixLabors.ImageSharp.Processing;
-using SixLabors.ImageSharp.Drawing.Processing;
-using SixLabors.Fonts;
 
 namespace Mostlylucid.Ephemeral.Atoms.ImageSharp;
 
 /// <summary>
-/// Represents an image processing job with metadata
+///     Represents an image processing job with metadata
 /// </summary>
 public record ImageJob(string SourcePath, string OutputDir, int BatchNumber, int ImageNumber);
 
 /// <summary>
-/// Result of image processing with all output paths
+///     Result of image processing with all output paths
 /// </summary>
 public record ImageProcessingResult(
     string OriginalPath,
@@ -28,15 +27,21 @@ public record ImageProcessingResult(
 );
 
 /// <summary>
-/// Image processing context that flows through the pipeline.
-/// Holds state and emits signals as processing progresses.
+///     Image processing context that flows through the pipeline.
+///     Holds state and emits signals as processing progresses.
 /// </summary>
 public sealed class ImageProcessingContext : IAsyncDisposable
 {
-    private readonly SignalSink _signals;
-    private Image? _image;
     private readonly Dictionary<string, string> _outputs = new();
+    private readonly SignalSink _signals;
     private readonly DateTime _startTime = DateTime.UtcNow;
+    private Image? _image;
+
+    public ImageProcessingContext(SignalSink signals, ImageJob job)
+    {
+        _signals = signals ?? throw new ArgumentNullException(nameof(signals));
+        Job = job ?? throw new ArgumentNullException(nameof(job));
+    }
 
     public ImageJob Job { get; }
     public Image Image => _image ?? throw new InvalidOperationException("Image not loaded");
@@ -47,10 +52,15 @@ public sealed class ImageProcessingContext : IAsyncDisposable
     public int Height => Image.Height;
     public string Format => Image.Metadata.DecodedImageFormat?.Name ?? "Unknown";
 
-    public ImageProcessingContext(SignalSink signals, ImageJob job)
+    public async ValueTask DisposeAsync()
     {
-        _signals = signals ?? throw new ArgumentNullException(nameof(signals));
-        Job = job ?? throw new ArgumentNullException(nameof(job));
+        if (_image != null)
+        {
+            _image.Dispose();
+            _image = null;
+        }
+
+        await ValueTask.CompletedTask;
     }
 
     internal void SetImage(Image image)
@@ -85,10 +95,8 @@ public sealed class ImageProcessingContext : IAsyncDisposable
         // Calculate total output size
         long totalSize = 0;
         foreach (var path in _outputs.Values)
-        {
             if (File.Exists(path))
                 totalSize += new FileInfo(path).Length;
-        }
 
         return new ImageProcessingResult(
             Job.SourcePath,
@@ -101,22 +109,11 @@ public sealed class ImageProcessingContext : IAsyncDisposable
             totalSize
         );
     }
-
-    public async ValueTask DisposeAsync()
-    {
-        if (_image != null)
-        {
-            _image.Dispose();
-            _image = null;
-        }
-
-        await ValueTask.CompletedTask;
-    }
 }
 
 /// <summary>
-/// Load Image Atom - Loads images from disk with file I/O tracking.
-/// Emits: image.loading, image.loaded, image.load.failed
+///     Load Image Atom - Loads images from disk with file I/O tracking.
+///     Emits: image.loading, image.loaded, image.load.failed
 /// </summary>
 public sealed class LoadImageAtom : IAsyncDisposable
 {
@@ -127,8 +124,13 @@ public sealed class LoadImageAtom : IAsyncDisposable
         _signals = signals ?? throw new ArgumentNullException(nameof(signals));
     }
 
+    public ValueTask DisposeAsync()
+    {
+        return ValueTask.CompletedTask;
+    }
+
     /// <summary>
-    /// Loads an image and returns a processing context.
+    ///     Loads an image and returns a processing context.
     /// </summary>
     public async Task<ImageProcessingContext> LoadAsync(ImageJob job, CancellationToken ct = default)
     {
@@ -159,18 +161,16 @@ public sealed class LoadImageAtom : IAsyncDisposable
             throw;
         }
     }
-
-    public ValueTask DisposeAsync() => ValueTask.CompletedTask;
 }
 
 /// <summary>
-/// Resize Atom - Creates multiple sized variants (thumbnail, medium, large).
-/// Emits: resize.started, resize.{size}.started, resize.{size}.complete, resize.complete
+///     Resize Atom - Creates multiple sized variants (thumbnail, medium, large).
+///     Emits: resize.started, resize.{size}.started, resize.{size}.complete, resize.complete
 /// </summary>
 public sealed class ResizeImageAtom : IAsyncDisposable
 {
-    private readonly SignalSink _signals;
     private readonly ResizeOptions _options;
+    private readonly SignalSink _signals;
 
     public ResizeImageAtom(SignalSink signals, ResizeOptions? options = null)
     {
@@ -178,8 +178,13 @@ public sealed class ResizeImageAtom : IAsyncDisposable
         _options = options ?? new ResizeOptions();
     }
 
+    public ValueTask DisposeAsync()
+    {
+        return ValueTask.CompletedTask;
+    }
+
     /// <summary>
-    /// Resizes the image to multiple sizes defined in options.
+    ///     Resizes the image to multiple sizes defined in options.
     /// </summary>
     public async Task<ImageProcessingContext> ResizeAsync(
         ImageProcessingContext ctx,
@@ -188,7 +193,7 @@ public sealed class ResizeImageAtom : IAsyncDisposable
         ctx.Emit("resize.started");
         _signals.Raise($"resize.count:{_options.Sizes.Count}");
 
-        for (int i = 0; i < _options.Sizes.Count; i++)
+        for (var i = 0; i < _options.Sizes.Count; i++)
         {
             var (size, sizeName) = _options.Sizes[i];
 
@@ -226,12 +231,10 @@ public sealed class ResizeImageAtom : IAsyncDisposable
         ctx.Emit("resize.complete");
         return ctx;
     }
-
-    public ValueTask DisposeAsync() => ValueTask.CompletedTask;
 }
 
 /// <summary>
-/// Configuration for ResizeImageAtom
+///     Configuration for ResizeImageAtom
 /// </summary>
 public sealed class ResizeOptions
 {
@@ -246,19 +249,19 @@ public sealed class ResizeOptions
 }
 
 /// <summary>
-/// Represents a single resize job
+///     Represents a single resize job
 /// </summary>
 public record ResizeJob(Image SourceImage, Size TargetSize, string SizeName, string OutputPath, int Quality);
 
 /// <summary>
-/// Parallel Resize Atom - Uses an internal coordinator to parallelize resize operations.
-/// Demonstrates the pattern of embedding a coordinator inside an atom for bounded parallel work.
-/// The coordinator lasts only for the scope of the resize operation and has a small window.
+///     Parallel Resize Atom - Uses an internal coordinator to parallelize resize operations.
+///     Demonstrates the pattern of embedding a coordinator inside an atom for bounded parallel work.
+///     The coordinator lasts only for the scope of the resize operation and has a small window.
 /// </summary>
 public sealed class ParallelResizeImageAtom : IAsyncDisposable
 {
-    private readonly SignalSink _signals;
     private readonly ParallelResizeOptions _options;
+    private readonly SignalSink _signals;
 
     public ParallelResizeImageAtom(SignalSink signals, ParallelResizeOptions? options = null)
     {
@@ -266,8 +269,13 @@ public sealed class ParallelResizeImageAtom : IAsyncDisposable
         _options = options ?? new ParallelResizeOptions();
     }
 
+    public ValueTask DisposeAsync()
+    {
+        return ValueTask.CompletedTask;
+    }
+
     /// <summary>
-    /// Resizes the image to multiple sizes in parallel using ParallelEphemeral pattern.
+    ///     Resizes the image to multiple sizes in parallel using ParallelEphemeral pattern.
     /// </summary>
     public async Task<ImageProcessingContext> ResizeAsync(
         ImageProcessingContext ctx,
@@ -279,7 +287,7 @@ public sealed class ParallelResizeImageAtom : IAsyncDisposable
 
         // Build list of resize jobs
         var jobs = new List<ResizeJob>();
-        for (int i = 0; i < _options.Sizes.Count; i++)
+        for (var i = 0; i < _options.Sizes.Count; i++)
         {
             var (size, sizeName) = _options.Sizes[i];
 
@@ -303,53 +311,51 @@ public sealed class ParallelResizeImageAtom : IAsyncDisposable
 
         // Use EphemeralForEachAsync to get access to operation context for proper signal scoping
         await jobs.EphemeralForEachAsync(async (job, op) =>
-        {
-            // Use operation context to emit signals with proper operation ID
-            op.Signal($"resize.{job.SizeName}.started");
-
-            // Clone and resize
-            using var resized = job.SourceImage.Clone(imgCtx =>
             {
-                imgCtx.Resize(new SixLabors.ImageSharp.Processing.ResizeOptions
+                // Use operation context to emit signals with proper operation ID
+                op.Signal($"resize.{job.SizeName}.started");
+
+                // Clone and resize
+                using var resized = job.SourceImage.Clone(imgCtx =>
                 {
-                    Size = job.TargetSize,
-                    Mode = ResizeMode.Max,
-                    Sampler = KnownResamplers.Lanczos3
+                    imgCtx.Resize(new SixLabors.ImageSharp.Processing.ResizeOptions
+                    {
+                        Size = job.TargetSize,
+                        Mode = ResizeMode.Max,
+                        Sampler = KnownResamplers.Lanczos3
+                    });
                 });
-            });
 
-            // Ensure directory exists
-            Directory.CreateDirectory(Path.GetDirectoryName(job.OutputPath)!);
+                // Ensure directory exists
+                Directory.CreateDirectory(Path.GetDirectoryName(job.OutputPath)!);
 
-            // Save
-            await resized.SaveAsync(job.OutputPath, new JpegEncoder { Quality = job.Quality }, ct);
+                // Save
+                await resized.SaveAsync(job.OutputPath, new JpegEncoder { Quality = job.Quality }, ct);
 
-            op.Signal($"resize.{job.SizeName}.complete");
-            op.Signal($"file.saved:{job.OutputPath}");
-            op.Signal($"resize.size.bytes:{new FileInfo(job.OutputPath).Length}");
+                op.Signal($"resize.{job.SizeName}.complete");
+                op.Signal($"file.saved:{job.OutputPath}");
+                op.Signal($"resize.size.bytes:{new FileInfo(job.OutputPath).Length}");
 
-            // Add output to context
-            ctx.AddOutput(job.SizeName, job.OutputPath);
-        },
-        new EphemeralOptions
-        {
-            MaxConcurrency = _options.MaxParallelism,
-            MaxTrackedOperations = _options.MaxParallelism * 3, // Small window
-            MaxOperationLifetime = TimeSpan.FromMinutes(1)
-        },
-        _signals);
+                // Add output to context
+                ctx.AddOutput(job.SizeName, job.OutputPath);
+            },
+            new EphemeralOptions
+            {
+                MaxConcurrency = _options.MaxParallelism,
+                MaxTrackedOperations = _options.MaxParallelism * 3, // Small window
+                MaxOperationLifetime = TimeSpan.FromMinutes(1)
+            },
+            _signals);
 
         ctx.Emit("resize.parallel.complete");
         _signals.Raise($"resize.total.operations:{jobs.Count}");
 
         return ctx;
     }
-
-    public ValueTask DisposeAsync() => ValueTask.CompletedTask;
 }
 
 /// <summary>
-/// Configuration for ParallelResizeImageAtom
+///     Configuration for ParallelResizeImageAtom
 /// </summary>
 public sealed class ParallelResizeOptions
 {
@@ -363,20 +369,20 @@ public sealed class ParallelResizeOptions
     public int JpegQuality { get; init; } = 90;
 
     /// <summary>
-    /// Maximum number of resize operations to run in parallel.
-    /// Coordinator window will be maxParallelism * 3.
+    ///     Maximum number of resize operations to run in parallel.
+    ///     Coordinator window will be maxParallelism * 3.
     /// </summary>
     public int MaxParallelism { get; init; } = 3;
 }
 
 /// <summary>
-/// EXIF Atom - Adds metadata to images (copyright, description, keywords).
-/// Emits: exif.processing, exif.{size}.started, exif.{size}.complete, exif.complete
+///     EXIF Atom - Adds metadata to images (copyright, description, keywords).
+///     Emits: exif.processing, exif.{size}.started, exif.{size}.complete, exif.complete
 /// </summary>
 public sealed class ExifProcessingAtom : IAsyncDisposable
 {
-    private readonly SignalSink _signals;
     private readonly ExifOptions _options;
+    private readonly SignalSink _signals;
 
     public ExifProcessingAtom(SignalSink signals, ExifOptions? options = null)
     {
@@ -384,8 +390,13 @@ public sealed class ExifProcessingAtom : IAsyncDisposable
         _options = options ?? new ExifOptions();
     }
 
+    public ValueTask DisposeAsync()
+    {
+        return ValueTask.CompletedTask;
+    }
+
     /// <summary>
-    /// Adds EXIF metadata to all output images.
+    ///     Adds EXIF metadata to all output images.
     /// </summary>
     public async Task<ImageProcessingContext> AddExifAsync(
         ImageProcessingContext ctx,
@@ -424,12 +435,10 @@ public sealed class ExifProcessingAtom : IAsyncDisposable
         ctx.Emit("exif.complete");
         return ctx;
     }
-
-    public ValueTask DisposeAsync() => ValueTask.CompletedTask;
 }
 
 /// <summary>
-/// Configuration for ExifProcessingAtom
+///     Configuration for ExifProcessingAtom
 /// </summary>
 public sealed class ExifOptions
 {
@@ -440,13 +449,13 @@ public sealed class ExifOptions
 }
 
 /// <summary>
-/// Watermark Atom - Adds text watermark to large images.
-/// Emits: watermark.started, watermark.rendering, watermark.complete, processing.complete
+///     Watermark Atom - Adds text watermark to large images.
+///     Emits: watermark.started, watermark.rendering, watermark.complete, processing.complete
 /// </summary>
 public sealed class WatermarkAtom : IAsyncDisposable
 {
-    private readonly SignalSink _signals;
     private readonly WatermarkOptions _options;
+    private readonly SignalSink _signals;
 
     public WatermarkAtom(SignalSink signals, WatermarkOptions? options = null)
     {
@@ -454,8 +463,13 @@ public sealed class WatermarkAtom : IAsyncDisposable
         _options = options ?? new WatermarkOptions();
     }
 
+    public ValueTask DisposeAsync()
+    {
+        return ValueTask.CompletedTask;
+    }
+
     /// <summary>
-    /// Adds watermark to the large image variant.
+    ///     Adds watermark to the large image variant.
     /// </summary>
     public async Task<ImageProcessingContext> AddWatermarkAsync(
         ImageProcessingContext ctx,
@@ -477,14 +491,14 @@ public sealed class WatermarkAtom : IAsyncDisposable
                 {
                     HorizontalAlignment.Left => _options.Padding,
                     HorizontalAlignment.Right => img.Width - _options.Padding - _options.EstimatedWidth,
-                    _ => (img.Width / 2f) - (_options.EstimatedWidth / 2f)
+                    _ => img.Width / 2f - _options.EstimatedWidth / 2f
                 };
 
                 var y = _options.VerticalAlignment switch
                 {
                     VerticalAlignment.Top => _options.Padding,
                     VerticalAlignment.Bottom => img.Height - _options.Padding - _options.FontSize,
-                    _ => (img.Height / 2f) - (_options.FontSize / 2f)
+                    _ => img.Height / 2f - _options.FontSize / 2f
                 };
 
                 // Add semi-transparent watermark text
@@ -517,12 +531,10 @@ public sealed class WatermarkAtom : IAsyncDisposable
 
         return ctx;
     }
-
-    public ValueTask DisposeAsync() => ValueTask.CompletedTask;
 }
 
 /// <summary>
-/// Configuration for WatermarkAtom
+///     Configuration for WatermarkAtom
 /// </summary>
 public sealed class WatermarkOptions
 {
@@ -539,25 +551,31 @@ public sealed class WatermarkOptions
     public float EstimatedWidth { get; init; } = 400f;
 }
 
-public enum HorizontalAlignment { Left, Center, Right }
-public enum VerticalAlignment { Top, Center, Bottom }
+public enum HorizontalAlignment
+{
+    Left,
+    Center,
+    Right
+}
+
+public enum VerticalAlignment
+{
+    Top,
+    Center,
+    Bottom
+}
 
 /// <summary>
-/// Cancellation hook that listens for operation-scoped signals and cleanly cancels operations.
-/// Listens for both dimension-based signals (image.dimensions:5000x5000) and explicit stop signals.
+///     Cancellation hook that listens for operation-scoped signals and cleanly cancels operations.
+///     Listens for both dimension-based signals (image.dimensions:5000x5000) and explicit stop signals.
 /// </summary>
 public sealed class ImageSharpCancellationHook : IAsyncDisposable
 {
-    private readonly SignalSink _signals;
     private readonly CancellationTokenSource _cts;
-    private readonly IDisposable _subscription;
     private readonly long _operationId;
+    private readonly SignalSink _signals;
+    private readonly IDisposable _subscription;
     private bool _disposed;
-
-    /// <summary>
-    /// Maximum allowed width or height. Images exceeding this will be cancelled.
-    /// </summary>
-    public int? MaxDimension { get; init; }
 
     public ImageSharpCancellationHook(SignalSink signals, long operationId, int? maxDimension = null)
     {
@@ -590,36 +608,29 @@ public sealed class ImageSharpCancellationHook : IAsyncDisposable
                 if (parts.Length == 2 &&
                     int.TryParse(parts[0], out var width) &&
                     int.TryParse(parts[1], out var height))
-                {
                     if (width > MaxDimension.Value || height > MaxDimension.Value)
                     {
-                        _signals.Raise(new SignalEvent($"imagesharp.dimension.exceeded:{width}x{height}", _operationId, null, DateTimeOffset.UtcNow));
-                        _signals.Raise(new SignalEvent("imagesharp.stopping", _operationId, null, DateTimeOffset.UtcNow));
+                        _signals.Raise(new SignalEvent($"imagesharp.dimension.exceeded:{width}x{height}", _operationId,
+                            null, DateTimeOffset.UtcNow));
+                        _signals.Raise(
+                            new SignalEvent("imagesharp.stopping", _operationId, null, DateTimeOffset.UtcNow));
                         _cts.Cancel();
-                        _signals.Raise(new SignalEvent("imagesharp.stopped", _operationId, null, DateTimeOffset.UtcNow));
+                        _signals.Raise(new SignalEvent("imagesharp.stopped", _operationId, null,
+                            DateTimeOffset.UtcNow));
                     }
-                }
             }
         });
     }
 
     /// <summary>
-    /// Cancellation token that will be cancelled when stop signal is raised or dimensions exceeded.
+    ///     Maximum allowed width or height. Images exceeding this will be cancelled.
     /// </summary>
-    public CancellationToken Token => _cts.Token;
+    public int? MaxDimension { get; init; }
 
     /// <summary>
-    /// Manually triggers cancellation for this operation.
+    ///     Cancellation token that will be cancelled when stop signal is raised or dimensions exceeded.
     /// </summary>
-    public void Cancel()
-    {
-        if (!_disposed)
-        {
-            _signals.Raise(new SignalEvent("imagesharp.stopping", _operationId, null, DateTimeOffset.UtcNow));
-            _cts.Cancel();
-            _signals.Raise(new SignalEvent("imagesharp.stopped", _operationId, null, DateTimeOffset.UtcNow));
-        }
-    }
+    public CancellationToken Token => _cts.Token;
 
     public ValueTask DisposeAsync()
     {
@@ -631,31 +642,54 @@ public sealed class ImageSharpCancellationHook : IAsyncDisposable
         _cts.Dispose();
         return ValueTask.CompletedTask;
     }
+
+    /// <summary>
+    ///     Manually triggers cancellation for this operation.
+    /// </summary>
+    public void Cancel()
+    {
+        if (!_disposed)
+        {
+            _signals.Raise(new SignalEvent("imagesharp.stopping", _operationId, null, DateTimeOffset.UtcNow));
+            _cts.Cancel();
+            _signals.Raise(new SignalEvent("imagesharp.stopped", _operationId, null, DateTimeOffset.UtcNow));
+        }
+    }
 }
 
 /// <summary>
-/// Fluent builder for image processing pipelines.
-/// Provides an ImageSharp-like API with Ephemeral signals.
+///     Fluent builder for image processing pipelines.
+///     Provides an ImageSharp-like API with Ephemeral signals.
 /// </summary>
 public sealed class ImagePipeline : IAsyncDisposable
 {
     private readonly SignalSink _signals;
-    private LoadImageAtom? _loader;
-    private ResizeImageAtom? _resizer;
-    private ParallelResizeImageAtom? _parallelResizer;
-    private ExifProcessingAtom? _exifProcessor;
-    private WatermarkAtom? _watermarker;
     private ImageSharpCancellationHook? _cancellationHook;
+    private ExifProcessingAtom? _exifProcessor;
+    private LoadImageAtom? _loader;
+    private ParallelResizeImageAtom? _parallelResizer;
+    private ResizeImageAtom? _resizer;
+    private WatermarkAtom? _watermarker;
 
     public ImagePipeline(SignalSink signals)
     {
         _signals = signals ?? throw new ArgumentNullException(nameof(signals));
     }
 
+    public async ValueTask DisposeAsync()
+    {
+        if (_loader != null) await _loader.DisposeAsync();
+        if (_resizer != null) await _resizer.DisposeAsync();
+        if (_parallelResizer != null) await _parallelResizer.DisposeAsync();
+        if (_exifProcessor != null) await _exifProcessor.DisposeAsync();
+        if (_watermarker != null) await _watermarker.DisposeAsync();
+        if (_cancellationHook != null) await _cancellationHook.DisposeAsync();
+    }
+
     /// <summary>
-    /// Enables signal-based cancellation for a specific operation.
-    /// When '{opid}.imagesharp.stop' signal is raised, the operation will be cleanly cancelled.
-    /// Optionally enforces maximum dimension - cancels if image exceeds width or height.
+    ///     Enables signal-based cancellation for a specific operation.
+    ///     When '{opid}.imagesharp.stop' signal is raised, the operation will be cleanly cancelled.
+    ///     Optionally enforces maximum dimension - cancels if image exceeds width or height.
     /// </summary>
     /// <param name="operationId">The operation ID to scope signals to</param>
     /// <param name="maxDimension">Optional maximum width or height (e.g., 5000 to prevent 5000x5000+ images)</param>
@@ -666,7 +700,7 @@ public sealed class ImagePipeline : IAsyncDisposable
     }
 
     /// <summary>
-    /// Configures the loader atom.
+    ///     Configures the loader atom.
     /// </summary>
     public ImagePipeline WithLoader()
     {
@@ -675,7 +709,7 @@ public sealed class ImagePipeline : IAsyncDisposable
     }
 
     /// <summary>
-    /// Configures the resizer atom with custom options (sequential processing).
+    ///     Configures the resizer atom with custom options (sequential processing).
     /// </summary>
     public ImagePipeline WithResize(ResizeOptions? options = null)
     {
@@ -685,9 +719,9 @@ public sealed class ImagePipeline : IAsyncDisposable
     }
 
     /// <summary>
-    /// Configures the parallel resizer atom that uses an internal coordinator.
-    /// Demonstrates embedding a coordinator inside an atom for bounded parallel work.
-    /// The coordinator is scoped to each resize operation and has a small window (maxParallelism * 3).
+    ///     Configures the parallel resizer atom that uses an internal coordinator.
+    ///     Demonstrates embedding a coordinator inside an atom for bounded parallel work.
+    ///     The coordinator is scoped to each resize operation and has a small window (maxParallelism * 3).
     /// </summary>
     public ImagePipeline WithParallelResize(ParallelResizeOptions? options = null)
     {
@@ -697,7 +731,7 @@ public sealed class ImagePipeline : IAsyncDisposable
     }
 
     /// <summary>
-    /// Configures the EXIF processor atom with custom options.
+    ///     Configures the EXIF processor atom with custom options.
     /// </summary>
     public ImagePipeline WithExif(ExifOptions? options = null)
     {
@@ -706,7 +740,7 @@ public sealed class ImagePipeline : IAsyncDisposable
     }
 
     /// <summary>
-    /// Configures the watermark atom with custom options.
+    ///     Configures the watermark atom with custom options.
     /// </summary>
     public ImagePipeline WithWatermark(WatermarkOptions? options = null)
     {
@@ -715,8 +749,8 @@ public sealed class ImagePipeline : IAsyncDisposable
     }
 
     /// <summary>
-    /// Executes the configured pipeline on a single job.
-    /// If cancellation hook is enabled, operations can be cancelled via imagesharp.stop signal.
+    ///     Executes the configured pipeline on a single job.
+    ///     If cancellation hook is enabled, operations can be cancelled via imagesharp.stop signal.
     /// </summary>
     public async Task<ImageProcessingResult> ProcessAsync(
         ImageJob job,
@@ -742,25 +776,14 @@ public sealed class ImagePipeline : IAsyncDisposable
 
             // Resize (if configured) - either sequential or parallel
             if (_resizer != null)
-            {
                 ctx = await _resizer.ResizeAsync(ctx, effectiveToken);
-            }
-            else if (_parallelResizer != null)
-            {
-                ctx = await _parallelResizer.ResizeAsync(ctx, effectiveToken);
-            }
+            else if (_parallelResizer != null) ctx = await _parallelResizer.ResizeAsync(ctx, effectiveToken);
 
             // EXIF (if configured)
-            if (_exifProcessor != null)
-            {
-                ctx = await _exifProcessor.AddExifAsync(ctx, effectiveToken);
-            }
+            if (_exifProcessor != null) ctx = await _exifProcessor.AddExifAsync(ctx, effectiveToken);
 
             // Watermark (if configured)
-            if (_watermarker != null)
-            {
-                ctx = await _watermarker.AddWatermarkAsync(ctx, effectiveToken);
-            }
+            if (_watermarker != null) ctx = await _watermarker.AddWatermarkAsync(ctx, effectiveToken);
 
             var result = ctx.ToResult();
             _signals.Raise($"pipeline.complete:{job.ImageNumber}");
@@ -774,20 +797,7 @@ public sealed class ImagePipeline : IAsyncDisposable
         }
         finally
         {
-            if (ctx != null)
-            {
-                await ctx.DisposeAsync();
-            }
+            if (ctx != null) await ctx.DisposeAsync();
         }
-    }
-
-    public async ValueTask DisposeAsync()
-    {
-        if (_loader != null) await _loader.DisposeAsync();
-        if (_resizer != null) await _resizer.DisposeAsync();
-        if (_parallelResizer != null) await _parallelResizer.DisposeAsync();
-        if (_exifProcessor != null) await _exifProcessor.DisposeAsync();
-        if (_watermarker != null) await _watermarker.DisposeAsync();
-        if (_cancellationHook != null) await _cancellationHook.DisposeAsync();
     }
 }

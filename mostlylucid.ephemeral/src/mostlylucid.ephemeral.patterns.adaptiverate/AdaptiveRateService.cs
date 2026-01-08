@@ -1,5 +1,3 @@
-using Mostlylucid.Ephemeral;
-
 namespace Mostlylucid.Ephemeral.Patterns.AdaptiveRate;
 
 /// <summary>

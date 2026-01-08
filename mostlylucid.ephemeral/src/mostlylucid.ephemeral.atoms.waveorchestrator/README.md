@@ -2,7 +2,8 @@
 
 [![NuGet](https://img.shields.io/nuget/v/mostlylucid.ephemeral.atoms.waveorchestrator.svg)](https://www.nuget.org/packages/mostlylucid.ephemeral.atoms.waveorchestrator)
 
-> 🚨🚨 WARNING 🚨🚨 - Though in the 1.x range of version THINGS WILL STILL BREAK. This is the lab for developing this concept when stabilized it'll become the first *stylo*flow release 🚨🚨🚨
+> 🚨🚨 WARNING 🚨🚨 - Though in the 2.x range of version THINGS WILL STILL BREAK. This is the lab for developing this
+> concept when stabilized it'll become the first *stylo*flow release 🚨🚨🚨
 
 Wave-based parallel orchestrator with circuit breaker, early exit, and per-wave parallelism control.
 
@@ -59,22 +60,29 @@ Console.WriteLine($"Duration: {result.TotalDurationMs}ms");
 ## Key Features
 
 ### 🌊 Wave-Based Execution
+
 Execute workers in ordered waves. Within each wave, workers run in parallel. Between waves, execution is sequential.
 
 ### ⚡ Adaptive Parallelism
+
 Configure different parallelism levels per wave:
+
 - Wave 0 (fast): 8 parallel workers
 - Wave 1 (moderate): 4 parallel workers
 - Wave 2 (AI/LLM): 1 worker (expensive, sequential)
 
 ### 🚪 Early Exit
+
 Stop processing when a condition is met. Save resources by skipping remaining waves when answer is found early.
 
 ### 🔌 Circuit Breaker
+
 Automatically disable failing workers after threshold. Half-open retry after cooldown period.
 
 ### 📊 Full Observability
+
 All execution emitted as signals:
+
 - `wave.orchestrator.started`
 - `wave.started:wave={N}:workers={count}`
 - `worker.started:{name}`
@@ -194,18 +202,23 @@ var workers = new[]
 ## Use Cases
 
 ### API Request Processing
+
 Fast-path validation → slow-path deep analysis → expensive AI classification
 
 ### Machine Learning Pipelines
+
 Data loading → parallel feature extraction → model inference → aggregation
 
 ### E-Commerce Fraud Detection
+
 Quick checks (card BIN, IP) → behavioral analysis → ML model scoring
 
 ### Content Moderation
+
 Fast keyword scan → image analysis → LLM-based nuanced review
 
 ### Multi-Cloud Deployment
+
 Try primary cloud → failover to secondary → tertiary fallback with circuit breakers
 
 ---
@@ -217,6 +230,7 @@ Try primary cloud → failover to secondary → tertiary fallback with circuit b
 **Signal Emission**: ~1.2µs per signal (790K+ signals/sec)
 
 **Typical Bot Detection Pipeline:**
+
 - Wave 0 (pattern matching): 0.5ms (8 parallel)
 - Wave 1 (lookups): 5ms (4 parallel) - skipped 80% of time via early exit
 - Wave 2 (analysis): 25ms (2 parallel) - skipped 95% of time

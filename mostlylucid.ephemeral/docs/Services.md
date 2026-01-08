@@ -1,10 +1,13 @@
 # Services (DI) Integration
 
-This document describes how to register and use the Ephemeral coordinators and attribute runners with Microsoft.Extensions.DependencyInjection (IServiceCollection).
+This document describes how to register and use the Ephemeral coordinators and attribute runners with
+Microsoft.Extensions.DependencyInjection (IServiceCollection).
 
 ## Registering coordinators
 
-These helpers let you keep registration as concise as any other `AddX` call in ASP.NET Core. Use the shorter `AddCoordinator`/`AddScopedCoordinator`/`AddKeyedCoordinator` wrappers for readability, then pair them with `AddEphemeralSignalJobRunner` when you also need attribute-driven jobs.
+These helpers let you keep registration as concise as any other `AddX` call in ASP.NET Core. Use the shorter
+`AddCoordinator`/`AddScopedCoordinator`/`AddKeyedCoordinator` wrappers for readability, then pair them with
+`AddEphemeralSignalJobRunner` when you also need attribute-driven jobs.
 
 ```csharp
 var builder = WebApplication.CreateBuilder(args);
@@ -16,39 +19,62 @@ builder.Services.AddCoordinator<WorkItem>(
 builder.Services.AddEphemeralSignalJobRunner<LogWatcherJobs>();
 ```
 
-The runner registers its own `SignalSink` so the builder-owned sink is shared between coordinators, log hooks, and the `ResponsibilitySignalManager` wiring.
+The runner registers its own `SignalSink` so the builder-owned sink is shared between coordinators, log hooks, and the
+`ResponsibilitySignalManager` wiring.
 
-The library exposes extension methods on `IServiceCollection` to register coordinators in DI so they can be injected and managed by the container.
+The library exposes extension methods on `IServiceCollection` to register coordinators in DI so they can be injected and
+managed by the container.
 
-- `services.AddEphemeralWorkCoordinator<T>(Func<IServiceProvider, Func<T, CancellationToken, Task>> bodyFactory, EphemeralOptions? options = null)`
-  - Registers a singleton `EphemeralWorkCoordinator<T>` created by the provided factory.
+-
+`services.AddEphemeralWorkCoordinator<T>(Func<IServiceProvider, Func<T, CancellationToken, Task>> bodyFactory, EphemeralOptions? options = null)`
+    - Registers a singleton `EphemeralWorkCoordinator<T>` created by the provided factory.
 
 - `services.AddEphemeralWorkCoordinator<T>(Func<T, CancellationToken, Task> body, EphemeralOptions? options = null)`
-  - Overload for simple delegates that don't need services from the container.
+    - Overload for simple delegates that don't need services from the container.
 
-- `services.AddEphemeralKeyedWorkCoordinator<T, TKey>(Func<T, TKey> keySelector, Func<IServiceProvider, Func<T, CancellationToken, Task>> bodyFactory, EphemeralOptions? options = null)`
-  - Registers a keyed coordinator as a singleton.
+-
+`services.AddEphemeralKeyedWorkCoordinator<T, TKey>(Func<T, TKey> keySelector, Func<IServiceProvider, Func<T, CancellationToken, Task>> bodyFactory, EphemeralOptions? options = null)`
+    - Registers a keyed coordinator as a singleton.
 
-- `services.AddScopedEphemeralWorkCoordinator<T>(Func<IServiceProvider, Func<T, CancellationToken, Task>> bodyFactory, EphemeralOptions? options = null)`
-  - Registers a scoped coordinator instance per scope (useful when the coordinator must resolve scoped dependencies during execution).
+-
+`services.AddScopedEphemeralWorkCoordinator<T>(Func<IServiceProvider, Func<T, CancellationToken, Task>> bodyFactory, EphemeralOptions? options = null)`
+    - Registers a scoped coordinator instance per scope (useful when the coordinator must resolve scoped dependencies
+      during execution).
 
 - Named coordinator builders
-  - `services.AddEphemeralWorkCoordinator<T>(string name, Func<IServiceProvider, Func<T, CancellationToken, Task>> bodyFactory, EphemeralOptions? options = null)`
-  - When using named coordinators, the extensions create and store a `ConcurrentDictionary<string, EphemeralCoordinatorConfiguration<T>>` in DI, and register an `IEphemeralCoordinatorFactory<T>` singleton that can create coordinators at runtime via `CreateCoordinator(name)`.
+    -
+    `services.AddEphemeralWorkCoordinator<T>(string name, Func<IServiceProvider, Func<T, CancellationToken, Task>> bodyFactory, EphemeralOptions? options = null)`
+    - When using named coordinators, the extensions create and store a
+      `ConcurrentDictionary<string, EphemeralCoordinatorConfiguration<T>>` in DI, and register an
+      `IEphemeralCoordinatorFactory<T>` singleton that can create coordinators at runtime via `CreateCoordinator(name)`.
 
 For a more idiomatic `IServiceCollection` surface you can also use the shorter helpers:
 
-- `services.AddCoordinator<T>(Func<T, CancellationToken, Task> body, EphemeralOptions? options = null)` – a familiar `AddX` wrapper for `AddEphemeralWorkCoordinator`.
-- `services.AddCoordinator<T>(Func<IServiceProvider, Func<T, CancellationToken, Task>> bodyFactory, EphemeralOptions? options = null)` – factory-aware overload.
-- `services.AddScopedCoordinator<T>(Func<IServiceProvider, Func<T, CancellationToken, Task>> bodyFactory, EphemeralOptions? options = null)` – scoped lifetime variant.
-- `services.AddKeyedCoordinator<T, TKey>(Func<T, TKey> keySelector, Func<T, CancellationToken, Task> body, EphemeralOptions? options = null)` and `services.AddKeyedCoordinator<T, TKey>(Func<T, TKey> keySelector, Func<IServiceProvider, Func<T, CancellationToken, Task>> bodyFactory, EphemeralOptions? options = null)` – keyed aliases.
-- `services.AddScopedKeyedCoordinator<T, TKey>(Func<T, TKey> keySelector, Func<IServiceProvider, Func<T, CancellationToken, Task>> bodyFactory, EphemeralOptions? options = null)` – scoped keyed coordinator.
+- `services.AddCoordinator<T>(Func<T, CancellationToken, Task> body, EphemeralOptions? options = null)` – a familiar
+  `AddX` wrapper for `AddEphemeralWorkCoordinator`.
+-
+`services.AddCoordinator<T>(Func<IServiceProvider, Func<T, CancellationToken, Task>> bodyFactory, EphemeralOptions? options = null)` –
+factory-aware overload.
+-
+`services.AddScopedCoordinator<T>(Func<IServiceProvider, Func<T, CancellationToken, Task>> bodyFactory, EphemeralOptions? options = null)` –
+scoped lifetime variant.
+-
+`services.AddKeyedCoordinator<T, TKey>(Func<T, TKey> keySelector, Func<T, CancellationToken, Task> body, EphemeralOptions? options = null)`
+and
+`services.AddKeyedCoordinator<T, TKey>(Func<T, TKey> keySelector, Func<IServiceProvider, Func<T, CancellationToken, Task>> bodyFactory, EphemeralOptions? options = null)` –
+keyed aliases.
+-
+`services.AddScopedKeyedCoordinator<T, TKey>(Func<T, TKey> keySelector, Func<IServiceProvider, Func<T, CancellationToken, Task>> bodyFactory, EphemeralOptions? options = null)` –
+scoped keyed coordinator.
 
-These helpers simply delegate to the `Ephemeral`-prefixed methods but make the registration/readability mirror other ASP.NET Core services.
+These helpers simply delegate to the `Ephemeral`-prefixed methods but make the registration/readability mirror other
+ASP.NET Core services.
 
 ## Lane-aware coordinators
 
-Priority-aware coordinators extend the same `AddCoordinator` idea with named lanes (`PriorityLane`) and optional signal gates on each lane. Register `PriorityWorkCoordinator` or `PriorityKeyedWorkCoordinator` as a singleton whenever you need hot/cold separation while keeping per-key ordering.
+Priority-aware coordinators extend the same `AddCoordinator` idea with named lanes (`PriorityLane`) and optional signal
+gates on each lane. Register `PriorityWorkCoordinator` or `PriorityKeyedWorkCoordinator` as a singleton whenever you
+need hot/cold separation while keeping per-key ordering.
 
 ```csharp
 var sink = new SignalSink();
@@ -66,19 +92,24 @@ services.AddSingleton(_ => new PriorityWorkCoordinator<WorkItem>(
         new EphemeralOptions { Signals = sink })));
 ```
 
-Keys are still handled with the keyed helpers—`PriorityKeyedWorkCoordinator` simply adds your key selector so each partition remains sequential while the lane pump still favors the hot bowl.
+Keys are still handled with the keyed helpers—`PriorityKeyedWorkCoordinator` simply adds your key selector so each
+partition remains sequential while the lane pump still favors the hot bowl.
 
-Use the `AddCoordinator` family whenever you want the familiar `AddX` naming, including `services.AddScopedCoordinator` and the keyed variants, so coordinators can be registered just like any other service at the lifetime you need.
+Use the `AddCoordinator` family whenever you want the familiar `AddX` naming, including `services.AddScopedCoordinator`
+and the keyed variants, so coordinators can be registered just like any other service at the lifetime you need.
 
 ## Registering attribute-driven runners
 
 `mostlylucid.ephemeral.attributes` provides helper extensions:
 
-- `services.AddEphemeralSignalJobRunner<TJob>(EphemeralOptions? options = null, Func<IServiceProvider, SignalSink>? signalFactory = null)`
-  - Registers a `SignalSink` (unless you provide one) and an `EphemeralSignalJobRunner` that instantiates the provided job types once and manages them as singletons.
+-
+`services.AddEphemeralSignalJobRunner<TJob>(EphemeralOptions? options = null, Func<IServiceProvider, SignalSink>? signalFactory = null)`
+    - Registers a `SignalSink` (unless you provide one) and an `EphemeralSignalJobRunner` that instantiates the provided
+      job types once and manages them as singletons.
 
-- `services.AddEphemeralScopedJobRunner<TJob>(EphemeralOptions? options = null, Func<IServiceProvider, SignalSink>? signalFactory = null)`
-  - Registers a scoped runner that resolves job types per invocation (for jobs depending on scoped services).
+-
+`services.AddEphemeralScopedJobRunner<TJob>(EphemeralOptions? options = null, Func<IServiceProvider, SignalSink>? signalFactory = null)`
+    - Registers a scoped runner that resolves job types per invocation (for jobs depending on scoped services).
 
 Example:
 
@@ -104,13 +135,18 @@ await coordinator.EnqueueAsync(new Order());
 
 ## Notes and best practices
 
-- Lifetime mismatch: avoid singletons capturing scoped services (inject IServiceProvider and resolve scoped services inside factory lambdas when needed).
-- Disposal: singleton coordinator factories implement IDisposable and cancel created coordinators on dispose; ensure `IServiceProvider` is disposed when appropriate (e.g., by using a root `ServiceProvider` in a host).
-- Named coordinators are useful when you need multiple configurations ("priority", "background", etc.) and want shared factories for runtime creation.
+- Lifetime mismatch: avoid singletons capturing scoped services (inject IServiceProvider and resolve scoped services
+  inside factory lambdas when needed).
+- Disposal: singleton coordinator factories implement IDisposable and cancel created coordinators on dispose; ensure
+  `IServiceProvider` is disposed when appropriate (e.g., by using a root `ServiceProvider` in a host).
+- Named coordinators are useful when you need multiple configurations ("priority", "background", etc.) and want shared
+  factories for runtime creation.
 
 ## Troubleshooting
 
-- If `CreateCoordinator` throws `InvalidOperationException` for a name, ensure `AddEphemeralWorkCoordinator<T>(name, ...)` was called during registration for that name.
-- If resolution fails at runtime, check that required packages and types are registered (e.g., `SignalSink` or job types). 
+- If `CreateCoordinator` throws `InvalidOperationException` for a name, ensure
+  `AddEphemeralWorkCoordinator<T>(name, ...)` was called during registration for that name.
+- If resolution fails at runtime, check that required packages and types are registered (e.g., `SignalSink` or job
+  types). 
 
 

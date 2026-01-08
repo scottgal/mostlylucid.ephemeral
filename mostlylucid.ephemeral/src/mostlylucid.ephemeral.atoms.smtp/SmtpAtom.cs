@@ -1,26 +1,35 @@
 using MailKit.Net.Smtp;
 using MailKit.Security;
 using MimeKit;
-using Mostlylucid.Ephemeral;
 
 namespace Mostlylucid.Ephemeral.Atoms.Smtp;
 
 /// <summary>
 ///     SMTP email sending atom with retry support and signal tracking.
-///
 ///     Uses MailKit for reliable SMTP operations with modern authentication.
 /// </summary>
 public class SmtpAtom : IAsyncDisposable
 {
+    private readonly SemaphoreSlim _lock = new(1, 1);
     private readonly SmtpOptions _options;
     private readonly SignalSink? _signals;
-    private readonly SemaphoreSlim _lock = new(1, 1);
     private SmtpClient? _client;
 
     public SmtpAtom(SmtpOptions options, SignalSink? signals = null)
     {
         _options = options ?? throw new ArgumentNullException(nameof(options));
         _signals = signals;
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_client != null)
+        {
+            if (_client.IsConnected) await _client.DisconnectAsync(true);
+            _client.Dispose();
+        }
+
+        _lock.Dispose();
     }
 
     /// <summary>
@@ -42,10 +51,7 @@ public class SmtpAtom : IAsyncDisposable
                 // Reuse connection if persistent, otherwise create new
                 if (_options.UsePersistentConnection)
                 {
-                    if (_client == null || !_client.IsConnected)
-                    {
-                        await ConnectAsync(cancellationToken);
-                    }
+                    if (_client == null || !_client.IsConnected) await ConnectAsync(cancellationToken);
                 }
                 else
                 {
@@ -107,10 +113,7 @@ public class SmtpAtom : IAsyncDisposable
         try
         {
             // Always use persistent connection for batch
-            if (_client == null || !_client.IsConnected)
-            {
-                await ConnectAsync(cancellationToken);
-            }
+            if (_client == null || !_client.IsConnected) await ConnectAsync(cancellationToken);
 
             foreach (var message in messages)
             {
@@ -139,71 +142,40 @@ public class SmtpAtom : IAsyncDisposable
         await client.ConnectAsync(_options.Host, _options.Port, _options.SecureSocketOptions, cancellationToken);
 
         if (_options.RequiresAuthentication)
-        {
             await client.AuthenticateAsync(_options.Username, _options.Password, cancellationToken);
-        }
 
-        _signals?.Raise($"smtp.connected");
+        _signals?.Raise("smtp.connected");
     }
 
     private MimeMessage BuildMimeMessage(EmailMessage message)
     {
         var mimeMessage = new MimeMessage();
 
-        mimeMessage.From.Add(new MailboxAddress(message.FromName ?? _options.DefaultFromName, message.From ?? _options.DefaultFromAddress));
+        mimeMessage.From.Add(new MailboxAddress(message.FromName ?? _options.DefaultFromName,
+            message.From ?? _options.DefaultFromAddress));
         mimeMessage.To.Add(MailboxAddress.Parse(message.To));
 
-        if (!string.IsNullOrEmpty(message.ReplyTo))
-        {
-            mimeMessage.ReplyTo.Add(MailboxAddress.Parse(message.ReplyTo));
-        }
+        if (!string.IsNullOrEmpty(message.ReplyTo)) mimeMessage.ReplyTo.Add(MailboxAddress.Parse(message.ReplyTo));
 
         mimeMessage.Subject = message.Subject;
 
         var bodyBuilder = new BodyBuilder();
 
         if (message.IsHtml)
-        {
             bodyBuilder.HtmlBody = message.Body;
-        }
         else
-        {
             bodyBuilder.TextBody = message.Body;
-        }
 
         // Attachments
         if (message.Attachments != null)
-        {
             foreach (var attachment in message.Attachments)
-            {
                 if (attachment.Stream != null)
-                {
                     bodyBuilder.Attachments.Add(attachment.Filename, attachment.Stream);
-                }
-                else if (!string.IsNullOrEmpty(attachment.FilePath))
-                {
-                    bodyBuilder.Attachments.Add(attachment.FilePath);
-                }
-            }
-        }
+                else if (!string.IsNullOrEmpty(attachment.FilePath)) bodyBuilder.Attachments.Add(attachment.FilePath);
 
         mimeMessage.Body = bodyBuilder.ToMessageBody();
 
         return mimeMessage;
-    }
-
-    public async ValueTask DisposeAsync()
-    {
-        if (_client != null)
-        {
-            if (_client.IsConnected)
-            {
-                await _client.DisconnectAsync(true);
-            }
-            _client.Dispose();
-        }
-
-        _lock.Dispose();
     }
 }
 

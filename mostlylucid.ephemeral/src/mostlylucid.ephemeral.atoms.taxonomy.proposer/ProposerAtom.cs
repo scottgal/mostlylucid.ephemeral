@@ -1,23 +1,18 @@
-using System;
-using System.Threading;
-using System.Threading.Tasks;
-using Mostlylucid.Ephemeral;
-
 namespace Mostlylucid.Ephemeral.Atoms.Taxonomy;
 
 /// <summary>
-/// Probabilistic proposer atom that emits proposals with confidence.
+///     Probabilistic proposer atom that emits proposals with confidence.
 /// </summary>
 /// <remarks>
-/// Default contract: Kind = Proposer, Determinism = Probabilistic, Persistence = PersistableViaEscalation.
-/// Output signals default to "atom.proposer.output" unless overridden.
+///     Default contract: Kind = Proposer, Determinism = Probabilistic, Persistence = PersistableViaEscalation.
+///     Output signals default to "atom.proposer.output" unless overridden.
 /// </remarks>
 /// <typeparam name="TInput">The input payload type.</typeparam>
 /// <typeparam name="TOutput">The output payload type.</typeparam>
 public sealed class ProposerAtom<TInput, TOutput> : SignalDrivenAtom<TInput, TOutput>
 {
     /// <summary>
-    /// Initializes a ProposerAtom that emits to an untyped SignalSink.
+    ///     Initializes a ProposerAtom that emits to an untyped SignalSink.
     /// </summary>
     /// <param name="signals">Signal sink that receives output signals.</param>
     /// <param name="handler">Handler invoked for each input.</param>
@@ -40,7 +35,7 @@ public sealed class ProposerAtom<TInput, TOutput> : SignalDrivenAtom<TInput, TOu
     }
 
     /// <summary>
-    /// Initializes a ProposerAtom that emits to a TypedSignalSink.
+    ///     Initializes a ProposerAtom that emits to a TypedSignalSink.
     /// </summary>
     /// <param name="typedSignals">Typed signal sink that receives output signals.</param>
     /// <param name="handler">Handler invoked for each input.</param>

@@ -4,7 +4,8 @@ Generic Cell Rate Algorithm (GCRA) rate limiting for Ephemeral, with full signal
 
 ## What is GCRA?
 
-GCRA is a **leaky bucket variant** that provides smooth, evenly-distributed rate limiting without periodic token refills. Instead of adding tokens at intervals, GCRA calculates a "theoretical arrival time" (TAT) for each request.
+GCRA is a **leaky bucket variant** that provides smooth, evenly-distributed rate limiting without periodic token
+refills. Instead of adding tokens at intervals, GCRA calculates a "theoretical arrival time" (TAT) for each request.
 
 ### How It Works
 
@@ -22,17 +23,18 @@ With `rate=10/s` and `burst=5`:
 - **Emission interval**: 100ms (1 second / 10 requests)
 - **Burst capacity**: 400ms (4 × 100ms, since burst-1)
 - If TAT is at time `T`:
-  - Request at `T-300ms`: ✅ ALLOWED (within burst capacity)
-  - Request at `T+50ms`: ❌ DENIED (would exceed rate)
+    - Request at `T-300ms`: ✅ ALLOWED (within burst capacity)
+    - Request at `T+50ms`: ❌ DENIED (would exceed rate)
 
 ## Why GCRA?
 
-| Algorithm | Behavior | Best For |
-|-----------|----------|----------|
-| **Token Bucket** | Periodic refills, allows bursts | Bursty workloads with known intervals |
-| **GCRA** | Smooth distribution, no periodic timers | Evenly-spread requests, low jitter |
+| Algorithm        | Behavior                                | Best For                              |
+|------------------|-----------------------------------------|---------------------------------------|
+| **Token Bucket** | Periodic refills, allows bursts         | Bursty workloads with known intervals |
+| **GCRA**         | Smooth distribution, no periodic timers | Evenly-spread requests, low jitter    |
 
 **GCRA advantages:**
+
 - ✅ No background timers or periodic updates
 - ✅ Smoother rate limiting (less "sawtooth" pattern)
 - ✅ More predictable latency
@@ -289,23 +291,23 @@ sink.Subscribe(signal =>
 
 When `EmitSignals = true`, the atom emits:
 
-| Signal | When | Payload |
-|--------|------|---------|
-| `rate.limit.gcra.allowed` | Request immediately allowed | - |
-| `rate.limit.gcra.delayed:{ms}` | Request delayed | Delay in milliseconds |
-| `rate.limit.gcra.denied` | Request denied (TryAcquire) | - |
-| `rate.limit.gcra.config:{rate},{burst}` | Configuration changed | Current rate and burst |
-| `rate.limit.gcra.reset` | State reset | - |
+| Signal                                  | When                        | Payload                |
+|-----------------------------------------|-----------------------------|------------------------|
+| `rate.limit.gcra.allowed`               | Request immediately allowed | -                      |
+| `rate.limit.gcra.delayed:{ms}`          | Request delayed             | Delay in milliseconds  |
+| `rate.limit.gcra.denied`                | Request denied (TryAcquire) | -                      |
+| `rate.limit.gcra.config:{rate},{burst}` | Configuration changed       | Current rate and burst |
+| `rate.limit.gcra.reset`                 | State reset                 | -                      |
 
 ## Control Signals
 
 Send these signals to control the limiter:
 
-| Signal | Effect | Example |
-|--------|--------|---------|
-| `rate.limit.gcra.set:{rate}` | Set rate per second | `rate.limit.gcra.set:50` |
-| `rate.limit.gcra.burst:{size}` | Set burst size | `rate.limit.gcra.burst:10` |
-| `rate.limit.gcra.reset` | Reset state | `rate.limit.gcra.reset` |
+| Signal                         | Effect              | Example                    |
+|--------------------------------|---------------------|----------------------------|
+| `rate.limit.gcra.set:{rate}`   | Set rate per second | `rate.limit.gcra.set:50`   |
+| `rate.limit.gcra.burst:{size}` | Set burst size      | `rate.limit.gcra.burst:10` |
+| `rate.limit.gcra.reset`        | Reset state         | `rate.limit.gcra.reset`    |
 
 ## Configuration Options
 

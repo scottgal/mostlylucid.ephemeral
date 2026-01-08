@@ -1,26 +1,23 @@
 using System.Collections.Concurrent;
 using System.IO.Hashing;
 using System.Text;
-using Mostlylucid.Ephemeral;
 
 namespace Mostlylucid.Ephemeral.Atoms.BurstDetection;
 
 /// <summary>
 ///     Detects sudden bursts/spikes in request patterns.
-///
 ///     Tracks requests within a sliding time window and detects when
 ///     the count exceeds the threshold, indicating a burst pattern.
-///
 ///     Privacy-preserving: Uses XxHash64 for identity hashing.
 /// </summary>
 public class BurstDetectionAtom : IAsyncDisposable
 {
-    private readonly ConcurrentDictionary<string, TrackedRequests> _requests = new();
-    private readonly TimeSpan _window;
-    private readonly int _threshold;
-    private readonly SignalSink? _signals;
-    private readonly string _salt;
     private readonly Timer? _cleanupTimer;
+    private readonly ConcurrentDictionary<string, TrackedRequests> _requests = new();
+    private readonly string _salt;
+    private readonly SignalSink? _signals;
+    private readonly int _threshold;
+    private readonly TimeSpan _window;
 
     public BurstDetectionAtom(
         TimeSpan? window = null,
@@ -34,6 +31,11 @@ public class BurstDetectionAtom : IAsyncDisposable
         _salt = salt ?? Guid.NewGuid().ToString();
 
         _cleanupTimer = new Timer(CleanupOldEntries, null, TimeSpan.FromMinutes(1), TimeSpan.FromMinutes(1));
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_cleanupTimer != null) await _cleanupTimer.DisposeAsync();
     }
 
     /// <summary>
@@ -64,7 +66,8 @@ public class BurstDetectionAtom : IAsyncDisposable
                 var burstStart = tracked.Timestamps.Where(t => t >= windowStart).Min();
                 var burstDuration = now - burstStart;
 
-                _signals?.Raise($"burst.detected:{signature}:count={recentCount}:duration={burstDuration.TotalSeconds:F0}s");
+                _signals?.Raise(
+                    $"burst.detected:{signature}:count={recentCount}:duration={burstDuration.TotalSeconds:F0}s");
 
                 return new BurstResult
                 {
@@ -141,35 +144,16 @@ public class BurstDetectionAtom : IAsyncDisposable
         var toRemove = new List<string>();
 
         foreach (var kvp in _requests)
-        {
             lock (kvp.Value)
             {
                 kvp.Value.Timestamps.RemoveAll(t => t < cutoff);
 
-                if (kvp.Value.Timestamps.Count == 0)
-                {
-                    toRemove.Add(kvp.Key);
-                }
+                if (kvp.Value.Timestamps.Count == 0) toRemove.Add(kvp.Key);
             }
-        }
 
-        foreach (var key in toRemove)
-        {
-            _requests.TryRemove(key, out _);
-        }
+        foreach (var key in toRemove) _requests.TryRemove(key, out _);
 
-        if (toRemove.Count > 0)
-        {
-            _signals?.Raise($"burst.cleanup:removed={toRemove.Count}");
-        }
-    }
-
-    public async ValueTask DisposeAsync()
-    {
-        if (_cleanupTimer != null)
-        {
-            await _cleanupTimer.DisposeAsync();
-        }
+        if (toRemove.Count > 0) _signals?.Raise($"burst.cleanup:removed={toRemove.Count}");
     }
 
     private class TrackedRequests

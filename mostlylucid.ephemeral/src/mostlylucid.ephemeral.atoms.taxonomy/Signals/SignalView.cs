@@ -1,29 +1,25 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Text.RegularExpressions;
 
 namespace Mostlylucid.Ephemeral.Atoms.Taxonomy.Signals;
 
 /// <summary>
-/// A view over LIVE signals from Atoms running in Coordinators.
-/// Views are lightweight query interfaces with NO separate lifetime.
+///     A view over LIVE signals from Atoms running in Coordinators.
+///     Views are lightweight query interfaces with NO separate lifetime.
 /// </summary>
 /// <remarks>
-/// **Signal Flow:**
-/// ```
-/// Atoms (own signals) → SignalView (queries live signals)
-///                              ↓
-///                     (escalation via LedgerAtom)
-///                              ↓
-///                     EntityLedger (persisted to RDBMS + Vector)
-/// ```
-///
-/// Key principles:
-/// - Views query LIVE signals from atoms in coordinators
-/// - Views have no separate lifetime (signals die with atoms)
-/// - Views can span multiple coordinators
-/// - High-salience signals can be ESCALATED to EntityLedger via LedgerAtom
+///     **Signal Flow:**
+///     ```
+///     Atoms (own signals) → SignalView (queries live signals)
+///     ↓
+///     (escalation via LedgerAtom)
+///     ↓
+///     EntityLedger (persisted to RDBMS + Vector)
+///     ```
+///     Key principles:
+///     - Views query LIVE signals from atoms in coordinators
+///     - Views have no separate lifetime (signals die with atoms)
+///     - Views can span multiple coordinators
+///     - High-salience signals can be ESCALATED to EntityLedger via LedgerAtom
 /// </remarks>
 public sealed class SignalView
 {
@@ -31,7 +27,7 @@ public sealed class SignalView
     private readonly Regex? _patternRegex;
 
     /// <summary>
-    /// Creates a view over a single coordinator.
+    ///     Creates a view over a single coordinator.
     /// </summary>
     public SignalView(ISignalCoordinator coordinator, SignalViewOptions? options = null)
         : this(new[] { coordinator }, options)
@@ -39,7 +35,7 @@ public sealed class SignalView
     }
 
     /// <summary>
-    /// Creates a view over multiple coordinators.
+    ///     Creates a view over multiple coordinators.
     /// </summary>
     public SignalView(IEnumerable<ISignalCoordinator> coordinators, SignalViewOptions? options = null)
     {
@@ -61,22 +57,27 @@ public sealed class SignalView
     }
 
     /// <summary>
-    /// View name for identification.
+    ///     View name for identification.
     /// </summary>
     public string Name => Options.Name ?? "unnamed";
 
     /// <summary>
-    /// View configuration.
+    ///     View configuration.
     /// </summary>
     public SignalViewOptions Options { get; }
 
     /// <summary>
-    /// Number of coordinators this view covers.
+    ///     Number of coordinators this view covers.
     /// </summary>
     public int CoordinatorCount => _coordinators.Count;
 
     /// <summary>
-    /// Adds a coordinator to this view.
+    ///     Number of live signals visible in this view.
+    /// </summary>
+    public int Count => GetSignals().Count;
+
+    /// <summary>
+    ///     Adds a coordinator to this view.
     /// </summary>
     public void AddCoordinator(ISignalCoordinator coordinator)
     {
@@ -91,7 +92,7 @@ public sealed class SignalView
     }
 
     /// <summary>
-    /// Removes a coordinator from this view.
+    ///     Removes a coordinator from this view.
     /// </summary>
     public bool RemoveCoordinator(ISignalCoordinator coordinator)
     {
@@ -102,7 +103,7 @@ public sealed class SignalView
     }
 
     /// <summary>
-    /// Gets all live signals matching the view filter.
+    ///     Gets all live signals matching the view filter.
     /// </summary>
     public IReadOnlyList<LiveSignal> GetSignals()
     {
@@ -114,14 +115,14 @@ public sealed class SignalView
 
         var allSignals = snapshot
             .SelectMany(c => c.GetAllSignals())
-            .Where(s => s.Source.IsActive)  // Only live signals
+            .Where(s => s.Source.IsActive) // Only live signals
             .AsEnumerable();
 
         return ApplyFilters(allSignals).ToList();
     }
 
     /// <summary>
-    /// Gets signals matching a specific pattern (overrides view pattern).
+    ///     Gets signals matching a specific pattern (overrides view pattern).
     /// </summary>
     public IReadOnlyList<LiveSignal> GetSignals(string pattern)
     {
@@ -140,7 +141,7 @@ public sealed class SignalView
     }
 
     /// <summary>
-    /// Checks if a signal exists in this view.
+    ///     Checks if a signal exists in this view.
     /// </summary>
     public bool HasSignal(string key)
     {
@@ -148,7 +149,7 @@ public sealed class SignalView
     }
 
     /// <summary>
-    /// Gets a signal by key (if it passes the view filter and is live).
+    ///     Gets a signal by key (if it passes the view filter and is live).
     /// </summary>
     public LiveSignal? GetSignal(string key)
     {
@@ -159,23 +160,21 @@ public sealed class SignalView
         }
 
         foreach (var coordinator in snapshot)
+        foreach (var source in coordinator.GetSources())
         {
-            foreach (var source in coordinator.GetSources())
-            {
-                if (!source.IsActive)
-                    continue;
+            if (!source.IsActive)
+                continue;
 
-                var signal = source.GetSignal(key);
-                if (signal is not null && PassesFilter(signal))
-                    return signal;
-            }
+            var signal = source.GetSignal(key);
+            if (signal is not null && PassesFilter(signal))
+                return signal;
         }
 
         return null;
     }
 
     /// <summary>
-    /// Gets the value of a signal.
+    ///     Gets the value of a signal.
     /// </summary>
     public T? GetValue<T>(string key)
     {
@@ -184,7 +183,7 @@ public sealed class SignalView
     }
 
     /// <summary>
-    /// Gets high-salience signals from this view (candidates for escalation).
+    ///     Gets high-salience signals from this view (candidates for escalation).
     /// </summary>
     public IReadOnlyList<LiveSignal> GetEscalationCandidates(double threshold = 0.8)
     {
@@ -199,12 +198,7 @@ public sealed class SignalView
     }
 
     /// <summary>
-    /// Number of live signals visible in this view.
-    /// </summary>
-    public int Count => GetSignals().Count;
-
-    /// <summary>
-    /// Creates a derived view with additional filters.
+    ///     Creates a derived view with additional filters.
     /// </summary>
     public SignalView Derive(SignalViewOptions additionalOptions)
     {
@@ -300,47 +294,47 @@ public sealed class SignalView
 }
 
 /// <summary>
-/// Options for configuring a signal view over live signals.
+///     Options for configuring a signal view over live signals.
 /// </summary>
 public sealed class SignalViewOptions
 {
     /// <summary>
-    /// View name for identification.
+    ///     View name for identification.
     /// </summary>
     public string? Name { get; init; }
 
     /// <summary>
-    /// Pattern filter for signal keys (glob-style: *, ?).
+    ///     Pattern filter for signal keys (glob-style: *, ?).
     /// </summary>
     public string? Pattern { get; init; }
 
     /// <summary>
-    /// Minimum salience threshold.
+    ///     Minimum salience threshold.
     /// </summary>
     public double? SalienceThreshold { get; init; }
 
     /// <summary>
-    /// Only include signals from sources with these names.
+    ///     Only include signals from sources with these names.
     /// </summary>
     public IReadOnlyList<string>? SourceNames { get; init; }
 
     /// <summary>
-    /// Only include signals from sources of these kinds.
+    ///     Only include signals from sources of these kinds.
     /// </summary>
     public IReadOnlyList<string>? SourceKinds { get; init; }
 
     /// <summary>
-    /// Maximum number of signals.
+    ///     Maximum number of signals.
     /// </summary>
     public int? MaxSignals { get; init; }
 
     /// <summary>
-    /// Only include signals newer than this.
+    ///     Only include signals newer than this.
     /// </summary>
     public DateTimeOffset? Since { get; init; }
 
     /// <summary>
-    /// Fast-path view (sensors only).
+    ///     Fast-path view (sensors only).
     /// </summary>
     public static SignalViewOptions FastPath => new()
     {
@@ -349,7 +343,7 @@ public sealed class SignalViewOptions
     };
 
     /// <summary>
-    /// Learning view (high salience only).
+    ///     Learning view (high salience only).
     /// </summary>
     public static SignalViewOptions Learning => new()
     {
@@ -358,7 +352,7 @@ public sealed class SignalViewOptions
     };
 
     /// <summary>
-    /// Escalation view (very high salience).
+    ///     Escalation view (very high salience).
     /// </summary>
     public static SignalViewOptions Escalation => new()
     {
@@ -367,7 +361,7 @@ public sealed class SignalViewOptions
     };
 
     /// <summary>
-    /// All signals view.
+    ///     All signals view.
     /// </summary>
     public static SignalViewOptions All => new()
     {

@@ -1,7 +1,7 @@
 namespace Mostlylucid.Ephemeral.Atoms.Taxonomy;
 
 /// <summary>
-/// Shard metadata for sensor atoms.
+///     Shard metadata for sensor atoms.
 /// </summary>
 public sealed class SensorShard : ITaxonomyShard
 {
@@ -12,7 +12,7 @@ public sealed class SensorShard : ITaxonomyShard
 }
 
 /// <summary>
-/// Shard metadata for extractor atoms.
+///     Shard metadata for extractor atoms.
 /// </summary>
 public sealed class ExtractorShard : ITaxonomyShard
 {
@@ -23,7 +23,7 @@ public sealed class ExtractorShard : ITaxonomyShard
 }
 
 /// <summary>
-/// Shard metadata for embedder atoms.
+///     Shard metadata for embedder atoms.
 /// </summary>
 public sealed class EmbedderShard : ITaxonomyShard
 {
@@ -34,7 +34,7 @@ public sealed class EmbedderShard : ITaxonomyShard
 }
 
 /// <summary>
-/// Shard metadata for retriever atoms.
+///     Shard metadata for retriever atoms.
 /// </summary>
 public sealed class RetrieverShard : ITaxonomyShard
 {
@@ -45,7 +45,7 @@ public sealed class RetrieverShard : ITaxonomyShard
 }
 
 /// <summary>
-/// Shard metadata for proposer atoms.
+///     Shard metadata for proposer atoms.
 /// </summary>
 public sealed class ProposerShard : ITaxonomyShard
 {
@@ -56,7 +56,7 @@ public sealed class ProposerShard : ITaxonomyShard
 }
 
 /// <summary>
-/// Shard metadata for constrainer atoms.
+///     Shard metadata for constrainer atoms.
 /// </summary>
 public sealed class ConstrainerShard : ITaxonomyShard
 {
@@ -67,7 +67,7 @@ public sealed class ConstrainerShard : ITaxonomyShard
 }
 
 /// <summary>
-/// Shard metadata for ranker atoms.
+///     Shard metadata for ranker atoms.
 /// </summary>
 public sealed class RankerShard : ITaxonomyShard
 {
@@ -78,7 +78,7 @@ public sealed class RankerShard : ITaxonomyShard
 }
 
 /// <summary>
-/// Shard metadata for renderer atoms.
+///     Shard metadata for renderer atoms.
 /// </summary>
 public sealed class RendererShard : ITaxonomyShard
 {
@@ -89,7 +89,7 @@ public sealed class RendererShard : ITaxonomyShard
 }
 
 /// <summary>
-/// Shard metadata for coordinator atoms.
+///     Shard metadata for coordinator atoms.
 /// </summary>
 public sealed class CoordinatorShard : ITaxonomyShard
 {
@@ -100,7 +100,7 @@ public sealed class CoordinatorShard : ITaxonomyShard
 }
 
 /// <summary>
-/// Shard metadata for feedback atoms.
+///     Shard metadata for feedback atoms.
 /// </summary>
 public sealed class FeedbackShard : ITaxonomyShard
 {
@@ -111,7 +111,7 @@ public sealed class FeedbackShard : ITaxonomyShard
 }
 
 /// <summary>
-/// Shard metadata for escalator atoms.
+///     Shard metadata for escalator atoms.
 /// </summary>
 public sealed class EscalatorShard : ITaxonomyShard
 {
@@ -122,7 +122,7 @@ public sealed class EscalatorShard : ITaxonomyShard
 }
 
 /// <summary>
-/// Shard metadata for guard atoms.
+///     Shard metadata for guard atoms.
 /// </summary>
 public sealed class GuardShard : ITaxonomyShard
 {

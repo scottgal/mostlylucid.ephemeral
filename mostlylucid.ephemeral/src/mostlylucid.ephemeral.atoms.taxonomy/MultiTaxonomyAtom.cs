@@ -1,23 +1,17 @@
-using System;
-using System.Collections.Generic;
-using System.Threading;
-using System.Threading.Tasks;
-using Mostlylucid.Ephemeral;
-
 namespace Mostlylucid.Ephemeral.Atoms.Taxonomy;
 
 /// <summary>
-/// Composable atom wrapper that combines multiple taxonomy kinds into a single contract.
+///     Composable atom wrapper that combines multiple taxonomy kinds into a single contract.
 /// </summary>
 /// <remarks>
-/// The first shard is treated as the primary kind for default output signals.
+///     The first shard is treated as the primary kind for default output signals.
 /// </remarks>
 /// <typeparam name="TInput">The input payload type.</typeparam>
 /// <typeparam name="TOutput">The output payload type.</typeparam>
 public sealed class MultiTaxonomyAtom<TInput, TOutput> : SignalDrivenAtom<TInput, TOutput>
 {
     /// <summary>
-    /// Initializes a MultiTaxonomyAtom that emits to an untyped SignalSink.
+    ///     Initializes a MultiTaxonomyAtom that emits to an untyped SignalSink.
     /// </summary>
     /// <param name="signals">Signal sink that receives output signals.</param>
     /// <param name="handler">Handler invoked for each input.</param>
@@ -49,7 +43,7 @@ public sealed class MultiTaxonomyAtom<TInput, TOutput> : SignalDrivenAtom<TInput
     }
 
     /// <summary>
-    /// Initializes a MultiTaxonomyAtom that emits to a TypedSignalSink.
+    ///     Initializes a MultiTaxonomyAtom that emits to a TypedSignalSink.
     /// </summary>
     /// <param name="typedSignals">Typed signal sink that receives output signals.</param>
     /// <param name="handler">Handler invoked for each input.</param>
@@ -81,7 +75,7 @@ public sealed class MultiTaxonomyAtom<TInput, TOutput> : SignalDrivenAtom<TInput
     }
 
     /// <summary>
-    /// The taxonomy shards used to build the contract.
+    ///     The taxonomy shards used to build the contract.
     /// </summary>
     public IReadOnlyList<TaxonomyShard> Shards { get; }
 
@@ -117,7 +111,8 @@ public sealed class MultiTaxonomyAtom<TInput, TOutput> : SignalDrivenAtom<TInput
             return expected;
 
         if (!ContractMatchesShards(contract, expected, shardList))
-            throw new ArgumentException("Provided contract does not match the supplied taxonomy shards.", nameof(contract));
+            throw new ArgumentException("Provided contract does not match the supplied taxonomy shards.",
+                nameof(contract));
 
         return contract;
     }
@@ -136,10 +131,8 @@ public sealed class MultiTaxonomyAtom<TInput, TOutput> : SignalDrivenAtom<TInput
 
         var contractKinds = new HashSet<AtomKind>(contract.Kinds);
         foreach (var shard in shards)
-        {
             if (!contractKinds.Contains(shard.Kind))
                 return false;
-        }
 
         return true;
     }

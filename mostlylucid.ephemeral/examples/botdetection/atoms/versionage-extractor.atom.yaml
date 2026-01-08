@@ -1,0 +1,110 @@
+# ==========================================
+# ATOM MANIFEST: VersionAgeExtractor
+# Extracts and analyzes browser/OS version ages
+# ==========================================
+
+name: "VersionAgeExtractor"
+version: "1.0.0"
+description: "Parses UA for browser/OS versions and checks against known release dates"
+
+implementation:
+  nuget:
+    package: "Mostlylucid.BotDetection.Detectors"
+    version: "^2.0.0"
+    type: "Mostlylucid.BotDetection.Detection.Detectors.VersionAgeDetector"
+
+taxonomy:
+  kind: extractor
+  determinism: deterministic
+  persistence: escalatable  # Uses browser version service
+
+scope:
+  sink: "botdetection"
+  coordinator: "detection"
+  atom: "versionage"
+
+triggers:
+  requires:
+    - signal: "http.headers.useragent"
+      condition: "HasValue"
+  skip_when:
+    - signal: "detection.early_exit"
+
+emits:
+  on_start:
+    - "atom.versionage.started"
+
+  on_complete:
+    - key: "detection.versionage.confidence"
+      type: double
+      description: "Confidence from version age analysis"
+      confidence_range: [0.0, 1.0]
+
+    - key: "detection.versionage.browser_age"
+      type: string?
+      description: "Browser age category (current, slightly_outdated, moderately_outdated, severely_outdated)"
+
+    - key: "detection.versionage.os_age"
+      type: string?
+      description: "OS age category"
+
+    - key: "detection.versionage.browser_version"
+      type: string?
+      description: "Extracted browser version"
+
+    - key: "detection.versionage.os_version"
+      type: string?
+      description: "Extracted OS version"
+
+    - key: "detection.versionage.impossible_combination"
+      type: bool
+      description: "Browser/OS combination is impossible (e.g., Chrome 130 on Windows XP)"
+
+    - key: "detection.versionage.reasons"
+      type: "List<string>"
+      description: "Detection reason codes"
+
+  on_failure:
+    - key: "atom.versionage.failed"
+      type: string
+
+  conditional:
+    - key: "detection.versionage.suspicious"
+      type: bool
+      when: "impossible_combination || browser_age == 'severely_outdated'"
+      description: "Version is suspiciously old or impossible"
+
+preserve:
+  echo:
+    - signal: "detection.versionage.confidence"
+      to: "evidence_aggregator"
+      when: "always"
+
+  propagate:
+    - signal: "detection.versionage.confidence"
+      as: "fast_path.versionage.confidence"
+    - signal: "detection.versionage.impossible_combination"
+      as: "fast_path.versionage.impossible"
+
+listens:
+  required:
+    - "http.headers.useragent"
+  optional:
+    - "service.browser_versions.latest"
+
+budget:
+  max_duration: "00:00:00.050"  # 50ms (may call external service)
+
+lane:
+  name: "fast"
+  max_concurrency: 4
+  priority: 95  # Slightly lower than pure sensors
+
+tags:
+  - "fast-path"
+  - "stage-0"
+  - "version-analysis"
+
+meta:
+  author: "scott@mostlylucid.net"
+  created: "2025-01-08"

@@ -3,7 +3,13 @@
     "allow": [
       "Bash(dotnet sln:*)",
       "Bash(timeout 10 dotnet run:*)",
-      "Bash(timeout 5 dotnet run:*)"
+      "Bash(timeout 5 dotnet run:*)",
+      "Bash(git -C \"D:\\\\Source\\\\mostlylucid.atoms\\\\mostlylucid.ephemeral\" log --oneline -20)",
+      "Bash(git -C \"D:\\\\Source\\\\mostlylucid.atoms\\\\mostlylucid.ephemeral\" show c7e25dc --stat)",
+      "Bash(cd:*)",
+      "Bash(dir:*)",
+      "Bash(findstr:*)",
+      "WebFetch(domain:andrewlock.net)"
     ],
     "deny": [],
     "ask": []

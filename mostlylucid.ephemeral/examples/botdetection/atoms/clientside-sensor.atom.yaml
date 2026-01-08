@@ -1,0 +1,121 @@
+# ==========================================
+# ATOM MANIFEST: ClientSideSensor
+# Processes client-side fingerprint data
+# ==========================================
+
+name: "ClientSideSensor"
+version: "1.0.0"
+description: "Analyzes browser fingerprint data from JavaScript probes"
+
+implementation:
+  nuget:
+    package: "Mostlylucid.BotDetection.Detectors"
+    version: "^2.0.0"
+    type: "Mostlylucid.BotDetection.Detection.Detectors.ClientSideDetector"
+
+taxonomy:
+  kind: sensor
+  determinism: probabilistic  # Depends on JS execution
+  persistence: escalatable  # Fingerprints stored
+
+scope:
+  sink: "botdetection"
+  coordinator: "detection"
+  atom: "clientside"
+
+triggers:
+  requires:
+    - signal: "http.request.received"
+  signals:
+    - "fingerprint.received"
+  skip_when:
+    - signal: "detection.early_exit"
+
+emits:
+  on_start:
+    - "atom.clientside.started"
+
+  on_complete:
+    - key: "detection.clientside.confidence"
+      type: double
+      description: "Confidence from fingerprint analysis"
+      confidence_range: [0.0, 1.0]
+
+    - key: "detection.clientside.has_fingerprint"
+      type: bool
+      description: "Client returned fingerprint data"
+
+    - key: "detection.clientside.headless_detected"
+      type: bool
+      description: "Headless browser detected"
+
+    - key: "detection.clientside.automation_detected"
+      type: bool
+      description: "Automation framework detected (Selenium, Puppeteer)"
+
+    - key: "detection.clientside.integrity_score"
+      type: double
+      description: "Browser integrity score from fingerprint"
+      confidence_range: [0.0, 100.0]
+
+    - key: "detection.clientside.consistency_score"
+      type: double
+      description: "Fingerprint consistency with claimed browser"
+      confidence_range: [0.0, 100.0]
+
+    - key: "detection.clientside.reasons"
+      type: "List<string>"
+      description: "Detection reason codes"
+
+  on_failure:
+    - key: "atom.clientside.failed"
+      type: string
+
+  conditional:
+    - key: "detection.clientside.verified_human"
+      type: bool
+      when: "!headless_detected && !automation_detected && integrity_score > 80"
+      description: "Strong human signal from fingerprint"
+
+preserve:
+  echo:
+    - signal: "detection.clientside.confidence"
+      to: "evidence_aggregator"
+      when: "always"
+
+  escalate:
+    # Fingerprints are valuable for learning
+    - signal: "detection.clientside.headless_detected"
+      to: "learning_coordinator"
+      salience_threshold: 0.8
+      when: "value == true"
+
+  propagate:
+    - signal: "detection.clientside.confidence"
+      as: "fast_path.clientside.confidence"
+    - signal: "detection.clientside.headless_detected"
+      as: "fast_path.clientside.headless"
+
+listens:
+  required: []
+  optional:
+    - "fingerprint.received"
+    - "store.fingerprints"
+
+budget:
+  max_duration: "00:00:00.010"  # 10ms
+
+lane:
+  name: "fast"
+  max_concurrency: 8
+  priority: 90  # After initial sensors
+
+tags:
+  - "fast-path"
+  - "stage-0"
+  - "fingerprint"
+  - "client-side"
+
+meta:
+  author: "scott@mostlylucid.net"
+  created: "2025-01-08"

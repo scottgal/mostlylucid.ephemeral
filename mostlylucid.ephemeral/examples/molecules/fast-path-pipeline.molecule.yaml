@@ -1,0 +1,163 @@
+# ==========================================
+# MOLECULE MANIFEST: FastPathPipeline
+# Stage 0 parallel detection for fast bot identification
+# ==========================================
+
+name: "FastPathPipeline"
+version: "1.0.0"
+description: "Parallel execution of fast, low-cost detectors for quick bot identification"
+
+# Aggregated Taxonomy
+taxonomy:
+  primary_kind: sensor               # Primary role: signal acquisition
+  kinds: [sensor, extractor]         # All roles from constituent atoms
+  determinism: deterministic         # All atoms are deterministic
+  persistence: ephemeral             # Molecule-level signals are ephemeral
+
+# Scope
+scope:
+  sink: "botdetection"
+  coordinator: "detection"
+  molecule: "fast_path"
+
+# Constituent Atoms (Stage 0 - parallel execution)
+atoms:
+  - name: "UserAgentSensor"
+    manifest: "useragent-sensor.atom.yaml"
+    required: true
+    salience_threshold: 0.0          # Include all signals
+
+  - name: "HeaderSensor"
+    manifest: "header-sensor.atom.yaml"
+    required: true
+    salience_threshold: 0.0
+
+  - name: "IpSensor"
+    manifest: "ip-sensor.atom.yaml"
+    required: true
+    salience_threshold: 0.0
+
+  - name: "SecurityToolSensor"
+    manifest: "securitytool-sensor.atom.yaml"
+    required: false                  # Optional - molecule continues if this fails
+    salience_threshold: 0.0
+
+# Aggregate Signal Emissions
+emits:
+  on_complete:
+    # Aggregated confidence (weighted average from all sensors)
+    - key: "fast_path.confidence"
+      type: double
+      description: "Aggregated bot confidence from all fast-path sensors"
+      confidence_range: [0.0, 1.0]
+      min_salience: 0.0
+
+    # Individual sensor results (propagated)
+    - key: "fast_path.useragent.confidence"
+      type: double
+      source_atom: "UserAgentSensor"
+
+    - key: "fast_path.useragent.is_bot"
+      type: bool
+      source_atom: "UserAgentSensor"
+
+    - key: "fast_path.useragent.bot_type"
+      type: string?
+      source_atom: "UserAgentSensor"
+
+    - key: "fast_path.header.confidence"
+      type: double
+      source_atom: "HeaderSensor"
+
+    - key: "fast_path.header.anomaly_count"
+      type: int
+      source_atom: "HeaderSensor"
+
+    - key: "fast_path.ip.confidence"
+      type: double
+      source_atom: "IpSensor"
+
+    - key: "fast_path.ip.is_datacenter"
+      type: bool
+      source_atom: "IpSensor"
+
+    - key: "fast_path.ip.is_tor"
+      type: bool
+      source_atom: "IpSensor"
+
+    - key: "fast_path.security_tool.detected"
+      type: bool
+      source_atom: "SecurityToolSensor"
+
+    - key: "fast_path.security_tool.category"
+      type: string?
+      source_atom: "SecurityToolSensor"
+
+    # Early exit signal (high confidence = skip further analysis)
+    - key: "fast_path.early_exit"
+      type: bool
+      description: "True if confidence is high enough to skip further analysis"
+
+    - key: "fast_path.early_exit_reason"
+      type: string?
+      description: "Reason for early exit"
+
+  on_failure:
+    - key: "molecule.fast_path.failed"
+      type: string
+      description: "Pipeline failure reason"
+
+# Dependencies
+listens:
+  required:
+    - "http.request.received"
+  optional:
+    - "cache.patterns.bot_signatures"
+
+# Molecule-level Escalation
+escalation:
+  # Escalate high-confidence results to skip remaining pipeline
+  early_exit:
+    when:
+      - signal: "fast_path.confidence"
+        condition: ">= 0.95"
+      - signal: "fast_path.security_tool.detected"
+        value: true
+    to: "detection.result"
+    salience_threshold: 0.9
+    description: "Skip remaining analysis for very high confidence detections"
+
+  # Escalate to learning when confident but not early-exit
+  to_learning:
+    when:
+      - signal: "fast_path.confidence"
+        condition: ">= 0.7"
+    to: "learning_coordinator"
+    salience_threshold: 0.7
+    description: "Feed high-confidence fast-path results to learning"
+
+# Lane Configuration
+lane:
+  name: "fast"
+  max_concurrency: 4                 # 4 parallel molecules
+  priority: 100                      # Highest priority - runs first
+
+# Execution Semantics
+execution:
+  mode: parallel                     # All atoms run in parallel
+  fail_fast: false                   # Continue even if optional atoms fail
+  timeout: "00:00:00.050"            # 50ms max for entire molecule
+  max_concurrency: 4                 # Max 4 atoms running in parallel
+
+# Tags
+tags:
+  - "stage-0"
+  - "fast-path"
+  - "parallel"
+  - "foundation"
+
+# Metadata
+meta:
+  author: "scott@mostlylucid.net"
+  created: "2025-01-08"
+  updated: "2025-01-08"

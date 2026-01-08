@@ -1,0 +1,100 @@
+# ==========================================
+# ATOM MANIFEST: HeaderSensor
+# Analyzes HTTP headers for bot patterns
+# ==========================================
+
+name: "HeaderSensor"
+version: "1.0.0"
+description: "Inspects HTTP headers for missing/anomalous patterns indicating bots"
+
+implementation:
+  nuget:
+    package: "Mostlylucid.BotDetection.Detectors"
+    version: "^2.0.0"
+    type: "Mostlylucid.BotDetection.Detection.Detectors.HeaderAnalysisDetector"
+
+taxonomy:
+  kind: sensor
+  determinism: deterministic
+  persistence: ephemeral
+
+scope:
+  sink: "botdetection"
+  coordinator: "detection"
+  atom: "header"
+
+triggers:
+  requires:
+    - signal: "http.request.received"
+  skip_when:
+    - signal: "detection.early_exit"
+    - signal: "cache.hit.header"
+
+emits:
+  on_start:
+    - "atom.header.started"
+
+  on_complete:
+    - key: "detection.header.confidence"
+      type: double
+      description: "Bot confidence from header analysis"
+      confidence_range: [0.0, 1.0]
+
+    - key: "detection.header.anomaly_count"
+      type: int
+      description: "Number of header anomalies detected"
+
+    - key: "detection.header.missing_headers"
+      type: "List<string>"
+      description: "Expected headers that are missing"
+
+    - key: "detection.header.reasons"
+      type: "List<string>"
+      description: "Detection reason codes"
+
+  on_failure:
+    - key: "atom.header.failed"
+      type: string
+
+  conditional:
+    - key: "detection.header.automation_detected"
+      type: bool
+      when: "HasHeader('X-Automation') || HasHeader('X-Bot')"
+      description: "Explicit automation header found"
+
+preserve:
+  echo:
+    - signal: "detection.header.confidence"
+      to: "evidence_aggregator"
+      when: "always"
+
+  propagate:
+    - signal: "detection.header.confidence"
+      as: "fast_path.header.confidence"
+    - signal: "detection.header.anomaly_count"
+      as: "fast_path.header.anomaly_count"
+
+listens:
+  required:
+    - "http.request.received"
+  optional:
+    - "http.headers.accept"
+    - "http.headers.accept_language"
+    - "http.headers.accept_encoding"
+
+budget:
+  max_duration: "00:00:00.005"  # 5ms
+
+lane:
+  name: "fast"
+  max_concurrency: 8
+  priority: 100
+
+tags:
+  - "fast-path"
+  - "stage-0"
+  - "header-analysis"
+
+meta:
+  author: "scott@mostlylucid.net"
+  created: "2025-01-08"

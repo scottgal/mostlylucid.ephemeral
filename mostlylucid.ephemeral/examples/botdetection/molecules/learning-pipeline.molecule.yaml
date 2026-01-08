@@ -1,0 +1,216 @@
+# ==========================================
+# MOLECULE MANIFEST: LearningPipeline
+# Handles escalated signals for continuous learning
+# ==========================================
+
+name: "LearningPipeline"
+version: "1.0.0"
+description: "Processes escalated signals to improve detection over time"
+
+taxonomy:
+  kind: molecule
+  pattern: batch_reactive  # Processes batched escalations
+
+scope:
+  sink: "botdetection"
+  coordinator: "learning"
+  molecule: "learning_pipeline"
+
+# Learning pipeline atoms (conceptual - would need implementation)
+atoms:
+  - name: "PatternLearner"
+    inline:
+      taxonomy:
+        kind: proposer
+        determinism: probabilistic
+        persistence: direct_write
+      triggers:
+        signals:
+          - "pattern_store.batch_ready"
+      emits:
+        on_complete:
+          - key: "learning.patterns.updated"
+            type: bool
+          - key: "learning.patterns.count"
+            type: int
+
+  - name: "WeightUpdater"
+    inline:
+      taxonomy:
+        kind: proposer
+        determinism: probabilistic
+        persistence: direct_write
+      triggers:
+        signals:
+          - "weight_store.batch_ready"
+      emits:
+        on_complete:
+          - key: "learning.weights.updated"
+            type: bool
+          - key: "learning.weights.adjustments"
+            type: int
+
+  - name: "LedgerWriter"
+    inline:
+      taxonomy:
+        kind: escalator  # Specifically for ledger escalation
+        determinism: deterministic
+        persistence: direct_write
+      triggers:
+        signals:
+          - "ledger.batch_ready"
+      emits:
+        on_complete:
+          - key: "ledger.written"
+            type: bool
+          - key: "ledger.entry_count"
+            type: int
+
+execution:
+  mode: event_driven
+
+  # Batch collection settings
+  batching:
+    default_size: 100
+    max_wait: "00:01:00"  # 1 minute max wait for batch
+
+  # Each atom handles its own signal type
+  routing:
+    - pattern: "detection.*.learned_pattern"
+      to: "PatternLearner"
+
+    - pattern: "detection.heuristic.*"
+      to: "WeightUpdater"
+
+    - pattern: "evidence.verdict"
+      to: "LedgerWriter"
+
+# Signal collection for learning
+collects:
+  # High-confidence verdicts for ground truth
+  - pattern: "evidence.verdict"
+    when: "evidence.verdict_confidence > 0.85"
+    buffer: batch
+    batch_size: 100
+
+  # Learned patterns from LLM
+  - pattern: "detection.llm.learned_pattern"
+    buffer: batch
+    batch_size: 50
+
+  # Top contributing features from heuristic
+  - pattern: "detection.heuristic.top_contributors"
+    when: "detection.heuristic.high_confidence"
+    buffer: batch
+    batch_size: 100
+
+  # Rate limit events for behavioral learning
+  - pattern: "detection.behavioral.rate_limit_exceeded"
+    buffer: batch
+    batch_size: 100
+
+triggers:
+  # Timer-based batch processing
+  signals:
+    - "timer.learning_batch"  # Periodic trigger
+    - "batch.ready"           # Batch full trigger
+
+emits:
+  on_start:
+    - "molecule.learning.started"
+
+  on_complete:
+    - key: "molecule.learning.completed"
+      type: bool
+
+    - key: "molecule.learning.patterns_learned"
+      type: int
+      description: "New patterns added to store"
+
+    - key: "molecule.learning.weights_updated"
+      type: int
+      description: "Number of weight adjustments"
+
+    - key: "molecule.learning.ledger_entries"
+      type: int
+      description: "Entries written to ledger"
+
+    - key: "molecule.learning.model_version"
+      type: string
+      description: "Current model version after update"
+
+  on_failure:
+    - key: "molecule.learning.failed"
+      type: string
+
+# Persistence targets
+persistence:
+  # Pattern store (SQLite)
+  patterns:
+    store: "sqlite"
+    table: "learned_patterns"
+    retention: "30d"
+
+  # Weight store (SQLite)
+  weights:
+    store: "sqlite"
+    table: "learned_weights"
+
+  # Entity ledger (RDBMS + Vector)
+  ledger:
+    store: "entity_ledger"
+    vector_lenses:
+      - "behavior"
+      - "fingerprint"
+      - "signal"
+
+preserve:
+  # No echo - learning is a terminal node
+
+  escalate:
+    # Model updates to hot-reload coordinator
+    - signal: "molecule.learning.model_version"
+      to: "model_coordinator"
+      salience_threshold: 1.0  # Always escalate model updates
+      immediate: true
+
+  propagate:
+    - signal: "molecule.learning.completed"
+      as: "system.learning.cycle_completed"
+
+listens:
+  required: []
+  optional:
+    - "evidence.*"
+    - "detection.*.learned_pattern"
+    - "detection.heuristic.*"
+    - "detection.behavioral.*"
+    - "timer.learning_batch"
+    - "batch.ready"
+
+budget:
+  max_duration: "00:00:30.000"  # 30 seconds for batch processing
+
+lane:
+  name: "learning"
+  max_concurrency: 1  # Single-threaded learning
+  priority: 10  # Low priority - background task
+
+config:
+  bindings:
+    - config_key: "EnableLearning"
+      skip_if_false: true
+    - config_key: "LearningBatchSize"
+      maps_to: "batch_size"
+    - config_key: "LearningInterval"
+      maps_to: "batch_interval"
+
+tags:
+  - "learning"
+  - "background"
+  - "batch"
+  - "persistence"
+
+meta:
+  author: "scott@mostlylucid.net"
+  created: "2025-01-08"

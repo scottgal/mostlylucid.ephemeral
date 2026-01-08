@@ -1,0 +1,124 @@
+# ==========================================
+# ATOM MANIFEST: SecurityToolSensor
+# Detects security scanning tools (Nikto, Nmap, SQLMap, etc.)
+# ==========================================
+
+name: "SecurityToolSensor"
+version: "1.0.0"
+description: "Detects security scanners, exploit frameworks, and attack tools via UA patterns"
+
+implementation:
+  nuget:
+    package: "Mostlylucid.BotDetection.Detectors"
+    version: "^2.0.0"
+    type: "Mostlylucid.BotDetection.Detection.Detectors.SecurityToolDetector"
+
+taxonomy:
+  kind: sensor
+  determinism: deterministic
+  persistence: ephemeral  # But high-confidence detections escalate
+
+scope:
+  sink: "botdetection"
+  coordinator: "detection"
+  atom: "securitytool"
+
+triggers:
+  requires:
+    - signal: "http.request.received"
+    - signal: "http.headers.useragent"
+      condition: "HasValue"
+  skip_when:
+    - signal: "detection.early_exit"
+
+emits:
+  on_start:
+    - "atom.securitytool.started"
+
+  on_complete:
+    - key: "detection.securitytool.detected"
+      type: bool
+      description: "Security tool was detected"
+
+    - key: "detection.securitytool.confidence"
+      type: double
+      description: "Detection confidence (typically 0.95 on match)"
+      confidence_range: [0.0, 1.0]
+
+    - key: "detection.securitytool.category"
+      type: string?
+      description: "Tool category (SQLInjection, VulnerabilityScanner, PortScanner, etc.)"
+
+    - key: "detection.securitytool.tool_name"
+      type: string?
+      description: "Identified tool name (Nikto, SQLMap, Nmap, etc.)"
+
+    - key: "detection.securitytool.bot_type"
+      type: string?
+      description: "Always 'MaliciousBot' when detected"
+
+  on_failure:
+    - key: "atom.securitytool.failed"
+      type: string
+
+  conditional:
+    - key: "detection.securitytool.high_threat"
+      type: bool
+      when: "detected && category in ['SQLInjection', 'ExploitFramework']"
+      description: "High-threat tool detected"
+
+preserve:
+  echo:
+    - signal: "detection.securitytool.detected"
+      to: "evidence_aggregator"
+      when: "always"
+
+  escalate:
+    # Security tool detections are ALWAYS escalated for learning
+    - signal: "detection.securitytool.tool_name"
+      to: "learning_coordinator"
+      salience_threshold: 0.9
+      priority_boost: 20
+      when: "detected"
+      batch: true
+      batch_size: 50
+
+    - signal: "detection.securitytool.category"
+      to: "threat_intelligence"
+      salience_threshold: 0.9
+      when: "detected"
+
+  propagate:
+    - signal: "detection.securitytool.detected"
+      as: "fast_path.securitytool.detected"
+    - signal: "detection.securitytool.category"
+      as: "fast_path.securitytool.category"
+
+listens:
+  required:
+    - "http.headers.useragent"
+  optional:
+    - "cache.patterns.security_tools"
+
+budget:
+  max_duration: "00:00:00.020"  # 20ms (regex matching)
+
+lane:
+  name: "fast"
+  max_concurrency: 8
+  priority: 100
+
+config:
+  bindings:
+    - config_key: "EnableSecurityToolDetection"
+      skip_if_false: true
+
+tags:
+  - "fast-path"
+  - "stage-0"
+  - "security"
+  - "threat-detection"
+
+meta:
+  author: "scott@mostlylucid.net"
+  created: "2025-01-08"

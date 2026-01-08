@@ -1,0 +1,128 @@
+# ==========================================
+# ATOM MANIFEST: BehavioralProposer
+# Analyzes request patterns over time
+# ==========================================
+
+name: "BehavioralProposer"
+version: "1.0.0"
+description: "Analyzes temporal behavior patterns, rate limits, and session consistency"
+
+implementation:
+  nuget:
+    package: "Mostlylucid.BotDetection.Detectors"
+    version: "^2.0.0"
+    type: "Mostlylucid.BotDetection.Detection.Detectors.BehavioralAnalysisDetector"
+
+taxonomy:
+  kind: proposer  # Probabilistic - patterns emerge over time
+  determinism: probabilistic
+  persistence: escalatable  # Behavior profiles cached
+
+scope:
+  sink: "botdetection"
+  coordinator: "detection"
+  atom: "behavioral"
+
+triggers:
+  requires:
+    - signal: "http.request.received"
+  skip_when:
+    - signal: "detection.early_exit"
+
+emits:
+  on_start:
+    - "atom.behavioral.started"
+
+  on_complete:
+    - key: "detection.behavioral.confidence"
+      type: double
+      description: "Bot confidence from behavioral analysis"
+      confidence_range: [0.0, 1.0]
+
+    - key: "detection.behavioral.rate_limit_exceeded"
+      type: bool
+      description: "Request rate exceeds normal thresholds"
+
+    - key: "detection.behavioral.behavior_change_detected"
+      type: bool
+      description: "Sudden change in behavior pattern"
+
+    - key: "detection.behavioral.timing_anomaly"
+      type: bool
+      description: "Request timing is too regular (bot-like)"
+
+    - key: "detection.behavioral.session_inconsistency"
+      type: bool
+      description: "Session behavior is inconsistent"
+
+    - key: "detection.behavioral.request_count"
+      type: int
+      description: "Requests in current window"
+
+    - key: "detection.behavioral.timing_coefficient"
+      type: double
+      description: "Timing regularity coefficient (low = robotic)"
+
+    - key: "detection.behavioral.bot_type"
+      type: string?
+      description: "Detected bot type (Scraper if high confidence)"
+
+    - key: "detection.behavioral.reasons"
+      type: "List<string>"
+      description: "Detection reason codes"
+
+  on_failure:
+    - key: "atom.behavioral.failed"
+      type: string
+
+  conditional:
+    - key: "detection.behavioral.warmup_period"
+      type: bool
+      when: "session_age < 2min"
+      description: "Still in warmup period (lenient thresholds)"
+
+preserve:
+  echo:
+    - signal: "detection.behavioral.confidence"
+      to: "evidence_aggregator"
+      when: "always"
+
+  escalate:
+    - signal: "detection.behavioral.rate_limit_exceeded"
+      to: "learning_coordinator"
+      salience_threshold: 0.7
+      when: "value == true"
+      batch: true
+      batch_size: 100
+
+  propagate:
+    - signal: "detection.behavioral.confidence"
+      as: "analysis.behavioral.confidence"
+    - signal: "detection.behavioral.rate_limit_exceeded"
+      as: "analysis.behavioral.rate_exceeded"
+
+listens:
+  required:
+    - "http.request.received"
+  optional:
+    - "http.client.ip"
+    - "http.client.fingerprint_hash"
+    - "http.headers.api_key"
+    - "session.user_id"
+
+budget:
+  max_duration: "00:00:00.020"  # 20ms
+
+lane:
+  name: "behavioral"
+  max_concurrency: 4
+  priority: 80  # Stage 1 - after raw signals
+
+tags:
+  - "stage-1"
+  - "behavioral"
+  - "temporal-analysis"
+
+meta:
+  author: "scott@mostlylucid.net"
+  created: "2025-01-08"

@@ -1,0 +1,151 @@
+# ==========================================
+# ATOM MANIFEST: LlmProposer
+# LLM-based classification with reasoning
+# ==========================================
+
+name: "LlmProposer"
+version: "1.0.0"
+description: "Large language model classifier for complex/ambiguous cases"
+
+implementation:
+  nuget:
+    package: "Mostlylucid.BotDetection.Detectors"
+    version: "^2.0.0"
+    type: "Mostlylucid.BotDetection.Detection.LLMBotDetector"
+
+taxonomy:
+  kind: proposer
+  determinism: probabilistic  # LLM is non-deterministic
+  persistence: direct_write   # Learns patterns to file
+
+scope:
+  sink: "botdetection"
+  coordinator: "detection"
+  atom: "llm"
+
+triggers:
+  requires:
+    - signal: "http.request.received"
+    - signal: "detection.heuristic.probability"  # After heuristic
+  signals:
+    # Also run when escalated from uncertain heuristic
+    - "escalation.to_llm"
+  skip_when:
+    - signal: "detection.early_exit"
+    - signal: "config.disable_llm"
+    - signal: "budget.exhausted"
+
+emits:
+  on_start:
+    - "atom.llm.started"
+
+  on_complete:
+    - key: "detection.llm.classification"
+      type: string
+      description: "Bot or Human classification"
+
+    - key: "detection.llm.confidence"
+      type: double
+      description: "Confidence in classification"
+      confidence_range: [0.0, 1.0]
+
+    - key: "detection.llm.reasoning"
+      type: string
+      description: "LLM's reasoning for the classification"
+
+    - key: "detection.llm.bot_type"
+      type: string?
+      description: "Specific bot type if detected"
+
+    - key: "detection.llm.learned_pattern"
+      type: string?
+      description: "New pattern learned (if confidence > 0.8)"
+
+    - key: "detection.llm.model"
+      type: string
+      description: "Model used for classification"
+
+    - key: "detection.llm.tokens_used"
+      type: int
+      description: "Tokens consumed"
+
+  on_failure:
+    - key: "atom.llm.failed"
+      type: string
+
+    - key: "atom.llm.failure_reason"
+      type: string
+      description: "model_not_found, timeout, server_error, etc."
+
+  conditional:
+    - key: "detection.llm.new_pattern_learned"
+      type: bool
+      when: "learned_pattern != null && confidence > 0.8"
+      description: "A new pattern was learned"
+
+preserve:
+  echo:
+    - signal: "detection.llm.confidence"
+      to: "evidence_aggregator"
+      when: "always"
+
+  escalate:
+    # Learned patterns to pattern store
+    - signal: "detection.llm.learned_pattern"
+      to: "pattern_store"
+      salience_threshold: 0.9
+      when: "new_pattern_learned"
+      priority_boost: 15
+
+    # High-confidence classifications to learning
+    - signal: "detection.llm.classification"
+      to: "learning_coordinator"
+      salience_threshold: 0.85
+      batch: true
+      batch_size: 50
+
+  propagate:
+    - signal: "detection.llm.classification"
+      as: "intelligence.llm.classification"
+    - signal: "detection.llm.confidence"
+      as: "intelligence.llm.confidence"
+    - signal: "detection.llm.reasoning"
+      as: "intelligence.llm.reasoning"
+
+listens:
+  required:
+    - "detection.heuristic.probability"
+  optional:
+    # Aggregated evidence for context
+    - "evidence.aggregated"
+    - "detection.useragent.bot_type"
+    - "detection.behavioral.rate_limit_exceeded"
+    - "service.ollama.available"
+
+budget:
+  max_duration: "00:00:05.000"  # 5 seconds (LLM can be slow)
+  max_tokens: 1000
+  max_cost: 0.01  # 1 cent max per request
+
+lane:
+  name: "llm"
+  max_concurrency: 1  # Expensive - limit concurrency
+  priority: 50  # Lowest priority - last resort
+
+config:
+  bindings:
+    - config_key: "EnableLlmDetection"
+      skip_if_false: true
+    - config_key: "LlmModel"
+      maps_to: "model"
+
+tags:
+  - "stage-3"
+  - "intelligence"
+  - "llm"
+  - "learning"
+  - "expensive"
+
+meta:
+  author: "scott@mostlylucid.net"
+  created: "2025-01-08"

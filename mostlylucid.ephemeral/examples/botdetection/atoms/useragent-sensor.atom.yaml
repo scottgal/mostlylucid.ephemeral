@@ -1,0 +1,160 @@
+# ==========================================
+# ATOM MANIFEST: UserAgentSensor
+# Extracts bot signals from User-Agent header
+# ==========================================
+
+name: "UserAgentSensor"
+version: "1.0.0"
+description: "Analyzes User-Agent header for bot patterns using compiled regex and downloaded signatures"
+
+# Implementation Reference
+implementation:
+  nuget:
+    package: "Mostlylucid.BotDetection.Detectors"
+    version: "^2.0.0"
+    type: "Mostlylucid.BotDetection.Detection.Detectors.UserAgentDetector"
+
+# Taxonomy Classification
+taxonomy:
+  kind: sensor                       # Reads input, emits structured signals
+  determinism: deterministic         # Same UA = same detection result
+  persistence: ephemeral             # Signals die with atom (unless escalated)
+
+# Signal Scope
+scope:
+  sink: "botdetection"               # Project boundary
+  coordinator: "detection"           # Detection pipeline
+  atom: "useragent"                  # This atom's name
+
+# Triggers
+triggers:
+  requires:
+    - signal: "http.request.received"
+    - signal: "http.headers.useragent"
+      condition: "HasValue"
+  skip_when:
+    - signal: "detection.early_exit"
+    - signal: "cache.hit.useragent"
+
+# Signal Emissions (owned by this atom)
+emits:
+  on_start:
+    - "atom.useragent.started"
+
+  on_complete:
+    - key: "detection.useragent.confidence"
+      type: double
+      description: "Bot detection confidence from UA pattern matching"
+      confidence_range: [0.0, 1.0]
+
+    - key: "detection.useragent.is_bot"
+      type: bool
+      description: "Whether UA indicates a bot"
+
+    - key: "detection.useragent.bot_type"
+      type: string?
+      description: "Detected bot type (Crawler, Scraper, Automation, etc.)"
+
+    - key: "detection.useragent.reasons"
+      type: "List<string>"
+      description: "Detection reason codes"
+
+    - key: "detection.useragent.pattern_match"
+      type: string?
+      description: "Matched bot pattern (if any)"
+
+  on_failure:
+    - key: "atom.useragent.failed"
+      type: string
+      description: "Error message"
+
+  conditional:
+    - key: "detection.useragent.verified_bot"
+      type: bool
+      when: "confidence > 0.9 && bot_type != null"
+      description: "High-confidence verified bot detection"
+
+    - key: "detection.useragent.known_good_bot"
+      type: bool
+      when: "is_bot && bot_type in ['Googlebot', 'Bingbot', 'DuckDuckBot']"
+      description: "Known legitimate crawler"
+
+# Signal Preservation
+preserve:
+  # Echo confidence to aggregator for consensus
+  echo:
+    - signal: "detection.useragent.confidence"
+      to: "evidence_aggregator"
+      when: "always"
+
+    - signal: "detection.useragent.is_bot"
+      to: "evidence_aggregator"
+      when: "always"
+
+  # Escalate high-confidence detections for learning
+  escalate:
+    - signal: "detection.useragent.verified_bot"
+      to: "learning_coordinator"
+      salience_threshold: 0.85
+      priority_boost: 10
+      when: "value == true"
+      batch: true
+      batch_size: 100
+      batch_timeout: "00:05:00"
+
+    - signal: "detection.useragent.pattern_match"
+      to: "pattern_analyzer"
+      salience_threshold: 0.7
+      when: "value != null"
+
+  # Propagate to molecule output
+  propagate:
+    - signal: "detection.useragent.confidence"
+      as: "fast_path.useragent.confidence"
+
+    - signal: "detection.useragent.is_bot"
+      as: "fast_path.useragent.is_bot"
+
+    - signal: "detection.useragent.bot_type"
+      as: "fast_path.useragent.bot_type"
+
+# Dependencies
+listens:
+  required:
+    - "http.headers.useragent"
+  optional:
+    - "cache.patterns.bot_signatures"
+    - "cache.patterns.verified_bots"
+
+# Budget
+budget:
+  max_duration: "00:00:00.010"       # 10ms max (fast path)
+  max_tokens: null
+  max_cost: null
+
+# Lane Configuration
+lane:
+  name: "fast"                       # Fast detection lane
+  max_concurrency: 8                 # High parallelism
+  priority: 100                      # Stage 0 - runs first
+
+# Configuration Bindings
+config:
+  bindings:
+    - config_key: "EnableUserAgentDetection"
+      skip_if_false: true
+    - config_key: "UserAgentPatternSource"
+      maps_to: "pattern_source"
+
+# Tags
+tags:
+  - "fast-path"
+  - "stage-0"
+  - "header-analysis"
+  - "pattern-matching"
+
+# Metadata
+meta:
+  author: "scott@mostlylucid.net"
+  created: "2025-01-08"
+  updated: "2025-01-08"

@@ -1,0 +1,118 @@
+# ==========================================
+# ATOM MANIFEST: IpSensor
+# Analyzes IP addresses for datacenter/bot patterns
+# ==========================================
+
+name: "IpSensor"
+version: "1.0.0"
+description: "Checks IP against datacenter ranges, cloud providers, and Tor exit nodes"
+
+implementation:
+  nuget:
+    package: "Mostlylucid.BotDetection.Detectors"
+    version: "^2.0.0"
+    type: "Mostlylucid.BotDetection.Detection.Detectors.IPAnalysisDetector"
+
+taxonomy:
+  kind: sensor
+  determinism: deterministic
+  persistence: ephemeral
+
+scope:
+  sink: "botdetection"
+  coordinator: "detection"
+  atom: "ip"
+
+triggers:
+  requires:
+    - signal: "http.request.received"
+    - signal: "http.client.ip"
+      condition: "HasValue"
+  skip_when:
+    - signal: "detection.early_exit"
+    - signal: "cache.hit.ip"
+
+emits:
+  on_start:
+    - "atom.ip.started"
+
+  on_complete:
+    - key: "detection.ip.confidence"
+      type: double
+      description: "Bot confidence from IP analysis"
+      confidence_range: [0.0, 1.0]
+
+    - key: "detection.ip.is_datacenter"
+      type: bool
+      description: "IP belongs to known datacenter range"
+
+    - key: "detection.ip.is_cloud"
+      type: bool
+      description: "IP belongs to cloud provider (AWS, GCP, Azure)"
+
+    - key: "detection.ip.is_tor"
+      type: bool
+      description: "IP is a Tor exit node"
+
+    - key: "detection.ip.provider"
+      type: string?
+      description: "Identified cloud/datacenter provider"
+
+    - key: "detection.ip.reasons"
+      type: "List<string>"
+      description: "Detection reason codes"
+
+  on_failure:
+    - key: "atom.ip.failed"
+      type: string
+
+  conditional:
+    - key: "detection.ip.bot_type"
+      type: string
+      when: "is_tor"
+      value: "TorUser"
+      description: "Tor detected"
+
+preserve:
+  echo:
+    - signal: "detection.ip.confidence"
+      to: "evidence_aggregator"
+      when: "always"
+
+  escalate:
+    - signal: "detection.ip.provider"
+      to: "pattern_analyzer"
+      salience_threshold: 0.7
+      when: "provider != null"
+
+  propagate:
+    - signal: "detection.ip.confidence"
+      as: "fast_path.ip.confidence"
+    - signal: "detection.ip.is_datacenter"
+      as: "fast_path.ip.is_datacenter"
+    - signal: "detection.ip.is_tor"
+      as: "fast_path.ip.is_tor"
+
+listens:
+  required:
+    - "http.client.ip"
+  optional:
+    - "cache.cidr.datacenter_ranges"
+    - "cache.cidr.cloud_ranges"
+
+budget:
+  max_duration: "00:00:00.010"  # 10ms
+
+lane:
+  name: "fast"
+  max_concurrency: 8
+  priority: 100
+
+tags:
+  - "fast-path"
+  - "stage-0"
+  - "ip-analysis"
+
+meta:
+  author: "scott@mostlylucid.net"
+  created: "2025-01-08"

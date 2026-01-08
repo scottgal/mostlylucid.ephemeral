@@ -1,0 +1,114 @@
+# ==========================================
+# ATOM MANIFEST: InconsistencyConstrainer
+# Validates consistency between UA claims and actual headers
+# ==========================================
+
+name: "InconsistencyConstrainer"
+version: "1.0.0"
+description: "Cross-validates UA claims against header evidence to detect spoofing"
+
+implementation:
+  nuget:
+    package: "Mostlylucid.BotDetection.Detectors"
+    version: "^2.0.0"
+    type: "Mostlylucid.BotDetection.Detection.Detectors.InconsistencyDetector"
+
+taxonomy:
+  kind: constrainer
+  determinism: deterministic
+  persistence: ephemeral
+
+scope:
+  sink: "botdetection"
+  coordinator: "detection"
+  atom: "inconsistency"
+
+triggers:
+  requires:
+    - signal: "http.headers.useragent"
+      condition: "HasValue"
+    - signal: "detection.useragent.confidence"  # Needs prior UA analysis
+  skip_when:
+    - signal: "detection.early_exit"
+
+emits:
+  on_start:
+    - "atom.inconsistency.started"
+
+  on_complete:
+    - key: "detection.inconsistency.confidence"
+      type: double
+      description: "Confidence from inconsistency analysis"
+      confidence_range: [0.0, 1.0]
+
+    - key: "detection.inconsistency.mismatch_count"
+      type: int
+      description: "Number of claim/evidence mismatches"
+
+    - key: "detection.inconsistency.mobile_mismatch"
+      type: bool
+      description: "Claims mobile but lacks mobile signals"
+
+    - key: "detection.inconsistency.browser_mismatch"
+      type: bool
+      description: "Browser version claims inconsistent with headers"
+
+    - key: "detection.inconsistency.os_mismatch"
+      type: bool
+      description: "OS claims inconsistent with behavior"
+
+    - key: "detection.inconsistency.bot_ua_residential"
+      type: bool
+      description: "Bot UA with residential/human headers (suspicious)"
+
+    - key: "detection.inconsistency.bot_type"
+      type: string?
+      description: "Detected as Scraper if confidence >= 0.3"
+
+    - key: "detection.inconsistency.reasons"
+      type: "List<string>"
+      description: "Specific mismatches found"
+
+  on_failure:
+    - key: "atom.inconsistency.failed"
+      type: string
+
+preserve:
+  echo:
+    - signal: "detection.inconsistency.confidence"
+      to: "evidence_aggregator"
+      when: "always"
+
+  propagate:
+    - signal: "detection.inconsistency.confidence"
+      as: "analysis.inconsistency.confidence"
+    - signal: "detection.inconsistency.mismatch_count"
+      as: "analysis.inconsistency.mismatch_count"
+
+listens:
+  required:
+    - "http.headers.useragent"
+    - "detection.useragent.confidence"
+  optional:
+    - "http.headers.accept"
+    - "http.headers.accept_language"
+    - "http.headers.connection"
+    - "http.headers.referer"
+    - "detection.header.anomaly_count"
+
+budget:
+  max_duration: "00:00:00.010"  # 10ms
+
+lane:
+  name: "analysis"
+  max_concurrency: 4
+  priority: 70  # Stage 2
+
+tags:
+  - "stage-2"
+  - "meta-analysis"
+  - "cross-validation"
+
+meta:
+  author: "scott@mostlylucid.net"
+  created: "2025-01-08"

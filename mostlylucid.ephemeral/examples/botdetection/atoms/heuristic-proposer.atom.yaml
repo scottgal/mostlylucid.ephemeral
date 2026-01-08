@@ -1,0 +1,135 @@
+# ==========================================
+# ATOM MANIFEST: HeuristicProposer
+# ML-based logistic regression classifier
+# ==========================================
+
+name: "HeuristicProposer"
+version: "1.0.0"
+description: "Machine learning classifier using learned feature weights"
+
+implementation:
+  nuget:
+    package: "Mostlylucid.BotDetection.Detectors"
+    version: "^2.0.0"
+    type: "Mostlylucid.BotDetection.Detection.HeuristicBotDetector"
+
+taxonomy:
+  kind: proposer
+  determinism: probabilistic  # ML model
+  persistence: direct_write   # Learns and persists weights
+
+scope:
+  sink: "botdetection"
+  coordinator: "detection"
+  atom: "heuristic"
+
+triggers:
+  requires:
+    - signal: "http.request.received"
+  skip_when:
+    - signal: "detection.early_exit"
+    - signal: "config.disable_heuristic"
+
+emits:
+  on_start:
+    - "atom.heuristic.started"
+
+  on_complete:
+    - key: "detection.heuristic.probability"
+      type: double
+      description: "Bot probability from logistic regression (0.0-1.0)"
+      confidence_range: [0.0, 1.0]
+
+    - key: "detection.heuristic.confidence"
+      type: double
+      description: "Confidence in the prediction"
+      confidence_range: [0.0, 1.0]
+
+    - key: "detection.heuristic.feature_count"
+      type: int
+      description: "Number of features used in prediction"
+
+    - key: "detection.heuristic.mode"
+      type: string
+      description: "Execution mode (early or full)"
+
+    - key: "detection.heuristic.top_contributors"
+      type: "List<string>"
+      description: "Top contributing features to the score"
+
+    - key: "detection.heuristic.raw_score"
+      type: double
+      description: "Raw score before sigmoid"
+
+  on_failure:
+    - key: "atom.heuristic.failed"
+      type: string
+
+  conditional:
+    - key: "detection.heuristic.high_confidence"
+      type: bool
+      when: "probability > 0.9 || probability < 0.1"
+      description: "High-confidence prediction"
+
+preserve:
+  echo:
+    - signal: "detection.heuristic.probability"
+      to: "evidence_aggregator"
+      when: "always"
+
+  escalate:
+    # Learning feedback for model improvement
+    - signal: "detection.heuristic.top_contributors"
+      to: "learning_coordinator"
+      salience_threshold: 0.8
+      when: "high_confidence"
+      batch: true
+      batch_size: 100
+
+    # High-confidence predictions to weight store
+    - signal: "detection.heuristic.probability"
+      to: "weight_store"
+      salience_threshold: 0.9
+      when: "high_confidence"
+
+  propagate:
+    - signal: "detection.heuristic.probability"
+      as: "intelligence.heuristic.probability"
+    - signal: "detection.heuristic.confidence"
+      as: "intelligence.heuristic.confidence"
+
+listens:
+  required:
+    - "http.request.received"
+  optional:
+    # All prior stage signals for feature extraction
+    - "detection.useragent.*"
+    - "detection.header.*"
+    - "detection.ip.*"
+    - "detection.behavioral.*"
+    - "detection.inconsistency.*"
+    - "detection.clientside.*"
+    - "store.weights"
+
+budget:
+  max_duration: "00:00:00.050"  # 50ms
+
+lane:
+  name: "ml"
+  max_concurrency: 2
+  priority: 60  # Stage 3
+
+config:
+  bindings:
+    - config_key: "EnableHeuristicDetection"
+      skip_if_false: true
+
+tags:
+  - "stage-3"
+  - "intelligence"
+  - "ml"
+  - "learning"
+
+meta:
+  author: "scott@mostlylucid.net"
+  created: "2025-01-08"

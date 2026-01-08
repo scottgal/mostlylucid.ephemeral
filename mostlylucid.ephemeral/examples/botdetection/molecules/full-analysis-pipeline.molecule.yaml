@@ -1,0 +1,259 @@
+# ==========================================
+# MOLECULE MANIFEST: FullAnalysisPipeline
+# Complete multi-stage bot detection flow
+# ==========================================
+
+name: "FullAnalysisPipeline"
+version: "1.0.0"
+description: "Complete bot detection pipeline with all analysis stages"
+
+taxonomy:
+  kind: molecule
+  pattern: staged  # Sequential stages with parallel atoms within
+
+scope:
+  sink: "botdetection"
+  coordinator: "detection"
+  molecule: "full_analysis"
+
+# Stage definitions - atoms grouped by execution phase
+stages:
+  - name: "fast_path"
+    order: 0
+    ref: "./molecules/fast-path-pipeline.molecule.yaml"
+    mode: parallel
+    required: true
+    early_exit_on:
+      - "detection.early_exit"
+      - "detection.known_bot"
+
+  - name: "behavioral_analysis"
+    order: 1
+    atoms:
+      - ref: "./atoms/behavioral-proposer.atom.yaml"
+        required: true
+    mode: single
+    depends_on:
+      - stage: "fast_path"
+        signals:
+          - "http.request.received"
+
+  - name: "cross_validation"
+    order: 2
+    atoms:
+      - ref: "./atoms/inconsistency-constrainer.atom.yaml"
+        required: true
+    mode: single
+    depends_on:
+      - stage: "fast_path"
+        signals:
+          - "detection.useragent.confidence"
+
+  - name: "intelligence"
+    order: 3
+    atoms:
+      - ref: "./atoms/heuristic-proposer.atom.yaml"
+        required: true
+
+      - ref: "./atoms/llm-proposer.atom.yaml"
+        required: false  # Only for uncertain cases
+        skip_when:
+          - signal: "detection.heuristic.high_confidence"
+          - signal: "config.disable_llm"
+          - signal: "budget.exhausted"
+    mode: sequential  # Heuristic first, then LLM if needed
+    depends_on:
+      - stage: "fast_path"
+      - stage: "behavioral_analysis"
+
+execution:
+  # Overall execution strategy
+  strategy: staged_pipeline
+
+  # How stages connect
+  stage_transition:
+    default: "on_complete"
+    skip_remaining_on:
+      - "detection.early_exit"
+      - "detection.confirmed_bot"
+      - "detection.confirmed_human"
+
+  # Inter-stage signal flow
+  signal_flow:
+    # Fast path signals feed into later stages
+    - from_stage: "fast_path"
+      signals: ["detection.*"]
+      to_stages: ["behavioral_analysis", "cross_validation", "intelligence"]
+
+    # Behavioral insights feed intelligence
+    - from_stage: "behavioral_analysis"
+      signals: ["detection.behavioral.*"]
+      to_stages: ["intelligence"]
+
+    # Cross-validation constrains intelligence
+    - from_stage: "cross_validation"
+      signals: ["detection.inconsistency.*"]
+      to_stages: ["intelligence"]
+
+triggers:
+  requires:
+    - signal: "http.request.received"
+  skip_when:
+    - signal: "detection.bypass"
+    - signal: "request.internal"
+
+emits:
+  on_start:
+    - "molecule.full_analysis.started"
+
+  on_complete:
+    - key: "molecule.full_analysis.completed"
+      type: bool
+
+    - key: "molecule.full_analysis.final_verdict"
+      type: string
+      description: "Bot, Human, or Uncertain"
+
+    - key: "molecule.full_analysis.final_confidence"
+      type: double
+      description: "Aggregated confidence score"
+      confidence_range: [0.0, 1.0]
+
+    - key: "molecule.full_analysis.stages_completed"
+      type: int
+      description: "Number of stages that ran"
+
+    - key: "molecule.full_analysis.duration_ms"
+      type: double
+
+    - key: "molecule.full_analysis.exit_stage"
+      type: string?
+      description: "Stage where early exit occurred (if any)"
+
+    - key: "molecule.full_analysis.detected_bot_types"
+      type: "List<string>"
+      description: "All bot types detected across stages"
+
+    - key: "molecule.full_analysis.evidence_summary"
+      type: string
+      description: "Human-readable evidence summary"
+
+  on_failure:
+    - key: "molecule.full_analysis.failed"
+      type: string
+
+    - key: "molecule.full_analysis.failed_stage"
+      type: string
+
+# Evidence aggregation across all stages
+aggregation:
+  # Weighted confidence combination
+  final_confidence:
+    method: weighted_average
+    sources:
+      - signal: "detection.useragent.confidence"
+        weight: 1.0
+      - signal: "detection.header.confidence"
+        weight: 0.8
+      - signal: "detection.ip.confidence"
+        weight: 1.2
+      - signal: "detection.behavioral.confidence"
+        weight: 1.5
+      - signal: "detection.inconsistency.confidence"
+        weight: 1.3
+      - signal: "detection.heuristic.probability"
+        weight: 2.0
+      - signal: "detection.llm.confidence"
+        weight: 2.5
+      - signal: "detection.clientside.confidence"
+        weight: 1.8
+
+  # Verdict determination
+  verdict:
+    method: threshold
+    thresholds:
+      bot: 0.7
+      human: 0.3
+      uncertain: default
+
+  # Bot type consolidation
+  bot_types:
+    method: priority_select
+    priority:
+      - "detection.llm.bot_type"
+      - "detection.heuristic.bot_type"
+      - "detection.behavioral.bot_type"
+      - "detection.useragent.bot_type"
+      - "detection.inconsistency.bot_type"
+
+preserve:
+  echo:
+    - signal: "molecule.full_analysis.final_confidence"
+      to: "evidence_aggregator"
+      when: "always"
+
+    - signal: "molecule.full_analysis.final_verdict"
+      to: "evidence_aggregator"
+      when: "always"
+
+  escalate:
+    # High-confidence detections to learning
+    - signal: "molecule.full_analysis.final_verdict"
+      to: "learning_coordinator"
+      salience_threshold: 0.85
+      batch: true
+      batch_size: 100
+      priority_boost: 10
+
+    # Uncertain cases to human review queue
+    - signal: "molecule.full_analysis.evidence_summary"
+      to: "review_queue"
+      when: "final_verdict == 'Uncertain'"
+      salience_threshold: 0.5
+
+  propagate:
+    - signal: "molecule.full_analysis.final_verdict"
+      as: "botdetection.verdict"
+    - signal: "molecule.full_analysis.final_confidence"
+      as: "botdetection.confidence"
+
+# Listens to input signals
+listens:
+  required:
+    - "http.request.received"
+  optional:
+    - "http.headers.*"
+    - "http.client.*"
+    - "fingerprint.received"
+    - "session.*"
+
+budget:
+  max_duration: "00:00:05.500"  # 5.5 seconds max (includes LLM)
+
+  # Per-stage budgets
+  stage_budgets:
+    fast_path: "00:00:00.100"
+    behavioral_analysis: "00:00:00.050"
+    cross_validation: "00:00:00.050"
+    intelligence: "00:00:05.100"  # LLM can take up to 5s
+
+lane:
+  name: "detection"
+  max_concurrency: 4
+  priority: 95
+
+config:
+  bindings:
+    - config_key: "EnableFullAnalysis"
+      skip_if_false: true
+    - config_key: "DetectionStages"
+      maps_to: "enabled_stages"
+
+tags:
+  - "full-pipeline"
+  - "multi-stage"
+  - "evidence-aggregation"
+
+meta:
+  author: "scott@mostlylucid.net"
+  created: "2025-01-08"

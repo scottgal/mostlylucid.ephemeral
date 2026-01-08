@@ -1,0 +1,159 @@
+# ==========================================
+# MOLECULE MANIFEST: FastPathPipeline
+# Stage 0 parallel detection for quick decisions
+# ==========================================
+
+name: "FastPathPipeline"
+version: "1.0.0"
+description: "Parallel execution of fast sensors for early bot detection"
+
+taxonomy:
+  kind: molecule
+  pattern: parallel  # All atoms execute concurrently
+
+scope:
+  sink: "botdetection"
+  coordinator: "detection"
+  molecule: "fast_path"
+
+# Atoms in this molecule (all Stage 0)
+atoms:
+  - name: "UserAgentSensor"
+    ref: "./atoms/useragent-sensor.atom.yaml"
+    required: true
+
+  - name: "HeaderSensor"
+    ref: "./atoms/header-sensor.atom.yaml"
+    required: true
+
+  - name: "IpSensor"
+    ref: "./atoms/ip-sensor.atom.yaml"
+    required: true
+
+  - name: "SecurityToolSensor"
+    ref: "./atoms/securitytool-sensor.atom.yaml"
+    required: true
+
+  - name: "VersionAgeExtractor"
+    ref: "./atoms/versionage-extractor.atom.yaml"
+    required: false  # Optional enhancement
+
+  - name: "ClientSideSensor"
+    ref: "./atoms/clientside-sensor.atom.yaml"
+    required: false  # Only when fingerprint available
+
+execution:
+  mode: parallel
+  wait_for: all  # Wait for all atoms to complete
+
+  # Barrier synchronization
+  barrier:
+    timeout: "00:00:00.100"  # 100ms max for entire fast path
+    on_timeout: continue_with_available
+
+  # Early exit conditions
+  early_exit:
+    - condition: "any_atom.confidence >= 0.95"
+      emit: "detection.early_exit"
+      reason: "High confidence detection"
+
+    - condition: "detection.known_bot == true"
+      emit: "detection.early_exit"
+      reason: "Known bot signature match"
+
+triggers:
+  requires:
+    - signal: "http.request.received"
+  skip_when:
+    - signal: "detection.bypass"
+    - signal: "config.fast_path_disabled"
+
+emits:
+  on_start:
+    - "molecule.fast_path.started"
+
+  on_complete:
+    - key: "molecule.fast_path.completed"
+      type: bool
+
+    - key: "molecule.fast_path.atom_count"
+      type: int
+      description: "Number of atoms that executed"
+
+    - key: "molecule.fast_path.duration_ms"
+      type: double
+      description: "Total execution time"
+
+    - key: "molecule.fast_path.early_exit"
+      type: bool
+      description: "Whether early exit was triggered"
+
+    - key: "molecule.fast_path.max_confidence"
+      type: double
+      description: "Highest confidence from any atom"
+      confidence_range: [0.0, 1.0]
+
+  on_failure:
+    - key: "molecule.fast_path.failed"
+      type: string
+
+    - key: "molecule.fast_path.failed_atoms"
+      type: "List<string>"
+      description: "Which atoms failed"
+
+# Aggregate signals from all atoms
+aggregation:
+  # Collect all confidence scores
+  confidences:
+    pattern: "detection.*.confidence"
+    aggregate: collect
+
+  # Track which atoms detected bots
+  detections:
+    pattern: "detection.*.is_bot"
+    aggregate: any_true
+
+  # Merge all bot types found
+  bot_types:
+    pattern: "detection.*.bot_type"
+    aggregate: collect_non_null
+
+  # Count anomalies across sensors
+  anomaly_count:
+    pattern: "detection.*.anomaly_count"
+    aggregate: sum
+
+# Preserve signals from this molecule
+preserve:
+  echo:
+    - signal: "molecule.fast_path.max_confidence"
+      to: "evidence_aggregator"
+      when: "always"
+
+  propagate:
+    # All atom confidences flow through
+    - signal: "detection.*.confidence"
+      as: "fast_path.*.confidence"
+
+    # Known bot detections propagate
+    - signal: "detection.*.known_bot"
+      as: "fast_path.*.known_bot"
+
+# Lane configuration for the molecule
+lane:
+  name: "fast"
+  max_concurrency: 8  # Can handle 8 requests simultaneously
+  priority: 100  # Highest priority - run first
+
+budget:
+  max_duration: "00:00:00.100"  # 100ms total budget
+
+tags:
+  - "stage-0"
+  - "fast-path"
+  - "parallel"
+  - "entry-point"
+
+meta:
+  author: "scott@mostlylucid.net"
+  created: "2025-01-08"

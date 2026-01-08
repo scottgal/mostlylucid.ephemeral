@@ -1,0 +1,194 @@
+# ==========================================
+# MOLECULE MANIFEST: EvidenceAggregator
+# Consolidates detection signals into final verdict
+# ==========================================
+
+name: "EvidenceAggregator"
+version: "1.0.0"
+description: "Aggregates evidence from all detectors into a unified verdict"
+
+taxonomy:
+  kind: molecule
+  pattern: reactive  # Reacts to incoming signals
+
+scope:
+  sink: "botdetection"
+  coordinator: "aggregation"
+  molecule: "evidence"
+
+# This molecule doesn't contain atoms - it aggregates signals from others
+atoms: []
+
+# Signal collection from other molecules/atoms
+collects:
+  # All detection confidence signals
+  - pattern: "detection.*.confidence"
+    buffer: sliding_window
+    window_size: 100
+
+  # Bot type detections
+  - pattern: "detection.*.bot_type"
+    buffer: latest_per_source
+
+  # Known bot flags
+  - pattern: "detection.*.known_bot"
+    buffer: latest_per_source
+
+  # Reason codes
+  - pattern: "detection.*.reasons"
+    buffer: collect_all
+
+triggers:
+  # Runs after fast path and optionally after each stage
+  signals:
+    - "molecule.fast_path.completed"
+    - "molecule.full_analysis.completed"
+    - "atom.*.completed"  # Re-aggregate on any atom completion
+
+emits:
+  on_complete:
+    - key: "evidence.aggregated"
+      type: bool
+      description: "Evidence has been aggregated"
+
+    - key: "evidence.confidence_scores"
+      type: "Dictionary<string, double>"
+      description: "All confidence scores by source"
+
+    - key: "evidence.weighted_score"
+      type: double
+      description: "Combined weighted confidence"
+      confidence_range: [0.0, 1.0]
+
+    - key: "evidence.verdict"
+      type: string
+      description: "Bot, Human, or Uncertain"
+
+    - key: "evidence.verdict_confidence"
+      type: double
+      description: "Confidence in the verdict"
+      confidence_range: [0.0, 1.0]
+
+    - key: "evidence.contributing_factors"
+      type: "List<string>"
+      description: "Key factors that influenced verdict"
+
+    - key: "evidence.bot_type"
+      type: string?
+      description: "Detected bot type (if bot)"
+
+    - key: "evidence.all_reasons"
+      type: "List<string>"
+      description: "All reason codes collected"
+
+    - key: "evidence.anomaly_score"
+      type: double
+      description: "Overall anomaly level"
+      confidence_range: [0.0, 1.0]
+
+# Aggregation logic
+aggregation:
+  # Weight configuration for each source
+  weights:
+    # Stage 0 - Fast path (lower weight individually)
+    "detection.useragent.confidence": 1.0
+    "detection.header.confidence": 0.8
+    "detection.ip.confidence": 1.2
+    "detection.securitytool.confidence": 0.5
+    "detection.versionage.confidence": 0.6
+    "detection.clientside.confidence": 1.8  # Strong signal
+
+    # Stage 1 - Behavioral
+    "detection.behavioral.confidence": 1.5
+
+    # Stage 2 - Cross-validation
+    "detection.inconsistency.confidence": 1.3
+
+    # Stage 3 - Intelligence (highest weights)
+    "detection.heuristic.probability": 2.0
+    "detection.llm.confidence": 2.5
+
+  # Combination method
+  method: weighted_bayesian
+
+  # Prior probability (assume human by default)
+  prior_bot_probability: 0.1
+
+  # Verdict thresholds
+  thresholds:
+    definite_bot: 0.9
+    likely_bot: 0.7
+    uncertain_high: 0.5
+    uncertain_low: 0.3
+    likely_human: 0.15
+    definite_human: 0.05
+
+  # Bot type priority (first non-null wins)
+  bot_type_priority:
+    - "detection.llm.bot_type"
+    - "detection.heuristic.bot_type"
+    - "detection.behavioral.bot_type"
+    - "detection.useragent.bot_type"
+    - "detection.inconsistency.bot_type"
+    - "detection.ip.bot_type"
+
+preserve:
+  echo:
+    - signal: "evidence.weighted_score"
+      to: "response_coordinator"
+      when: "always"
+
+    - signal: "evidence.verdict"
+      to: "response_coordinator"
+      when: "always"
+
+  escalate:
+    # High-confidence detections to learning
+    - signal: "evidence.verdict"
+      to: "learning_coordinator"
+      salience_threshold: 0.85
+      when: "verdict in ['Bot', 'Human']"
+      batch: true
+      batch_size: 100
+
+    # Contributing factors for pattern learning
+    - signal: "evidence.contributing_factors"
+      to: "pattern_store"
+      salience_threshold: 0.8
+      when: "verdict == 'Bot'"
+      priority_boost: 5
+
+  propagate:
+    - signal: "evidence.verdict"
+      as: "botdetection.verdict"
+    - signal: "evidence.verdict_confidence"
+      as: "botdetection.confidence"
+    - signal: "evidence.bot_type"
+      as: "botdetection.bot_type"
+
+listens:
+  required: []  # No required inputs - reacts to signals
+  optional:
+    - "detection.*.confidence"
+    - "detection.*.bot_type"
+    - "detection.*.known_bot"
+    - "detection.*.reasons"
+    - "molecule.*.completed"
+
+budget:
+  max_duration: "00:00:00.010"  # 10ms - just computation
+
+lane:
+  name: "aggregation"
+  max_concurrency: 4
+  priority: 85  # After detectors, before response
+
+tags:
+  - "aggregation"
+  - "verdict"
+  - "evidence"
+  - "reactive"
+
+meta:
+  author: "scott@mostlylucid.net"
+  created: "2025-01-08"

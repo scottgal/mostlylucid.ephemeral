@@ -23,6 +23,7 @@ public sealed class SignalWaveExecutor : IAsyncDisposable
     private readonly IReadOnlyCollection<string> _earlyExitPatterns;
     private readonly SignalSink _sink;
     private readonly IReadOnlyList<SignalStage> _stages;
+    private IDisposable? _subscription;
     private bool _started;
 
     public SignalWaveExecutor(
@@ -41,7 +42,7 @@ public sealed class SignalWaveExecutor : IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
-        _sink.SignalRaised -= OnSignal;
+        _subscription?.Dispose();
         _cts.Cancel();
         _coordinator.Complete();
         await _coordinator.DrainAsync().ConfigureAwait(false);
@@ -56,7 +57,7 @@ public sealed class SignalWaveExecutor : IAsyncDisposable
     {
         if (_started) return;
         _started = true;
-        _sink.SignalRaised += OnSignal;
+        _subscription = _sink.Subscribe(OnSignal);
     }
 
     private void OnSignal(SignalEvent evt)
@@ -163,7 +164,7 @@ public static class SignalConsensus
                 tcs.TrySetResult(new QuorumResult(true, seen.Count, null, false));
         }
 
-        sink.SignalRaised += Handler;
+        using var subscription = sink.Subscribe(Handler);
 
         using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
         timeoutCts.CancelAfter(timeout);
@@ -173,14 +174,7 @@ public static class SignalConsensus
             tcs.TrySetResult(new QuorumResult(false, seen.Count, null, true));
         });
 
-        try
-        {
-            return await tcs.Task.ConfigureAwait(false);
-        }
-        finally
-        {
-            sink.SignalRaised -= Handler;
-        }
+        return await tcs.Task.ConfigureAwait(false);
     }
 }
 

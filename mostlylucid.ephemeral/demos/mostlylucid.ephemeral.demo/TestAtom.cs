@@ -14,6 +14,7 @@ public class TestAtom : IAsyncDisposable
     private readonly List<string> _listenSignals;
     private readonly Dictionary<string, string> _signalResponses;
     private readonly TimeSpan _processingDelay;
+    private readonly IDisposable _subscription;
 
     // State storage - demonstrates atom holds authoritative state
     private int _processedCount = 0;
@@ -35,7 +36,7 @@ public class TestAtom : IAsyncDisposable
         _signalResponses = signalResponses ?? new();
         _processingDelay = processingDelay ?? TimeSpan.FromMilliseconds(100);
 
-        _sink.SignalRaised += OnSignal;
+        _subscription = _sink.Subscribe(OnSignal);
     }
 
     private async void OnSignal(SignalEvent signal)
@@ -101,7 +102,7 @@ public class TestAtom : IAsyncDisposable
 
     public ValueTask DisposeAsync()
     {
-        _sink.SignalRaised -= OnSignal;
+        _subscription.Dispose();
         return default;
     }
 }

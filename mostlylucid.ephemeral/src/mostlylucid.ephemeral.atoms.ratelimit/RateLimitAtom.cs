@@ -12,6 +12,7 @@ public sealed class RateLimitAtom : IAsyncDisposable
     private readonly SignalSink _signals;
     private readonly string _controlPattern;
     private readonly object _sync = new();
+    private readonly IDisposable _subscription;
     private TokenBucketRateLimiter _limiter;
     private double _ratePerSecond;
     private int _burst;
@@ -27,7 +28,7 @@ public sealed class RateLimitAtom : IAsyncDisposable
         _ratePerSecond = Math.Max(1, options.InitialRatePerSecond);
         _burst = Math.Max(1, options.Burst);
         _limiter = CreateLimiter(_ratePerSecond, _burst);
-        _signals.SignalRaised += OnSignal;
+        _subscription = _signals.Subscribe(OnSignal);
     }
 
     /// <summary>
@@ -130,7 +131,7 @@ public sealed class RateLimitAtom : IAsyncDisposable
 
     public ValueTask DisposeAsync()
     {
-        _signals.SignalRaised -= OnSignal;
+        _subscription.Dispose();
         _limiter.Dispose();
         return default;
     }

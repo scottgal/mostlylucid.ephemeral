@@ -12,6 +12,7 @@ public sealed class EphemeralSignalJobRunner : IAsyncDisposable
     private readonly Dictionary<string, SemaphoreSlim> _jobGates = new();
     private readonly Dictionary<string, SemaphoreSlim> _laneGates = new();
     private readonly SignalSink _signals;
+    private readonly IDisposable _subscription;
 
     public EphemeralSignalJobRunner(SignalSink signals, IEnumerable<object> jobTargets,
         EphemeralOptions? options = null)
@@ -63,7 +64,7 @@ public sealed class EphemeralSignalJobRunner : IAsyncDisposable
             async (work, ct) => await ExecuteJobAsync(work, ct).ConfigureAwait(false),
             opts);
 
-        _signals.SignalRaised += OnSignal;
+        _subscription = _signals.Subscribe(OnSignal);
     }
 
     public int PendingCount => _coordinator.PendingCount;
@@ -74,7 +75,7 @@ public sealed class EphemeralSignalJobRunner : IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
-        _signals.SignalRaised -= OnSignal;
+        _subscription.Dispose();
         _cts.Cancel();
         await _coordinator.DisposeAsync().ConfigureAwait(false);
         _cts.Dispose();

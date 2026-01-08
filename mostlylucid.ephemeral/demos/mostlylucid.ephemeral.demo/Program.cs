@@ -369,8 +369,8 @@ async Task RunPureNotificationDemo()
         }
     });
 
-    sink.SignalRaised += notificationListener;
-    sink.SignalRaised += auditListener;
+    using var notificationSub = sink.Subscribe(notificationListener);
+    using var auditSub = sink.Subscribe(auditListener);
 
     // Simulate file saves
     await AnsiConsole.Status()
@@ -384,9 +384,6 @@ async Task RunPureNotificationDemo()
                 await Task.Delay(300);
             }
         });
-
-    sink.SignalRaised -= notificationListener;
-    sink.SignalRaised -= auditListener;
 
     AnsiConsole.WriteLine();
     AnsiConsole.MarkupLine("[yellow]Key Takeaway:[/] Signal is just notification. State queried from atom.");
@@ -442,7 +439,7 @@ async Task RunContextHintDemo()
         }
     });
 
-    sink.SignalRaised += emailListener;
+    using var emailSub = sink.Subscribe(emailListener);
 
     await AnsiConsole.Status()
         .Spinner(Spinner.Known.Dots)
@@ -455,8 +452,6 @@ async Task RunContextHintDemo()
                 await Task.Delay(250);
             }
         });
-
-    sink.SignalRaised -= emailListener;
 
     AnsiConsole.WriteLine();
     AnsiConsole.MarkupLine("[yellow]Key Takeaway:[/] Hint in signal for speed, atom query for truth.");
@@ -584,7 +579,7 @@ async Task RunComplexPipelineDemo()
         }
     });
 
-    sink.SignalRaised += statsListener;
+    using var statsSub = sink.Subscribe(statsListener);
 
     // Send requests rapidly - watch rate limiter in action
     await AnsiConsole.Status()
@@ -611,8 +606,6 @@ async Task RunComplexPipelineDemo()
                 await Task.Delay(200); // Fast requests to trigger rate limit
             }
         });
-
-    sink.SignalRaised -= statsListener;
 
     AnsiConsole.WriteLine();
     AnsiConsole.MarkupLine("[yellow]Pipeline Summary:[/]");
@@ -669,7 +662,7 @@ async Task RunSignalChainDemo()
         }
     });
 
-    sink.SignalRaised += completionListener;
+    using var completionSub = sink.Subscribe(completionListener);
 
     await AnsiConsole.Status()
         .Spinner(Spinner.Known.Dots)
@@ -682,8 +675,6 @@ async Task RunSignalChainDemo()
                 await Task.Delay(500); // Wait for chain to complete
             }
         });
-
-    sink.SignalRaised -= completionListener;
 
     AnsiConsole.WriteLine();
     AnsiConsole.MarkupLine("[yellow]Key Takeaway:[/] Atoms can form processing pipelines via signal chains.");
@@ -777,7 +768,7 @@ async Task RunCircuitBreakerDemo()
         }
     });
 
-    sink.SignalRaised += circuitBreakerListener;
+    using var circuitBreakerSub = sink.Subscribe(circuitBreakerListener);
 
     await AnsiConsole.Status()
         .Spinner(Spinner.Known.Dots)
@@ -790,8 +781,6 @@ async Task RunCircuitBreakerDemo()
                 await Task.Delay(300);
             }
         });
-
-    sink.SignalRaised -= circuitBreakerListener;
 
     AnsiConsole.WriteLine();
     AnsiConsole.MarkupLine($"[yellow]Final State:[/] Circuit is [cyan1]{circuitState.ToUpper()}[/]");
@@ -875,7 +864,7 @@ async Task RunBackpressureDemo()
         }
     });
 
-    sink.SignalRaised += queueListener;
+    using var queueSub = sink.Subscribe(queueListener);
 
     await AnsiConsole.Status()
         .Spinner(Spinner.Known.Dots)
@@ -892,8 +881,6 @@ async Task RunBackpressureDemo()
             ctx.Status("Draining queue...");
             await Task.Delay(2000);
         });
-
-    sink.SignalRaised -= queueListener;
 
     AnsiConsole.WriteLine();
     AnsiConsole.MarkupLine($"[yellow]Final Queue Size:[/] {queue.Count}");
@@ -945,7 +932,7 @@ async Task RunMetricsMonitoringDemo()
         }
     });
 
-    sink.SignalRaised += metricsListener;
+    using var metricsSub = sink.Subscribe(metricsListener);
 
     // Request generator
     await using var requestAtom = new TestAtom(
@@ -1005,7 +992,6 @@ async Task RunMetricsMonitoringDemo()
     });
 
     await dashboardTask;
-    sink.SignalRaised -= metricsListener;
 
     AnsiConsole.WriteLine();
     AnsiConsole.MarkupLine("[yellow]Key Takeaway:[/] Signals enable real-time metrics aggregation and monitoring.");
@@ -1065,7 +1051,7 @@ async Task RunDynamicRateAdjustmentDemo()
         }
     });
 
-    sink.SignalRaised += loadMonitorListener;
+    using var loadMonitorSub = sink.Subscribe(loadMonitorListener);
 
     await AnsiConsole.Status()
         .Spinner(Spinner.Known.Dots)
@@ -1091,8 +1077,6 @@ async Task RunDynamicRateAdjustmentDemo()
                 await Task.Delay(400);
             }
         });
-
-    sink.SignalRaised -= loadMonitorListener;
 
     AnsiConsole.WriteLine();
     AnsiConsole.MarkupLine($"[yellow]Final Rate:[/] {rateLimiter.RatePerSecond:F1}/s (burst: {rateLimiter.Burst})");

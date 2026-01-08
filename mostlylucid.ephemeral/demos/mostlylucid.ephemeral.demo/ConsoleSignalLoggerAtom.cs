@@ -14,6 +14,7 @@ public class ConsoleSignalLoggerAtom : IAsyncDisposable
     private readonly SignalSink _sink;
     private readonly ConsoleSignalLoggerOptions _options;
     private readonly ILogger? _logger;
+    private readonly IDisposable _subscription;
     private readonly List<SignalLogEntry> _logWindow = new();
     private readonly object _lock = new();
     private int _totalReceived = 0;
@@ -29,7 +30,7 @@ public class ConsoleSignalLoggerAtom : IAsyncDisposable
         _sink = sink;
         _options = options ?? new();
         _logger = logger;
-        _sink.SignalRaised += OnSignal;
+        _subscription = _sink.Subscribe(OnSignal);
     }
 
     private void OnSignal(SignalEvent signal)
@@ -226,7 +227,7 @@ public class ConsoleSignalLoggerAtom : IAsyncDisposable
 
     public ValueTask DisposeAsync()
     {
-        _sink.SignalRaised -= OnSignal;
+        _subscription.Dispose();
         return default;
     }
 }

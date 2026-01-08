@@ -12,6 +12,7 @@ public sealed class MoleculeRunner : IAsyncDisposable
     private readonly ConcurrentBag<Task> _running = new();
     private readonly IServiceProvider _services;
     private readonly SignalSink _signals;
+    private readonly IDisposable _subscription;
     private bool _disposed;
 
     /// <summary>
@@ -26,7 +27,7 @@ public sealed class MoleculeRunner : IAsyncDisposable
         if (_blueprints.Count == 0)
             throw new ArgumentException("At least one blueprint is required.", nameof(blueprints));
         _services = services ?? NullServiceProvider.Instance;
-        _signals.SignalRaised += OnSignal;
+        _subscription = _signals.Subscribe(OnSignal);
     }
 
     /// <summary>
@@ -36,7 +37,7 @@ public sealed class MoleculeRunner : IAsyncDisposable
     {
         if (_disposed) return;
         _disposed = true;
-        _signals.SignalRaised -= OnSignal;
+        _subscription.Dispose();
         _cts.Cancel();
         try
         {

@@ -386,12 +386,6 @@ public sealed class SignalSink
     public int Count => _window.Count;
 
     /// <summary>
-    ///     Raised immediately whenever a signal is enqueued. Use for live subscribers that need push semantics.
-    /// </summary>
-    [Obsolete("Use Subscribe() instead for better performance. This event will be removed in version 2.0.", false)]
-    public event Action<SignalEvent>? SignalRaised;
-
-    /// <summary>
     ///     Raise a signal.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -409,22 +403,6 @@ public sealed class SignalSink
             try
             {
                 listeners[i](signal);
-            }
-            catch
-            {
-                /* never throw from signal fan-out */
-            }
-        }
-
-        // Legacy event support - kept for backward compatibility
-        #pragma warning disable CS0618 // Type or member is obsolete
-        var handler = SignalRaised;
-        #pragma warning restore CS0618
-        if (handler is not null)
-        {
-            try
-            {
-                handler(signal);
             }
             catch
             {

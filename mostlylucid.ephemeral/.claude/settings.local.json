@@ -9,7 +9,12 @@
       "Bash(cd:*)",
       "Bash(dir:*)",
       "Bash(findstr:*)",
-      "WebFetch(domain:andrewlock.net)"
+      "WebFetch(domain:andrewlock.net)",
+      "Bash(dotnet new:*)",
+      "Bash(git mv:*)",
+      "Bash(md \"D:\\\\Source\\\\styloflow\\\\src\\\\StyloFlow\\\\Schemas\")",
+      "Bash(md \"D:\\\\Source\\\\mostlylucid.nugetpackages\\\\Mostlylucid.BotDetection\\\\Orchestration\\\\Manifests\\\\schemas\")",
+      "Bash(dotnet run:*)"
     ],
     "deny": [],
     "ask": []

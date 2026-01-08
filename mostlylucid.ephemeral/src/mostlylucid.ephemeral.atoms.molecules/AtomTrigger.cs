@@ -9,6 +9,7 @@ public sealed class AtomTrigger : IDisposable
     private readonly CancellationTokenSource _cts = new();
     private readonly Func<string, bool> _matcher;
     private readonly SignalSink _signals;
+    private readonly IDisposable _subscription;
 
     /// <summary>
     ///     Creates a trigger that runs the provided action when signals match the pattern.
@@ -23,7 +24,7 @@ public sealed class AtomTrigger : IDisposable
             throw new ArgumentException("Signal pattern is required.", nameof(signalPattern));
         _matcher = signal => StringPatternMatcher.Matches(signal, signalPattern);
         _action = action ?? throw new ArgumentNullException(nameof(action));
-        _signals.SignalRaised += OnSignal;
+        _subscription = _signals.Subscribe(OnSignal);
     }
 
     /// <summary>
@@ -31,7 +32,7 @@ public sealed class AtomTrigger : IDisposable
     /// </summary>
     public void Dispose()
     {
-        _signals.SignalRaised -= OnSignal;
+        _subscription.Dispose();
         _cts.Cancel();
         _cts.Dispose();
     }

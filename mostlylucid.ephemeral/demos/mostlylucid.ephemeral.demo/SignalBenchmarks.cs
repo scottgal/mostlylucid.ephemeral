@@ -197,14 +197,14 @@ public class SignalBenchmarks
         await using var atom3 = new BenchmarkChainAtom(sink, "stepB", "output");
 
         // Track completion
-        sink.SignalRaised += (signal) =>
+        using var sub = sink.Subscribe((signal) =>
         {
             if (signal.Signal == "output")
             {
                 if (Interlocked.Increment(ref completedCount) == 156_000)
                     completionTcs.TrySetResult(true);
             }
-        };
+        });
 
         for (int i = 0; i < 156_000; i++)
         {
@@ -245,15 +245,19 @@ public class SignalBenchmarks
         var count = 0;
 
         // Add 5 minimal listeners
+        var subs = new List<IDisposable>();
         for (int i = 0; i < 5; i++)
         {
-            sink.SignalRaised += _ => count++;
+            subs.Add(sink.Subscribe(_ => count++));
         }
 
         for (int i = 0; i < 680_000; i++)
         {
             sink.Raise("test.signal");
         }
+
+        foreach (var sub in subs)
+            sub.Dispose();
     }
 
     // 159.3µs → 100ms: need ~630× more (1K → 630K signals)
@@ -264,15 +268,19 @@ public class SignalBenchmarks
         var count = 0;
 
         // Add 10 minimal listeners
+        var subs = new List<IDisposable>();
         for (int i = 0; i < 10; i++)
         {
-            sink.SignalRaised += _ => count++;
+            subs.Add(sink.Subscribe(_ => count++));
         }
 
         for (int i = 0; i < 630_000; i++)
         {
             sink.Raise("test.signal");
         }
+
+        foreach (var sub in subs)
+            sub.Dispose();
     }
 
     // 255.7µs → 100ms: need ~390× more (100 → 39K chains)
@@ -293,14 +301,14 @@ public class SignalBenchmarks
         atoms.Add(new BenchmarkChainAtom(sink, "step10", "output"));
 
         // Track completion
-        sink.SignalRaised += (signal) =>
+        using var sub = sink.Subscribe((signal) =>
         {
             if (signal.Signal == "output")
             {
                 if (Interlocked.Increment(ref completedCount) == 39_000)
                     completionTcs.TrySetResult(true);
             }
-        };
+        });
 
         for (int i = 0; i < 39_000; i++)
         {
@@ -477,7 +485,7 @@ public class SignalBenchmarks
         var sink = new SignalSink(maxCapacity: 10000);
         var count = 0;
 
-        sink.SignalRaised += _ => count++;
+        using var sub = sink.Subscribe(_ => count++);
 
         for (int i = 0; i < 10000; i++)
         {
@@ -492,7 +500,7 @@ public class SignalBenchmarks
         var sink = new SignalSink(maxCapacity: 50000);
         var count = 0;
 
-        sink.SignalRaised += _ => count++;
+        using var sub = sink.Subscribe(_ => count++);
 
         for (int i = 0; i < 50000; i++)
         {
@@ -614,7 +622,7 @@ public class SignalBenchmarks
         var count = 0;
         var options = new ParallelOptions { MaxDegreeOfParallelism = 16 };
 
-        sink.SignalRaised += _ => Interlocked.Increment(ref count);
+        using var sub = sink.Subscribe(_ => Interlocked.Increment(ref count));
 
         Parallel.For(0, 16, options, threadId =>
         {
@@ -661,14 +669,14 @@ public class SignalBenchmarks
         await using var atom2 = new BenchmarkChainAtom(sink, "step1", "step2");
         await using var atom3 = new BenchmarkChainAtom(sink, "step2", "output");
 
-        sink.SignalRaised += (signal) =>
+        using var sub = sink.Subscribe((signal) =>
         {
             if (signal.Signal == "output")
             {
                 if (Interlocked.Increment(ref completionCount) == expectedCompletions)
                     completionTcs.TrySetResult(true);
             }
-        };
+        });
 
         var options = new ParallelOptions { MaxDegreeOfParallelism = 16 };
 
@@ -1026,13 +1034,14 @@ public class BenchmarkChainAtom : IAsyncDisposable
     private readonly SignalSink _sink;
     private readonly string _listenSignal;
     private readonly string _emitSignal;
+    private readonly IDisposable _subscription;
 
     public BenchmarkChainAtom(SignalSink sink, string listenSignal, string emitSignal)
     {
         _sink = sink;
         _listenSignal = listenSignal;
         _emitSignal = emitSignal;
-        _sink.SignalRaised += OnSignal;
+        _subscription = _sink.Subscribe(OnSignal);
     }
 
     private void OnSignal(SignalEvent signal)
@@ -1046,7 +1055,7 @@ public class BenchmarkChainAtom : IAsyncDisposable
 
     public ValueTask DisposeAsync()
     {
-        _sink.SignalRaised -= OnSignal;
+        _subscription.Dispose();
         return default;
     }
 }

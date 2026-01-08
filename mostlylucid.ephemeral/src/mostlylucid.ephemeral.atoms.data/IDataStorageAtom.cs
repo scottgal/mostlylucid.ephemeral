@@ -42,7 +42,7 @@ public interface IDataStorageAtom<TKey, TValue> : IAsyncDisposable
 public abstract class DataStorageAtomBase<TKey, TValue> : IDataStorageAtom<TKey, TValue>
     where TKey : notnull
 {
-    private readonly Action<SignalEvent> _signalHandler;
+    private readonly IDisposable _subscription;
     protected readonly EphemeralWorkCoordinator<DataOperation<TKey, TValue>> Coordinator;
     protected readonly SignalSink Signals;
 
@@ -61,8 +61,7 @@ public abstract class DataStorageAtomBase<TKey, TValue> : IDataStorageAtom<TKey,
             ExecuteOperationAsync,
             options);
 
-        _signalHandler = OnSignal;
-        Signals.SignalRaised += _signalHandler;
+        _subscription = Signals.Subscribe(OnSignal);
     }
 
     public DataStorageConfig Config { get; }
@@ -103,7 +102,7 @@ public abstract class DataStorageAtomBase<TKey, TValue> : IDataStorageAtom<TKey,
 
     public virtual async ValueTask DisposeAsync()
     {
-        Signals.SignalRaised -= _signalHandler;
+        _subscription.Dispose();
         Coordinator.Complete();
         await Coordinator.DrainAsync().ConfigureAwait(false);
         await Coordinator.DisposeAsync().ConfigureAwait(false);

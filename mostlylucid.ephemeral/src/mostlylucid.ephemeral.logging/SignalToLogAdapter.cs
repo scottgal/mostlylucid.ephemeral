@@ -10,6 +10,7 @@ public sealed class SignalToLoggerAdapter : IDisposable
     private readonly ILogger _logger;
     private readonly SignalToLogOptions _options;
     private readonly SignalSink _sink;
+    private readonly IDisposable _subscription;
     private bool _disposed;
 
     public SignalToLoggerAdapter(SignalSink sink, ILogger logger, SignalToLogOptions? options = null)
@@ -18,14 +19,14 @@ public sealed class SignalToLoggerAdapter : IDisposable
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _options = options ?? new SignalToLogOptions();
 
-        _sink.SignalRaised += OnSignal;
+        _subscription = _sink.Subscribe(OnSignal);
     }
 
     public void Dispose()
     {
         if (_disposed) return;
         _disposed = true;
-        _sink.SignalRaised -= OnSignal;
+        _subscription.Dispose();
     }
 
     private void OnSignal(SignalEvent evt)

@@ -151,7 +151,7 @@ public class SignalSinkTests
         var sink = new SignalSink();
         SignalEvent? receivedSignal = null;
 
-        sink.SignalRaised += (signal) => receivedSignal = signal;
+        using var sub = sink.Subscribe((signal) => receivedSignal = signal);
         sink.Raise("test.event");
 
         Assert.NotNull(receivedSignal);
@@ -163,7 +163,7 @@ public class SignalSinkTests
     {
         var sink = new SignalSink();
 
-        sink.SignalRaised += (_) => throw new Exception("Handler failure");
+        using var sub = sink.Subscribe((_) => throw new Exception("Handler failure"));
 
         // Should not throw
         sink.Raise("test.event");

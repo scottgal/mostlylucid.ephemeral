@@ -12,6 +12,7 @@ public sealed class ResponsibilitySignalManager : IDisposable
     private readonly IOperationPinning _pinning;
     private readonly ConcurrentDictionary<long, ResponsibilityRegistration> _registrations = new();
     private readonly SignalSink _signals;
+    private readonly IDisposable _subscription;
 
     /// <summary>
     ///     Creates a manager for a coordinator and shared signal sink.
@@ -23,7 +24,7 @@ public sealed class ResponsibilitySignalManager : IDisposable
         _signals = signals ?? throw new ArgumentNullException(nameof(signals));
         _maxPinDuration = maxPinDuration;
         _clock = clock ?? (() => DateTimeOffset.UtcNow);
-        _signals.SignalRaised += OnSignalRaised;
+        _subscription = _signals.Subscribe(OnSignalRaised);
     }
 
     /// <summary>
@@ -33,7 +34,7 @@ public sealed class ResponsibilitySignalManager : IDisposable
 
     public void Dispose()
     {
-        _signals.SignalRaised -= OnSignalRaised;
+        _subscription.Dispose();
         foreach (var registration in _registrations.Values) _pinning.Unpin(registration.OperationId);
         _registrations.Clear();
     }

@@ -10,7 +10,7 @@ public class SignalOrchestrationTests
         var untyped = new SignalSink();
         var typed = new TypedSignalSink<string>(untyped);
         var raised = 0;
-        untyped.SignalRaised += _ => Interlocked.Increment(ref raised);
+        using var sub = untyped.Subscribe(_ => Interlocked.Increment(ref raised));
 
         typed.Raise("bot.evidence", "payload", "k1");
 

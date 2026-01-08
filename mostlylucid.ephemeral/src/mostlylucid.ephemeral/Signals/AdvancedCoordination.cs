@@ -182,6 +182,7 @@ public sealed class EarlyExitResultCoordinator<TInput, TResult> : IAsyncDisposab
     private readonly TaskCompletionSource<EarlyExitTcsResult<TResult>> _exitTcs = new();
     private readonly EphemeralResultCoordinator<TInput, TResult> _inner;
     private readonly SignalSink _sink;
+    private readonly IDisposable _subscription;
     private volatile bool _earlyExited;
 
     public EarlyExitResultCoordinator(
@@ -221,7 +222,7 @@ public sealed class EarlyExitResultCoordinator<TInput, TResult> : IAsyncDisposab
             };
 
         _inner = new EphemeralResultCoordinator<TInput, TResult>(body, opts);
-        _sink.SignalRaised += OnSignal;
+        _subscription = _sink.Subscribe(OnSignal);
     }
 
     public int PendingCount => _inner.PendingCount;
@@ -233,7 +234,7 @@ public sealed class EarlyExitResultCoordinator<TInput, TResult> : IAsyncDisposab
 
     public async ValueTask DisposeAsync()
     {
-        _sink.SignalRaised -= OnSignal;
+        _subscription.Dispose();
         _exitCts.Cancel();
         _exitCts.Dispose();
         await _inner.DisposeAsync().ConfigureAwait(false);

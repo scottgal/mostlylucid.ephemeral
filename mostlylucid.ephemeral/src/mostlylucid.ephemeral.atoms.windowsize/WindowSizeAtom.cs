@@ -41,6 +41,7 @@ public sealed class WindowSizeAtom : IAsyncDisposable
 {
     private readonly SignalSink _sink;
     private readonly WindowSizeAtomOptions _options;
+    private readonly IDisposable _subscription;
 
     /// <summary>
     /// Creates a new WindowSizeAtom that listens to the specified SignalSink.
@@ -52,7 +53,7 @@ public sealed class WindowSizeAtom : IAsyncDisposable
     {
         _sink = sink ?? throw new ArgumentNullException(nameof(sink));
         _options = options ?? new WindowSizeAtomOptions();
-        _sink.SignalRaised += OnSignal;
+        _subscription = _sink.Subscribe(OnSignal);
     }
 
     private void OnSignal(SignalEvent signal)
@@ -172,7 +173,7 @@ public sealed class WindowSizeAtom : IAsyncDisposable
 
     public ValueTask DisposeAsync()
     {
-        _sink.SignalRaised -= OnSignal;
+        _subscription.Dispose();
         return default;
     }
 }

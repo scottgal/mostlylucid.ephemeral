@@ -48,6 +48,7 @@ public sealed class EphemeralScopedJobRunner : IAsyncDisposable
     private readonly Dictionary<string, SemaphoreSlim> _laneGates = new();
     private readonly IServiceProvider _serviceProvider;
     private readonly SignalSink _signals;
+    private readonly IDisposable _subscription;
     private EphemeralKeyedWorkCoordinator<ScopedJobInvocation, string> _coordinator = null!;
 
     /// <summary>
@@ -73,7 +74,7 @@ public sealed class EphemeralScopedJobRunner : IAsyncDisposable
         InitializeGates();
         InitializeCoordinator(options);
 
-        _signals.SignalRaised += OnSignal;
+        _subscription = _signals.Subscribe(OnSignal);
     }
 
     /// <summary>
@@ -96,7 +97,7 @@ public sealed class EphemeralScopedJobRunner : IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
-        _signals.SignalRaised -= OnSignal;
+        _subscription.Dispose();
         _cts.Cancel();
         await _coordinator.DisposeAsync().ConfigureAwait(false);
         _cts.Dispose();

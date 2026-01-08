@@ -201,7 +201,7 @@ public class PersistentSignalWindowTests : IAsyncLifetime
     {
         var diagnosticSignals = new List<SignalEvent>();
         await using var window = new PersistentSignalWindow($"Data Source={_dbPath}", TimeSpan.FromMilliseconds(100));
-        window.Sink.SignalRaised += e => diagnosticSignals.Add(e);
+        using var sub = window.Sink.Subscribe(e => diagnosticSignals.Add(e));
 
         window.Raise("trigger.flush");
 

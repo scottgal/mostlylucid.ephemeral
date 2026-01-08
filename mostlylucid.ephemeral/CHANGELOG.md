@@ -5,7 +5,35 @@ All notable changes to Mostlylucid.Ephemeral will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [2.0.0] - 2026-01-08
+
+### Breaking Changes
+
+- **REMOVED: `SignalSink.SignalRaised` event**
+  - The event-based subscription pattern has been removed
+  - Use `Subscribe()` method instead, which returns `IDisposable` for clean unsubscription
+  - See [BREAKING_CHANGES_2.0.md](BREAKING_CHANGES_2.0.md) for migration guide
+  - Rationale: Better memory management, guaranteed cleanup, no race conditions
+
+- **REMOVED: .NET 6.0 and .NET 7.0 support**
+  - Minimum supported frameworks: .NET 8.0, .NET 9.0, .NET 10.0
+  - .NET 6.0 and 7.0 are out of Microsoft support
+  - This allows use of modern C# features (`static abstract`, `required`)
+
+### Migration from 1.x
+
+```csharp
+// Before (1.x) - event pattern
+sink.SignalRaised += MyHandler;
+
+// After (2.0) - subscription pattern
+var subscription = sink.Subscribe(MyHandler);
+// ... later
+subscription.Dispose(); // Clean unsubscription
+
+// Or use 'using' for scoped subscriptions
+using var sub = sink.Subscribe(signal => ProcessSignal(signal));
+```
 
 ### Added
 - **WindowSizeAtom**: New atom for dynamic SignalSink capacity and retention management via signals
@@ -150,9 +178,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Migration Guide
 
-### From 1.0.0 to Unreleased
+### From 1.x to 2.0.0
 
-**No breaking changes** - all updates are additive or internal optimizations.
+**Breaking changes** - see [BREAKING_CHANGES_2.0.md](BREAKING_CHANGES_2.0.md) for full details.
+
+#### SignalRaised Event Removal
+
+```csharp
+// Before (1.x)
+sink.SignalRaised += (signal) => Console.WriteLine(signal.Name);
+
+// After (2.0)
+using var sub = sink.Subscribe(signal => Console.WriteLine(signal.Name));
+```
+
+#### Target Framework Updates
+
+Update your project file:
+```xml
+<!-- Before -->
+<TargetFrameworks>net6.0;net7.0;net8.0</TargetFrameworks>
+
+<!-- After -->
+<TargetFrameworks>net8.0;net9.0;net10.0</TargetFrameworks>
+```
 
 #### To Use New WindowSizeAtom:
 

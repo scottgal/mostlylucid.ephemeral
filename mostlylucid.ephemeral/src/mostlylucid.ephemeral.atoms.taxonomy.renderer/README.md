@@ -4,13 +4,13 @@
 
 Deterministic renderer atom that turns decisions into output artifacts.
 
-`ash
+```bash
 dotnet add package mostlylucid.ephemeral.atoms.taxonomy.renderer
-`
+```
 
 ## Quick Start
 
-`csharp
+```csharp
 using Mostlylucid.Ephemeral;
 using Mostlylucid.Ephemeral.Atoms.Taxonomy;
 
@@ -20,20 +20,20 @@ await using var atom = new RendererAtom<string, int>(
     outputSignal: "renderer.output");
 
 await atom.RunAsync("probe");
-`
+```
 
 ## Contract Defaults
 
 - Kind: Renderer
 - Determinism: Deterministic
 - Persistence: EphemeralOnly
-- Output signal: tom.renderer.output (unless overridden)
+- Output signal: atom.renderer.output (unless overridden)
 
 ## Related Packages
 
-| Package                                                                                         | Description    |
-|-------------------------------------------------------------------------------------------------|----------------|
-| [mostlylucid.ephemeral](https://www.nuget.org/packages/mostlylucid.ephemeral)                   | Core library   |
+| Package | Description |
+|---------|-------------|
+| [mostlylucid.ephemeral](https://www.nuget.org/packages/mostlylucid.ephemeral) | Core library |
 | [mostlylucid.ephemeral.complete](https://www.nuget.org/packages/mostlylucid.ephemeral.complete) | All in one DLL |
 
 ## License

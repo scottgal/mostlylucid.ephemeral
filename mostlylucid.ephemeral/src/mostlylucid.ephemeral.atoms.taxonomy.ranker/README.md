@@ -4,13 +4,13 @@
 
 Deterministic ranker atom that re-scores and re-orders candidates.
 
-`ash
+```bash
 dotnet add package mostlylucid.ephemeral.atoms.taxonomy.ranker
-`
+```
 
 ## Quick Start
 
-`csharp
+```csharp
 using Mostlylucid.Ephemeral;
 using Mostlylucid.Ephemeral.Atoms.Taxonomy;
 
@@ -20,20 +20,20 @@ await using var atom = new RankerAtom<string, int>(
     outputSignal: "ranker.output");
 
 await atom.RunAsync("probe");
-`
+```
 
 ## Contract Defaults
 
 - Kind: Ranker
 - Determinism: Deterministic
 - Persistence: EphemeralOnly
-- Output signal: tom.ranker.output (unless overridden)
+- Output signal: atom.ranker.output (unless overridden)
 
 ## Related Packages
 
-| Package                                                                                         | Description    |
-|-------------------------------------------------------------------------------------------------|----------------|
-| [mostlylucid.ephemeral](https://www.nuget.org/packages/mostlylucid.ephemeral)                   | Core library   |
+| Package | Description |
+|---------|-------------|
+| [mostlylucid.ephemeral](https://www.nuget.org/packages/mostlylucid.ephemeral) | Core library |
 | [mostlylucid.ephemeral.complete](https://www.nuget.org/packages/mostlylucid.ephemeral.complete) | All in one DLL |
 
 ## License

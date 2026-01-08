@@ -4,13 +4,13 @@
 
 Deterministic retriever atom that selects candidates under a lens.
 
-`ash
+```bash
 dotnet add package mostlylucid.ephemeral.atoms.taxonomy.retriever
-`
+```
 
 ## Quick Start
 
-`csharp
+```csharp
 using Mostlylucid.Ephemeral;
 using Mostlylucid.Ephemeral.Atoms.Taxonomy;
 
@@ -20,20 +20,20 @@ await using var atom = new RetrieverAtom<string, int>(
     outputSignal: "retriever.output");
 
 await atom.RunAsync("probe");
-`
+```
 
 ## Contract Defaults
 
 - Kind: Retriever
 - Determinism: Deterministic
 - Persistence: EphemeralOnly
-- Output signal: tom.retriever.output (unless overridden)
+- Output signal: atom.retriever.output (unless overridden)
 
 ## Related Packages
 
-| Package                                                                                         | Description    |
-|-------------------------------------------------------------------------------------------------|----------------|
-| [mostlylucid.ephemeral](https://www.nuget.org/packages/mostlylucid.ephemeral)                   | Core library   |
+| Package | Description |
+|---------|-------------|
+| [mostlylucid.ephemeral](https://www.nuget.org/packages/mostlylucid.ephemeral) | Core library |
 | [mostlylucid.ephemeral.complete](https://www.nuget.org/packages/mostlylucid.ephemeral.complete) | All in one DLL |
 
 ## License

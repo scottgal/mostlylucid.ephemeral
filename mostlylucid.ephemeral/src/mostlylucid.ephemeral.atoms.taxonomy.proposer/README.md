@@ -4,13 +4,13 @@
 
 Probabilistic proposer atom that emits proposals with confidence.
 
-`ash
+```bash
 dotnet add package mostlylucid.ephemeral.atoms.taxonomy.proposer
-`
+```
 
 ## Quick Start
 
-`csharp
+```csharp
 using Mostlylucid.Ephemeral;
 using Mostlylucid.Ephemeral.Atoms.Taxonomy;
 
@@ -20,20 +20,20 @@ await using var atom = new ProposerAtom<string, int>(
     outputSignal: "proposer.output");
 
 await atom.RunAsync("probe");
-`
+```
 
 ## Contract Defaults
 
 - Kind: Proposer
 - Determinism: Probabilistic
 - Persistence: PersistableViaEscalation
-- Output signal: tom.proposer.output (unless overridden)
+- Output signal: atom.proposer.output (unless overridden)
 
 ## Related Packages
 
-| Package                                                                                         | Description    |
-|-------------------------------------------------------------------------------------------------|----------------|
-| [mostlylucid.ephemeral](https://www.nuget.org/packages/mostlylucid.ephemeral)                   | Core library   |
+| Package | Description |
+|---------|-------------|
+| [mostlylucid.ephemeral](https://www.nuget.org/packages/mostlylucid.ephemeral) | Core library |
 | [mostlylucid.ephemeral.complete](https://www.nuget.org/packages/mostlylucid.ephemeral.complete) | All in one DLL |
 
 ## License

@@ -4,13 +4,13 @@
 
 Deterministic guard atom that enforces safety or compliance rules.
 
-`ash
+```bash
 dotnet add package mostlylucid.ephemeral.atoms.taxonomy.guard
-`
+```
 
 ## Quick Start
 
-`csharp
+```csharp
 using Mostlylucid.Ephemeral;
 using Mostlylucid.Ephemeral.Atoms.Taxonomy;
 
@@ -20,20 +20,20 @@ await using var atom = new GuardAtom<string, int>(
     outputSignal: "guard.output");
 
 await atom.RunAsync("probe");
-`
+```
 
 ## Contract Defaults
 
 - Kind: Guard
 - Determinism: Deterministic
 - Persistence: EphemeralOnly
-- Output signal: tom.guard.output (unless overridden)
+- Output signal: atom.guard.output (unless overridden)
 
 ## Related Packages
 
-| Package                                                                                         | Description    |
-|-------------------------------------------------------------------------------------------------|----------------|
-| [mostlylucid.ephemeral](https://www.nuget.org/packages/mostlylucid.ephemeral)                   | Core library   |
+| Package | Description |
+|---------|-------------|
+| [mostlylucid.ephemeral](https://www.nuget.org/packages/mostlylucid.ephemeral) | Core library |
 | [mostlylucid.ephemeral.complete](https://www.nuget.org/packages/mostlylucid.ephemeral.complete) | All in one DLL |
 
 ## License

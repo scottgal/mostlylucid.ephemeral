@@ -4,13 +4,13 @@
 
 Deterministic embedder atom that produces embeddings for extracted units.
 
-`ash
+```bash
 dotnet add package mostlylucid.ephemeral.atoms.taxonomy.embedder
-`
+```
 
 ## Quick Start
 
-`csharp
+```csharp
 using Mostlylucid.Ephemeral;
 using Mostlylucid.Ephemeral.Atoms.Taxonomy;
 
@@ -20,20 +20,20 @@ await using var atom = new EmbedderAtom<string, int>(
     outputSignal: "embedder.output");
 
 await atom.RunAsync("probe");
-`
+```
 
 ## Contract Defaults
 
 - Kind: Embedder
 - Determinism: Deterministic
 - Persistence: PersistableViaEscalation
-- Output signal: tom.embedder.output (unless overridden)
+- Output signal: atom.embedder.output (unless overridden)
 
 ## Related Packages
 
-| Package                                                                                         | Description    |
-|-------------------------------------------------------------------------------------------------|----------------|
-| [mostlylucid.ephemeral](https://www.nuget.org/packages/mostlylucid.ephemeral)                   | Core library   |
+| Package | Description |
+|---------|-------------|
+| [mostlylucid.ephemeral](https://www.nuget.org/packages/mostlylucid.ephemeral) | Core library |
 | [mostlylucid.ephemeral.complete](https://www.nuget.org/packages/mostlylucid.ephemeral.complete) | All in one DLL |
 
 ## License

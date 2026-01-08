@@ -4,13 +4,13 @@
 
 Deterministic coordinator atom that plans and orchestrates work.
 
-`ash
+```bash
 dotnet add package mostlylucid.ephemeral.atoms.taxonomy.coordinator
-`
+```
 
 ## Quick Start
 
-`csharp
+```csharp
 using Mostlylucid.Ephemeral;
 using Mostlylucid.Ephemeral.Atoms.Taxonomy;
 
@@ -20,20 +20,20 @@ await using var atom = new CoordinatorAtom<string, int>(
     outputSignal: "coordinator.output");
 
 await atom.RunAsync("probe");
-`
+```
 
 ## Contract Defaults
 
 - Kind: Coordinator
 - Determinism: Deterministic
 - Persistence: EphemeralOnly
-- Output signal: tom.coordinator.output (unless overridden)
+- Output signal: atom.coordinator.output (unless overridden)
 
 ## Related Packages
 
-| Package                                                                                         | Description    |
-|-------------------------------------------------------------------------------------------------|----------------|
-| [mostlylucid.ephemeral](https://www.nuget.org/packages/mostlylucid.ephemeral)                   | Core library   |
+| Package | Description |
+|---------|-------------|
+| [mostlylucid.ephemeral](https://www.nuget.org/packages/mostlylucid.ephemeral) | Core library |
 | [mostlylucid.ephemeral.complete](https://www.nuget.org/packages/mostlylucid.ephemeral.complete) | All in one DLL |
 
 ## License

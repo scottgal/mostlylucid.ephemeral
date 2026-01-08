@@ -21,7 +21,11 @@
       "Bash(ls:*)",
       "Bash(xargs:*)",
       "Bash(dotnet restore:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(cat:*)",
+      "Bash(for f in D:/Source/mostlylucid.atoms/mostlylucid.ephemeral/src/mostlylucid.ephemeral.atoms.taxonomy.*/README.md)",
+      "Bash(do file \"$f\")",
+      "Bash(done)"
     ],
     "deny": [],
     "ask": []

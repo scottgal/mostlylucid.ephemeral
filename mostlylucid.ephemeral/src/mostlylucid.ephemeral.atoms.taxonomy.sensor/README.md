@@ -4,13 +4,13 @@
 
 Deterministic sensor atom that extracts signals or evidence pointers from sources.
 
-`ash
+```bash
 dotnet add package mostlylucid.ephemeral.atoms.taxonomy.sensor
-`
+```
 
 ## Quick Start
 
-`csharp
+```csharp
 using Mostlylucid.Ephemeral;
 using Mostlylucid.Ephemeral.Atoms.Taxonomy;
 
@@ -20,20 +20,20 @@ await using var atom = new SensorAtom<string, int>(
     outputSignal: "sensor.output");
 
 await atom.RunAsync("probe");
-`
+```
 
 ## Contract Defaults
 
 - Kind: Sensor
 - Determinism: Deterministic
 - Persistence: PersistableViaEscalation
-- Output signal: tom.sensor.output (unless overridden)
+- Output signal: atom.sensor.output (unless overridden)
 
 ## Related Packages
 
-| Package                                                                                         | Description    |
-|-------------------------------------------------------------------------------------------------|----------------|
-| [mostlylucid.ephemeral](https://www.nuget.org/packages/mostlylucid.ephemeral)                   | Core library   |
+| Package | Description |
+|---------|-------------|
+| [mostlylucid.ephemeral](https://www.nuget.org/packages/mostlylucid.ephemeral) | Core library |
 | [mostlylucid.ephemeral.complete](https://www.nuget.org/packages/mostlylucid.ephemeral.complete) | All in one DLL |
 
 ## License

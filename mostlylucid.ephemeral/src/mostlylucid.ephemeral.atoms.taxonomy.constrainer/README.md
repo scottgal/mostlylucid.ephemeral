@@ -4,13 +4,13 @@
 
 Deterministic constrainer atom that validates or selects proposals.
 
-`ash
+```bash
 dotnet add package mostlylucid.ephemeral.atoms.taxonomy.constrainer
-`
+```
 
 ## Quick Start
 
-`csharp
+```csharp
 using Mostlylucid.Ephemeral;
 using Mostlylucid.Ephemeral.Atoms.Taxonomy;
 
@@ -20,20 +20,20 @@ await using var atom = new ConstrainerAtom<string, int>(
     outputSignal: "constrainer.output");
 
 await atom.RunAsync("probe");
-`
+```
 
 ## Contract Defaults
 
 - Kind: Constrainer
 - Determinism: Deterministic
 - Persistence: PersistableViaEscalation
-- Output signal: tom.constrainer.output (unless overridden)
+- Output signal: atom.constrainer.output (unless overridden)
 
 ## Related Packages
 
-| Package                                                                                         | Description    |
-|-------------------------------------------------------------------------------------------------|----------------|
-| [mostlylucid.ephemeral](https://www.nuget.org/packages/mostlylucid.ephemeral)                   | Core library   |
+| Package | Description |
+|---------|-------------|
+| [mostlylucid.ephemeral](https://www.nuget.org/packages/mostlylucid.ephemeral) | Core library |
 | [mostlylucid.ephemeral.complete](https://www.nuget.org/packages/mostlylucid.ephemeral.complete) | All in one DLL |
 
 ## License

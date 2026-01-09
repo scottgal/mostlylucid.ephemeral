@@ -12,9 +12,12 @@ namespace Mostlylucid.Ephemeral.Atoms.Taxonomy.Manifests;
 public sealed class ManifestRegistry : IManifestRegistry
 {
     private readonly ConcurrentDictionary<string, AtomManifest> _atoms = new(StringComparer.OrdinalIgnoreCase);
+    private readonly ConcurrentDictionary<string, CoordinatorManifest> _coordinators = new(StringComparer.OrdinalIgnoreCase);
     private readonly IDeserializer _deserializer;
     private readonly ConcurrentDictionary<string, MoleculeManifest> _molecules = new(StringComparer.OrdinalIgnoreCase);
     private readonly ManifestRegistryOptions _options;
+    private readonly ConcurrentDictionary<string, PipelineManifest> _pipelines = new(StringComparer.OrdinalIgnoreCase);
+    private readonly ConcurrentDictionary<string, WaveManifest> _waves = new(StringComparer.OrdinalIgnoreCase);
 
     public ManifestRegistry(ManifestRegistryOptions? options = null)
     {
@@ -36,6 +39,21 @@ public sealed class ManifestRegistry : IManifestRegistry
     public IReadOnlyDictionary<string, MoleculeManifest> Molecules => _molecules;
 
     /// <summary>
+    ///     All registered wave manifests.
+    /// </summary>
+    public IReadOnlyDictionary<string, WaveManifest> Waves => _waves;
+
+    /// <summary>
+    ///     All registered pipeline manifests.
+    /// </summary>
+    public IReadOnlyDictionary<string, PipelineManifest> Pipelines => _pipelines;
+
+    /// <summary>
+    ///     All registered coordinator manifests.
+    /// </summary>
+    public IReadOnlyDictionary<string, CoordinatorManifest> Coordinators => _coordinators;
+
+    /// <summary>
     ///     Loads all manifests from a directory.
     /// </summary>
     public async Task LoadFromDirectoryAsync(string path, CancellationToken ct = default)
@@ -45,6 +63,9 @@ public sealed class ManifestRegistry : IManifestRegistry
 
         var atomFiles = Directory.EnumerateFiles(path, "*.atom.yaml", SearchOption.AllDirectories);
         var moleculeFiles = Directory.EnumerateFiles(path, "*.molecule.yaml", SearchOption.AllDirectories);
+        var waveFiles = Directory.EnumerateFiles(path, "*.wave.yaml", SearchOption.AllDirectories);
+        var pipelineFiles = Directory.EnumerateFiles(path, "*.pipeline.yaml", SearchOption.AllDirectories);
+        var coordinatorFiles = Directory.EnumerateFiles(path, "*.coordinator.yaml", SearchOption.AllDirectories);
 
         foreach (var file in atomFiles)
         {
@@ -62,6 +83,32 @@ public sealed class ManifestRegistry : IManifestRegistry
             var manifest = _deserializer.Deserialize<MoleculeManifest>(content);
             var key = GetMoleculeKey(manifest);
             _molecules[key] = manifest;
+        }
+
+        foreach (var file in waveFiles)
+        {
+            ct.ThrowIfCancellationRequested();
+            var content = await File.ReadAllTextAsync(file, ct);
+            var manifest = _deserializer.Deserialize<WaveManifest>(content);
+            var key = GetWaveKey(manifest);
+            _waves[key] = manifest;
+        }
+
+        foreach (var file in pipelineFiles)
+        {
+            ct.ThrowIfCancellationRequested();
+            var content = await File.ReadAllTextAsync(file, ct);
+            var manifest = _deserializer.Deserialize<PipelineManifest>(content);
+            _pipelines[manifest.Name] = manifest;
+        }
+
+        foreach (var file in coordinatorFiles)
+        {
+            ct.ThrowIfCancellationRequested();
+            var content = await File.ReadAllTextAsync(file, ct);
+            var manifest = _deserializer.Deserialize<CoordinatorManifest>(content);
+            var key = GetCoordinatorKey(manifest);
+            _coordinators[key] = manifest;
         }
     }
 
@@ -96,6 +143,23 @@ public sealed class ManifestRegistry : IManifestRegistry
                 var key = GetMoleculeKey(manifest);
                 _molecules[key] = manifest;
             }
+            else if (resource.EndsWith(".wave.yaml", StringComparison.OrdinalIgnoreCase))
+            {
+                var manifest = _deserializer.Deserialize<WaveManifest>(content);
+                var key = GetWaveKey(manifest);
+                _waves[key] = manifest;
+            }
+            else if (resource.EndsWith(".pipeline.yaml", StringComparison.OrdinalIgnoreCase))
+            {
+                var manifest = _deserializer.Deserialize<PipelineManifest>(content);
+                _pipelines[manifest.Name] = manifest;
+            }
+            else if (resource.EndsWith(".coordinator.yaml", StringComparison.OrdinalIgnoreCase))
+            {
+                var manifest = _deserializer.Deserialize<CoordinatorManifest>(content);
+                var key = GetCoordinatorKey(manifest);
+                _coordinators[key] = manifest;
+            }
         }
     }
 
@@ -115,6 +179,32 @@ public sealed class ManifestRegistry : IManifestRegistry
     {
         var key = GetMoleculeKey(manifest);
         _molecules[key] = manifest;
+    }
+
+    /// <summary>
+    ///     Registers a wave manifest directly.
+    /// </summary>
+    public void Register(WaveManifest manifest)
+    {
+        var key = GetWaveKey(manifest);
+        _waves[key] = manifest;
+    }
+
+    /// <summary>
+    ///     Registers a pipeline manifest directly.
+    /// </summary>
+    public void Register(PipelineManifest manifest)
+    {
+        _pipelines[manifest.Name] = manifest;
+    }
+
+    /// <summary>
+    ///     Registers a coordinator manifest directly.
+    /// </summary>
+    public void Register(CoordinatorManifest manifest)
+    {
+        var key = GetCoordinatorKey(manifest);
+        _coordinators[key] = manifest;
     }
 
     /// <summary>
@@ -140,6 +230,30 @@ public sealed class ManifestRegistry : IManifestRegistry
     public MoleculeManifest? GetMolecule(string key)
     {
         return _molecules.TryGetValue(key, out var manifest) ? manifest : null;
+    }
+
+    /// <summary>
+    ///     Gets a wave manifest by its fully qualified key.
+    /// </summary>
+    public WaveManifest? GetWave(string key)
+    {
+        return _waves.TryGetValue(key, out var manifest) ? manifest : null;
+    }
+
+    /// <summary>
+    ///     Gets a pipeline manifest by name.
+    /// </summary>
+    public PipelineManifest? GetPipeline(string name)
+    {
+        return _pipelines.TryGetValue(name, out var manifest) ? manifest : null;
+    }
+
+    /// <summary>
+    ///     Gets a coordinator manifest by its fully qualified key.
+    /// </summary>
+    public CoordinatorManifest? GetCoordinator(string key)
+    {
+        return _coordinators.TryGetValue(key, out var manifest) ? manifest : null;
     }
 
     /// <summary>
@@ -262,6 +376,16 @@ public sealed class ManifestRegistry : IManifestRegistry
     private static string GetMoleculeKey(MoleculeManifest manifest)
     {
         return $"{manifest.Scope.Sink}.{manifest.Scope.Coordinator}.{manifest.Scope.Molecule}";
+    }
+
+    private static string GetWaveKey(WaveManifest manifest)
+    {
+        return $"{manifest.Scope.Sink}.{manifest.Scope.Pipeline}.{manifest.Scope.Wave}";
+    }
+
+    private static string GetCoordinatorKey(CoordinatorManifest manifest)
+    {
+        return $"{manifest.Scope.Sink}.{manifest.Scope.Coordinator}";
     }
 
     private static bool EmitsSignal(AtomManifest manifest, string pattern)

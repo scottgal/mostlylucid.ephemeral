@@ -10,9 +10,9 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="Spectre.Console" Version="0.49.1"/>
-        <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.0"/>
-        <PackageReference Include="BenchmarkDotNet" Version="0.15.8"/>
+        <PackageReference Include="Spectre.Console" />
+        <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
+        <PackageReference Include="BenchmarkDotNet" />
     </ItemGroup>
 
     <ItemGroup>

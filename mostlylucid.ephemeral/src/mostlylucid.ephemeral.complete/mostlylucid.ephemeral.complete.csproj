@@ -17,83 +17,86 @@
         <PackageReleaseNotes>$([System.IO.File]::ReadAllText("$(MSBuildProjectDirectory)/ReleaseNotes.txt"))</PackageReleaseNotes>
         <RepositoryUrl>https://github.com/scottgal/mostlylucid.atoms</RepositoryUrl>
         <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
-        <Version>2.0.0</Version>
+        <Version>2.3.0-alpha1</Version>
+
+        <!-- Internal package version - update this when releasing -->
+        <InternalPackageVersion>2.3.0</InternalPackageVersion>
     </PropertyGroup>
 
-    <!-- Core packages -->
+    <!-- Core packages (internal - use VersionOverride to bypass CPM) -->
     <ItemGroup>
-        <PackageReference Include="mostlylucid.ephemeral" Version="2.0.0" />
-        <PackageReference Include="mostlylucid.ephemeral.logging" Version="2.0.0" />
-        <PackageReference Include="mostlylucid.ephemeral.attributes" Version="2.0.0" />
+        <PackageReference Include="mostlylucid.ephemeral" VersionOverride="$(InternalPackageVersion)" />
+        <PackageReference Include="mostlylucid.ephemeral.logging" VersionOverride="$(InternalPackageVersion)" />
+        <PackageReference Include="mostlylucid.ephemeral.attributes" VersionOverride="$(InternalPackageVersion)" />
     </ItemGroup>
 
-    <!-- Atom packages -->
+    <!-- Atom packages (internal) -->
     <ItemGroup>
-        <PackageReference Include="Mostlylucid.Ephemeral.Atoms.Batching" Version="2.0.0" />
-        <PackageReference Include="Mostlylucid.Ephemeral.Atoms.BurstDetection" Version="2.0.0" />
-        <PackageReference Include="Mostlylucid.Ephemeral.Atoms.Data" Version="2.0.0" />
-        <PackageReference Include="Mostlylucid.Ephemeral.Atoms.Data.File" Version="2.0.0" />
-        <PackageReference Include="Mostlylucid.Ephemeral.Atoms.Data.Postgres" Version="2.0.0" />
-        <PackageReference Include="Mostlylucid.Ephemeral.Atoms.Data.Sqlite" Version="2.0.0" />
-        <PackageReference Include="Mostlylucid.Ephemeral.Atoms.Echo" Version="2.0.0" />
-        <PackageReference Include="Mostlylucid.Ephemeral.Atoms.EntropyAnalysis" Version="2.0.0" />
-        <PackageReference Include="Mostlylucid.Ephemeral.Atoms.Escalator" Version="2.0.0" />
-        <PackageReference Include="Mostlylucid.Ephemeral.Atoms.FixedWork" Version="2.0.0" />
-        <PackageReference Include="mostlylucid.ephemeral.atoms.imagesharp" Version="2.0.0" />
-        <PackageReference Include="Mostlylucid.Ephemeral.Atoms.KeyedSequential" Version="2.0.0" />
-        <PackageReference Include="Mostlylucid.Ephemeral.Atoms.Molecules" Version="2.0.0" />
-        <PackageReference Include="Mostlylucid.Ephemeral.Atoms.PriorityProcessor" Version="2.0.0" />
-        <PackageReference Include="mostlylucid.ephemeral.atoms.ratelimit" Version="2.0.0" />
-        <PackageReference Include="Mostlylucid.Ephemeral.Atoms.RazorTemplate" Version="2.0.0" />
-        <PackageReference Include="Mostlylucid.Ephemeral.Atoms.Retry" Version="2.0.0" />
-        <PackageReference Include="Mostlylucid.Ephemeral.Atoms.ScheduledTasks" Version="2.0.0" />
-        <PackageReference Include="Mostlylucid.Ephemeral.Atoms.SignalAware" Version="2.0.0" />
-        <PackageReference Include="Mostlylucid.Ephemeral.Atoms.SlidingCache" Version="2.0.0" />
-        <PackageReference Include="Mostlylucid.Ephemeral.Atoms.Smtp" Version="2.0.0" />
-        <PackageReference Include="Mostlylucid.Ephemeral.Atoms.TimeSeriesAnomaly" Version="2.0.0" />
-        <PackageReference Include="Mostlylucid.Ephemeral.Atoms.Volatile" Version="2.0.0" />
-        <PackageReference Include="Mostlylucid.Ephemeral.Atoms.WaveOrchestrator" Version="2.0.0" />
-        <PackageReference Include="mostlylucid.ephemeral.atoms.windowsize" Version="2.0.0" />
+        <PackageReference Include="Mostlylucid.Ephemeral.Atoms.Batching" VersionOverride="$(InternalPackageVersion)" />
+        <PackageReference Include="Mostlylucid.Ephemeral.Atoms.BurstDetection" VersionOverride="$(InternalPackageVersion)" />
+        <PackageReference Include="Mostlylucid.Ephemeral.Atoms.Data" VersionOverride="$(InternalPackageVersion)" />
+        <PackageReference Include="Mostlylucid.Ephemeral.Atoms.Data.File" VersionOverride="$(InternalPackageVersion)" />
+        <PackageReference Include="Mostlylucid.Ephemeral.Atoms.Data.Postgres" VersionOverride="$(InternalPackageVersion)" />
+        <PackageReference Include="Mostlylucid.Ephemeral.Atoms.Data.Sqlite" VersionOverride="$(InternalPackageVersion)" />
+        <PackageReference Include="Mostlylucid.Ephemeral.Atoms.Echo" VersionOverride="$(InternalPackageVersion)" />
+        <PackageReference Include="Mostlylucid.Ephemeral.Atoms.EntropyAnalysis" VersionOverride="$(InternalPackageVersion)" />
+        <PackageReference Include="Mostlylucid.Ephemeral.Atoms.Escalator" VersionOverride="$(InternalPackageVersion)" />
+        <PackageReference Include="Mostlylucid.Ephemeral.Atoms.FixedWork" VersionOverride="$(InternalPackageVersion)" />
+        <PackageReference Include="mostlylucid.ephemeral.atoms.imagesharp" VersionOverride="$(InternalPackageVersion)" />
+        <PackageReference Include="Mostlylucid.Ephemeral.Atoms.KeyedSequential" VersionOverride="$(InternalPackageVersion)" />
+        <PackageReference Include="Mostlylucid.Ephemeral.Atoms.Molecules" VersionOverride="$(InternalPackageVersion)" />
+        <PackageReference Include="Mostlylucid.Ephemeral.Atoms.PriorityProcessor" VersionOverride="$(InternalPackageVersion)" />
+        <PackageReference Include="mostlylucid.ephemeral.atoms.ratelimit" VersionOverride="$(InternalPackageVersion)" />
+        <PackageReference Include="Mostlylucid.Ephemeral.Atoms.RazorTemplate" VersionOverride="$(InternalPackageVersion)" />
+        <PackageReference Include="Mostlylucid.Ephemeral.Atoms.Retry" VersionOverride="$(InternalPackageVersion)" />
+        <PackageReference Include="Mostlylucid.Ephemeral.Atoms.ScheduledTasks" VersionOverride="$(InternalPackageVersion)" />
+        <PackageReference Include="Mostlylucid.Ephemeral.Atoms.SignalAware" VersionOverride="$(InternalPackageVersion)" />
+        <PackageReference Include="Mostlylucid.Ephemeral.Atoms.SlidingCache" VersionOverride="$(InternalPackageVersion)" />
+        <PackageReference Include="Mostlylucid.Ephemeral.Atoms.Smtp" VersionOverride="$(InternalPackageVersion)" />
+        <PackageReference Include="Mostlylucid.Ephemeral.Atoms.TimeSeriesAnomaly" VersionOverride="$(InternalPackageVersion)" />
+        <PackageReference Include="Mostlylucid.Ephemeral.Atoms.Volatile" VersionOverride="2.3.0-alpha1" />
+        <PackageReference Include="Mostlylucid.Ephemeral.Atoms.WaveOrchestrator" VersionOverride="$(InternalPackageVersion)" />
+        <PackageReference Include="mostlylucid.ephemeral.atoms.windowsize" VersionOverride="$(InternalPackageVersion)" />
     </ItemGroup>
 
-    <!-- Taxonomy packages -->
+    <!-- Taxonomy packages (internal) -->
     <ItemGroup>
-        <PackageReference Include="Mostlylucid.Ephemeral.Atoms.Taxonomy" Version="2.0.0" />
-        <PackageReference Include="Mostlylucid.Ephemeral.Atoms.Taxonomy.Constrainer" Version="2.0.0" />
-        <PackageReference Include="Mostlylucid.Ephemeral.Atoms.Taxonomy.Coordinator" Version="2.0.0" />
-        <PackageReference Include="Mostlylucid.Ephemeral.Atoms.Taxonomy.Embedder" Version="2.0.0" />
-        <PackageReference Include="Mostlylucid.Ephemeral.Atoms.Taxonomy.Extractor" Version="2.0.0" />
-        <PackageReference Include="Mostlylucid.Ephemeral.Atoms.Taxonomy.Feedback" Version="2.0.0" />
-        <PackageReference Include="Mostlylucid.Ephemeral.Atoms.Taxonomy.Guard" Version="2.0.0" />
-        <PackageReference Include="Mostlylucid.Ephemeral.Atoms.Taxonomy.Proposer" Version="2.0.0" />
-        <PackageReference Include="Mostlylucid.Ephemeral.Atoms.Taxonomy.Ranker" Version="2.0.0" />
-        <PackageReference Include="Mostlylucid.Ephemeral.Atoms.Taxonomy.Renderer" Version="2.0.0" />
-        <PackageReference Include="Mostlylucid.Ephemeral.Atoms.Taxonomy.Retriever" Version="2.0.0" />
-        <PackageReference Include="Mostlylucid.Ephemeral.Atoms.Taxonomy.Sensor" Version="2.0.0" />
+        <PackageReference Include="Mostlylucid.Ephemeral.Atoms.Taxonomy" VersionOverride="$(InternalPackageVersion)" />
+        <PackageReference Include="Mostlylucid.Ephemeral.Atoms.Taxonomy.Constrainer" VersionOverride="$(InternalPackageVersion)" />
+        <PackageReference Include="Mostlylucid.Ephemeral.Atoms.Taxonomy.Coordinator" VersionOverride="$(InternalPackageVersion)" />
+        <PackageReference Include="Mostlylucid.Ephemeral.Atoms.Taxonomy.Embedder" VersionOverride="$(InternalPackageVersion)" />
+        <PackageReference Include="Mostlylucid.Ephemeral.Atoms.Taxonomy.Extractor" VersionOverride="$(InternalPackageVersion)" />
+        <PackageReference Include="Mostlylucid.Ephemeral.Atoms.Taxonomy.Feedback" VersionOverride="$(InternalPackageVersion)" />
+        <PackageReference Include="Mostlylucid.Ephemeral.Atoms.Taxonomy.Guard" VersionOverride="$(InternalPackageVersion)" />
+        <PackageReference Include="Mostlylucid.Ephemeral.Atoms.Taxonomy.Proposer" VersionOverride="$(InternalPackageVersion)" />
+        <PackageReference Include="Mostlylucid.Ephemeral.Atoms.Taxonomy.Ranker" VersionOverride="$(InternalPackageVersion)" />
+        <PackageReference Include="Mostlylucid.Ephemeral.Atoms.Taxonomy.Renderer" VersionOverride="$(InternalPackageVersion)" />
+        <PackageReference Include="Mostlylucid.Ephemeral.Atoms.Taxonomy.Retriever" VersionOverride="$(InternalPackageVersion)" />
+        <PackageReference Include="Mostlylucid.Ephemeral.Atoms.Taxonomy.Sensor" VersionOverride="$(InternalPackageVersion)" />
     </ItemGroup>
 
-    <!-- SQLite Single Writer -->
+    <!-- SQLite Single Writer (internal) -->
     <ItemGroup>
-        <PackageReference Include="mostlylucid.ephemeral.sqlite.singlewriter" Version="2.0.0" />
+        <PackageReference Include="mostlylucid.ephemeral.sqlite.singlewriter" VersionOverride="$(InternalPackageVersion)" />
     </ItemGroup>
 
-    <!-- Pattern packages -->
+    <!-- Pattern packages (internal) -->
     <ItemGroup>
-        <PackageReference Include="Mostlylucid.Ephemeral.Patterns.AdaptiveRate" Version="2.0.0" />
-        <PackageReference Include="Mostlylucid.Ephemeral.Patterns.AnomalyDetector" Version="2.0.0" />
-        <PackageReference Include="Mostlylucid.Ephemeral.Patterns.Backpressure" Version="2.0.0" />
-        <PackageReference Include="Mostlylucid.Ephemeral.Patterns.CircuitBreaker" Version="2.0.0" />
-        <PackageReference Include="Mostlylucid.Ephemeral.Patterns.ControlledFanOut" Version="2.0.0" />
-        <PackageReference Include="Mostlylucid.Ephemeral.Patterns.DynamicConcurrency" Version="2.0.0" />
-        <PackageReference Include="Mostlylucid.Ephemeral.Patterns.KeyedPriorityFanOut" Version="2.0.0" />
-        <PackageReference Include="Mostlylucid.Ephemeral.Patterns.LongWindowDemo" Version="2.0.0" />
-        <PackageReference Include="Mostlylucid.Ephemeral.Patterns.PersistentWindow" Version="2.0.0" />
-        <PackageReference Include="Mostlylucid.Ephemeral.Patterns.ReactiveFanOut" Version="2.0.0" />
-        <PackageReference Include="Mostlylucid.Ephemeral.Patterns.SignalCoordinatedReads" Version="2.0.0" />
-        <PackageReference Include="Mostlylucid.Ephemeral.Patterns.SignalingHttp" Version="2.0.0" />
-        <PackageReference Include="Mostlylucid.Ephemeral.Patterns.SignalLogWatcher" Version="2.0.0" />
-        <PackageReference Include="Mostlylucid.Ephemeral.Patterns.SignalReactionShowcase" Version="2.0.0" />
-        <PackageReference Include="Mostlylucid.Ephemeral.Patterns.Telemetry" Version="2.0.0" />
+        <PackageReference Include="Mostlylucid.Ephemeral.Patterns.AdaptiveRate" VersionOverride="$(InternalPackageVersion)" />
+        <PackageReference Include="Mostlylucid.Ephemeral.Patterns.AnomalyDetector" VersionOverride="$(InternalPackageVersion)" />
+        <PackageReference Include="Mostlylucid.Ephemeral.Patterns.Backpressure" VersionOverride="$(InternalPackageVersion)" />
+        <PackageReference Include="Mostlylucid.Ephemeral.Patterns.CircuitBreaker" VersionOverride="$(InternalPackageVersion)" />
+        <PackageReference Include="Mostlylucid.Ephemeral.Patterns.ControlledFanOut" VersionOverride="$(InternalPackageVersion)" />
+        <PackageReference Include="Mostlylucid.Ephemeral.Patterns.DynamicConcurrency" VersionOverride="$(InternalPackageVersion)" />
+        <PackageReference Include="Mostlylucid.Ephemeral.Patterns.KeyedPriorityFanOut" VersionOverride="$(InternalPackageVersion)" />
+        <PackageReference Include="Mostlylucid.Ephemeral.Patterns.LongWindowDemo" VersionOverride="$(InternalPackageVersion)" />
+        <PackageReference Include="Mostlylucid.Ephemeral.Patterns.PersistentWindow" VersionOverride="$(InternalPackageVersion)" />
+        <PackageReference Include="Mostlylucid.Ephemeral.Patterns.ReactiveFanOut" VersionOverride="$(InternalPackageVersion)" />
+        <PackageReference Include="Mostlylucid.Ephemeral.Patterns.SignalCoordinatedReads" VersionOverride="$(InternalPackageVersion)" />
+        <PackageReference Include="Mostlylucid.Ephemeral.Patterns.SignalingHttp" VersionOverride="$(InternalPackageVersion)" />
+        <PackageReference Include="Mostlylucid.Ephemeral.Patterns.SignalLogWatcher" VersionOverride="$(InternalPackageVersion)" />
+        <PackageReference Include="Mostlylucid.Ephemeral.Patterns.SignalReactionShowcase" VersionOverride="$(InternalPackageVersion)" />
+        <PackageReference Include="Mostlylucid.Ephemeral.Patterns.Telemetry" VersionOverride="2.3.0-alpha1" />
     </ItemGroup>
 
     <ItemGroup>

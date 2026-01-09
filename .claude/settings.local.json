@@ -21,7 +21,9 @@
       "Bash(timeout 90 dotnet run:*)",
       "Bash(timeout 60 dotnet run:*)",
       "Bash(git push:*)",
-      "Bash(git branch:*)"
+      "Bash(git branch:*)",
+      "Bash(dotnet restore:*)",
+      "WebSearch"
     ],
     "deny": [],
     "ask": []

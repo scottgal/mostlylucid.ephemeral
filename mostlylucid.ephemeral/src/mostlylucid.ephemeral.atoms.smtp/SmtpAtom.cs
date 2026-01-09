@@ -184,7 +184,7 @@ public class SmtpAtom : IAsyncDisposable
 /// </summary>
 public class SmtpOptions
 {
-    public string Host { get; init; }
+    public required string Host { get; init; }
     public int Port { get; init; } = 587;
     public bool RequiresAuthentication { get; init; } = true;
     public string? Username { get; init; }
@@ -202,10 +202,10 @@ public class EmailMessage
 {
     public string? From { get; init; }
     public string? FromName { get; init; }
-    public string To { get; init; }
+    public required string To { get; init; }
     public string? ReplyTo { get; init; }
-    public string Subject { get; init; }
-    public string Body { get; init; }
+    public required string Subject { get; init; }
+    public required string Body { get; init; }
     public bool IsHtml { get; init; } = true;
     public List<EmailAttachment>? Attachments { get; init; }
 }
@@ -215,7 +215,7 @@ public class EmailMessage
 /// </summary>
 public class EmailAttachment
 {
-    public string Filename { get; init; }
+    public required string Filename { get; init; }
     public Stream? Stream { get; init; }
     public string? FilePath { get; init; }
 }

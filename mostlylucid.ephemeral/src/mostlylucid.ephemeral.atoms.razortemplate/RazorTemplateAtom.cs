@@ -150,6 +150,6 @@ public class EmailModel
 public record RenderResult
 {
     public bool Success { get; init; }
-    public string Content { get; init; }
+    public required string Content { get; init; }
     public string Description { get; init; } = string.Empty;
 }

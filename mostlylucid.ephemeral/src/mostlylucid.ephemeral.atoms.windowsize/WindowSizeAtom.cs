@@ -3,15 +3,14 @@ using System.Globalization;
 namespace Mostlylucid.Ephemeral.Atoms.WindowSize;
 
 /// <summary>
-///     Dynamic window sizing atom that adjusts SignalSink capacity and retention based on signals.
+///     Dynamic window sizing atom that adjusts coordinator window settings based on signals.
 ///     Listens for command signals like "window.size.set:100" or "window.time.set:30s" to dynamically
-///     tune signal window parameters at runtime without service restarts.
+///     tune MaxTrackedOperations and MaxOperationLifetime at runtime without service restarts.
 /// </summary>
 /// <remarks>
 ///     <para>
-///         <strong>OBSOLETE (v2.3+):</strong> SignalSink no longer manages signal lifetime.
-///         Coordinators control signal lifetime via MaxTrackedOperations and MaxOperationLifetime.
-///         This atom's UpdateWindowSize calls are now no-ops.
+///         <strong>v3.0:</strong> WindowSizeAtom now works with IOperationWindowManager coordinators.
+///         Adjusts MaxTrackedOperations (window size) and MaxOperationLifetime (window age) dynamically.
 ///     </para>
 /// </remarks>
 /// <remarks>
@@ -35,37 +34,42 @@ namespace Mostlylucid.Ephemeral.Atoms.WindowSize;
 ///     </para>
 ///     <para>
 ///         <strong>Performance:</strong> Signal processing is synchronous but fast (microseconds). Clamping
-///         prevents invalid values from reaching the SignalSink.
+///         prevents invalid values. Adjustments use Interlocked operations for thread-safe updates.
 ///     </para>
 /// </remarks>
 /// <example>
 ///     <code>
-/// var sink = new SignalSink(maxCapacity: 100);
-/// await using var atom = new WindowSizeAtom(sink);
-/// 
+/// var coordinator = new EphemeralWorkCoordinator&lt;MyWork&gt;(
+///     async (work, ct) => await ProcessAsync(work, ct),
+///     new EphemeralOptions { MaxTrackedOperations = 100, Signals = sink });
+///
+/// await using var atom = new WindowSizeAtom(coordinator, sink);
+///
 /// // Dynamically increase capacity based on load
 /// if (requestRate > threshold)
 ///     sink.Raise("window.size.set:500");
-/// 
+///
 /// // Extend retention during debugging
 /// sink.Raise("window.time.set:10m");
 /// </code>
 /// </example>
-[Obsolete("WindowSizeAtom is obsolete. SignalSink no longer manages signal lifetime - coordinators do via MaxTrackedOperations/MaxOperationLifetime.")]
 public sealed class WindowSizeAtom : IAsyncDisposable
 {
+    private readonly IOperationWindowManager _coordinator;
     private readonly WindowSizeAtomOptions _options;
     private readonly SignalSink _sink;
     private readonly IDisposable _subscription;
 
     /// <summary>
-    ///     Creates a new WindowSizeAtom that listens to the specified SignalSink.
+    ///     Creates a new WindowSizeAtom that listens to signals and adjusts coordinator window settings.
     /// </summary>
-    /// <param name="sink">The SignalSink to monitor and adjust. Cannot be null.</param>
+    /// <param name="coordinator">The coordinator to adjust. Must implement IOperationWindowManager. Cannot be null.</param>
+    /// <param name="sink">The SignalSink to monitor for window size signals. Cannot be null.</param>
     /// <param name="options">Configuration options. If null, uses defaults (capacity 16-50k, retention 5s-1h).</param>
-    /// <exception cref="ArgumentNullException">Thrown when <paramref name="sink" /> is null.</exception>
-    public WindowSizeAtom(SignalSink sink, WindowSizeAtomOptions? options = null)
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="coordinator" /> or <paramref name="sink" /> is null.</exception>
+    public WindowSizeAtom(IOperationWindowManager coordinator, SignalSink sink, WindowSizeAtomOptions? options = null)
     {
+        _coordinator = coordinator ?? throw new ArgumentNullException(nameof(coordinator));
         _sink = sink ?? throw new ArgumentNullException(nameof(sink));
         _options = options ?? new WindowSizeAtomOptions();
         _subscription = _sink.Subscribe(OnSignal);
@@ -99,13 +103,13 @@ public sealed class WindowSizeAtom : IAsyncDisposable
 
         if (TryParseCapacity(winSignal, _options.CapacityIncreaseCommand, out value))
         {
-            UpdateCapacity(_sink.MaxCapacity + value);
+            UpdateCapacity(_coordinator.CurrentMaxTrackedOperations + value);
             return true;
         }
 
         if (TryParseCapacity(winSignal, _options.CapacityDecreaseCommand, out value))
         {
-            UpdateCapacity(_sink.MaxCapacity - value);
+            UpdateCapacity(_coordinator.CurrentMaxTrackedOperations - value);
             return true;
         }
 
@@ -122,13 +126,15 @@ public sealed class WindowSizeAtom : IAsyncDisposable
 
         if (TryParseTime(winSignal, _options.TimeIncreaseCommand, out span))
         {
-            UpdateRetention(_sink.MaxAge + span);
+            var currentLifetime = _coordinator.CurrentMaxOperationLifetime ?? TimeSpan.Zero;
+            UpdateRetention(currentLifetime + span);
             return true;
         }
 
         if (TryParseTime(winSignal, _options.TimeDecreaseCommand, out span))
         {
-            UpdateRetention(_sink.MaxAge - span);
+            var currentLifetime = _coordinator.CurrentMaxOperationLifetime ?? TimeSpan.Zero;
+            UpdateRetention(currentLifetime - span);
             return true;
         }
 
@@ -138,7 +144,7 @@ public sealed class WindowSizeAtom : IAsyncDisposable
     private void UpdateCapacity(int requested)
     {
         var clamped = Math.Min(_options.MaxCapacity, Math.Max(_options.MinCapacity, requested));
-        _sink.UpdateWindowSize(clamped);
+        _coordinator.AdjustMaxTrackedOperations(clamped);
     }
 
     private void UpdateRetention(TimeSpan requested)
@@ -149,7 +155,7 @@ public sealed class WindowSizeAtom : IAsyncDisposable
                 ? _options.MaxRetention
                 : requested;
 
-        _sink.UpdateWindowSize(maxAge: clamped);
+        _coordinator.AdjustMaxOperationLifetime(clamped);
     }
 
     private static bool TryParseCapacity(string signal, string command, out int value)

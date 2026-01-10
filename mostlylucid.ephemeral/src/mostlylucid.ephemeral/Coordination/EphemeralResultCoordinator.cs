@@ -9,7 +9,7 @@ namespace Mostlylucid.Ephemeral;
 ///     Use this when you need to retrieve outcomes (summaries, fingerprints, IDs) from completed work.
 /// </summary>
 public sealed class EphemeralResultCoordinator<TInput, TResult> : IAsyncDisposable, IOperationPinning,
-    IOperationFinalization, ISignalSource
+    IOperationFinalization, ISignalSource, IOperationWindowManager
 {
     private readonly Func<TInput, CancellationToken, Task<TResult>> _body;
     private readonly Channel<TInput> _channel;
@@ -27,6 +27,11 @@ public sealed class EphemeralResultCoordinator<TInput, TResult> : IAsyncDisposab
     // v3.0: Track attached sinks for bidirectional linking
     private readonly object _sinksLock = new();
     private volatile SignalSink?[] _sinks = Array.Empty<SignalSink?>();
+
+    // v3.0: Dynamic window management
+    private int _maxTrackedOperations;
+    private long _maxOperationLifetimeTicks;
+
     private int _activeTaskCount;
     private bool _channelIterationComplete;
     private bool _completed;
@@ -51,6 +56,10 @@ public sealed class EphemeralResultCoordinator<TInput, TResult> : IAsyncDisposab
             ? new OperationEchoStore(_options.OperationEchoRetention, _options.OperationEchoCapacity)
             : null;
 
+        // v3.0: Initialize dynamic window management
+        _maxTrackedOperations = _options.MaxTrackedOperations;
+        _maxOperationLifetimeTicks = _options.MaxOperationLifetime?.Ticks ?? 0;
+
         _channel = Channel.CreateBounded<TInput>(new BoundedChannelOptions(_options.MaxTrackedOperations)
         {
             FullMode = BoundedChannelFullMode.Wait,
@@ -74,6 +83,10 @@ public sealed class EphemeralResultCoordinator<TInput, TResult> : IAsyncDisposab
         _cts = new CancellationTokenSource();
         _recent = new ConcurrentQueue<EphemeralOperation<TResult>>();
         _concurrency = CreateGate(_options);
+
+        // v3.0: Initialize dynamic window management
+        _maxTrackedOperations = _options.MaxTrackedOperations;
+        _maxOperationLifetimeTicks = _options.MaxOperationLifetime?.Ticks ?? 0;
 
         _channel = Channel.CreateBounded<TInput>(new BoundedChannelOptions(_options.MaxTrackedOperations)
         {
@@ -600,7 +613,7 @@ public sealed class EphemeralResultCoordinator<TInput, TResult> : IAsyncDisposab
 
     private void TrimWindowSizeLocked()
     {
-        var max = _options.MaxTrackedOperations;
+        var max = Volatile.Read(ref _maxTrackedOperations);
         if (max <= 0) return;
         var pinnedCount = 0;
         var scanBudget = _recent.Count;
@@ -622,7 +635,10 @@ public sealed class EphemeralResultCoordinator<TInput, TResult> : IAsyncDisposab
 
     private void TrimWindowAgeLocked()
     {
-        if (_options.MaxOperationLifetime is not { } maxAge) return;
+        var maxAgeTicks = Volatile.Read(ref _maxOperationLifetimeTicks);
+        if (maxAgeTicks <= 0) return;
+
+        var maxAge = TimeSpan.FromTicks(maxAgeTicks);
         var now = Environment.TickCount64;
         var lastTrim = Volatile.Read(ref _lastTrimTicks);
         if (now - lastTrim < 1000) return;
@@ -675,6 +691,52 @@ public sealed class EphemeralResultCoordinator<TInput, TResult> : IAsyncDisposab
     int ISignalSource.CountSignals(string signalName)
     {
         return CountSignals(signalName);
+    }
+
+    #endregion
+
+    #region IOperationWindowManager Implementation (v3.0)
+
+    /// <summary>
+    ///     Current maximum number of tracked operations.
+    /// </summary>
+    public int CurrentMaxTrackedOperations => Volatile.Read(ref _maxTrackedOperations);
+
+    /// <summary>
+    ///     Current maximum operation lifetime.
+    /// </summary>
+    public TimeSpan? CurrentMaxOperationLifetime
+    {
+        get
+        {
+            var ticks = Volatile.Read(ref _maxOperationLifetimeTicks);
+            return ticks > 0 ? TimeSpan.FromTicks(ticks) : null;
+        }
+    }
+
+    /// <summary>
+    ///     Dynamically adjust the maximum number of tracked operations.
+    ///     Changes take effect on the next cleanup cycle.
+    /// </summary>
+    public void AdjustMaxTrackedOperations(int maxTrackedOperations)
+    {
+        if (maxTrackedOperations <= 0)
+            throw new ArgumentOutOfRangeException(nameof(maxTrackedOperations), "Must be > 0");
+
+        Interlocked.Exchange(ref _maxTrackedOperations, maxTrackedOperations);
+    }
+
+    /// <summary>
+    ///     Dynamically adjust the maximum operation lifetime.
+    ///     Changes take effect on the next cleanup cycle.
+    /// </summary>
+    public void AdjustMaxOperationLifetime(TimeSpan? maxOperationLifetime)
+    {
+        var ticks = maxOperationLifetime?.Ticks ?? 0;
+        if (ticks < 0)
+            throw new ArgumentOutOfRangeException(nameof(maxOperationLifetime), "Cannot be negative");
+
+        Interlocked.Exchange(ref _maxOperationLifetimeTicks, ticks);
     }
 
     #endregion

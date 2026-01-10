@@ -34,6 +34,7 @@ public class SignalBenchmarks
 
     private BenchmarkTestAtom _benchAtom = null!;
 
+    private EphemeralWorkCoordinator<int> _coordinator = null!;
     private SignalSink _emptySink = null!;
     private RateLimitAtom _rateAtom = null!;
 
@@ -43,7 +44,11 @@ public class SignalBenchmarks
     [GlobalSetup]
     public void Setup()
     {
-        _sink = new SignalSink(1000);
+        _sink = new SignalSink();
+
+        _coordinator = new EphemeralWorkCoordinator<int>(
+            async (item, ct) => await Task.CompletedTask,
+            new EphemeralOptions { MaxTrackedOperations = 1000, Signals = _sink });
 
         // Use efficient BenchmarkTestAtom instead of demo TestAtom
         _benchAtom = new BenchmarkTestAtom(_sink);
@@ -59,7 +64,7 @@ public class SignalBenchmarks
             },
             TimeSpan.Zero);
 
-        _windowAtom = new WindowSizeAtom(_sink);
+        _windowAtom = new WindowSizeAtom(_coordinator, _sink);
         _rateAtom = new RateLimitAtom(_sink, new RateLimitOptions
         {
             InitialRatePerSecond = 1000,
@@ -73,6 +78,7 @@ public class SignalBenchmarks
         await _atom.DisposeAsync();
         await _windowAtom.DisposeAsync();
         await _rateAtom.DisposeAsync();
+        await _coordinator.DisposeAsync();
     }
 
     [IterationSetup]

@@ -451,10 +451,14 @@ async Task RunCommandPatternDemo()
 {
     AnsiConsole.MarkupLine("[yellow]This demonstrates the COMMAND pattern (exception):[/]");
     AnsiConsole.MarkupLine("[grey]- Used for: Infrastructure configuration[/]");
-    AnsiConsole.MarkupLine("[grey]- Example: WindowSizeAtom adjusts SignalSink capacity[/]");
+    AnsiConsole.MarkupLine("[grey]- Example: WindowSizeAtom adjusts coordinator capacity[/]");
     AnsiConsole.MarkupLine("[grey]- Signal: \"window.size.set:500\" (imperative command)[/]\n");
 
-    var sink = new SignalSink(100);
+    var sink = new SignalSink();
+
+    await using var coordinator = new EphemeralWorkCoordinator<int>(
+        async (item, ct) => await Task.CompletedTask,
+        new EphemeralOptions { MaxTrackedOperations = 100, Signals = sink });
 
     await using var logger = new ConsoleSignalLoggerAtom(sink, new ConsoleSignalLoggerOptions
     {
@@ -462,9 +466,9 @@ async Task RunCommandPatternDemo()
         WindowSize = 50
     });
 
-    await using var windowAtom = new WindowSizeAtom(sink);
+    await using var windowAtom = new WindowSizeAtom(coordinator, sink);
 
-    AnsiConsole.MarkupLine($"[white]Initial capacity:[/] [cyan1]{sink.MaxCapacity}[/]");
+    AnsiConsole.MarkupLine($"[white]Initial capacity:[/] [cyan1]{coordinator.CurrentMaxTrackedOperations}[/]");
     AnsiConsole.WriteLine();
 
     await AnsiConsole.Status()
@@ -475,19 +479,19 @@ async Task RunCommandPatternDemo()
             sink.Raise("window.size.set:500");
             await Task.Delay(100);
 
-            AnsiConsole.MarkupLine($"[white]After set:500:[/] [cyan1]{sink.MaxCapacity}[/]");
+            AnsiConsole.MarkupLine($"[white]After set:500:[/] [cyan1]{coordinator.CurrentMaxTrackedOperations}[/]");
 
             ctx.Status("Increasing by 200...");
             sink.Raise("window.size.increase:200");
             await Task.Delay(100);
 
-            AnsiConsole.MarkupLine($"[white]After increase:200:[/] [cyan1]{sink.MaxCapacity}[/]");
+            AnsiConsole.MarkupLine($"[white]After increase:200:[/] [cyan1]{coordinator.CurrentMaxTrackedOperations}[/]");
 
             ctx.Status("Setting retention to 30s...");
             sink.Raise("window.time.set:30s");
             await Task.Delay(100);
 
-            AnsiConsole.MarkupLine($"[white]Retention time:[/] [cyan1]{sink.MaxAge.TotalSeconds}s[/]");
+            AnsiConsole.MarkupLine($"[white]Retention time:[/] [cyan1]{coordinator.CurrentMaxOperationLifetime?.TotalSeconds ?? 0}s[/]");
         });
 
     AnsiConsole.WriteLine();
@@ -506,7 +510,11 @@ async Task RunComplexPipelineDemo()
     AnsiConsole.MarkupLine("[grey]- Dynamic window sizing[/]");
     AnsiConsole.MarkupLine("[grey]- Multiple listeners querying state[/]\n");
 
-    var sink = new SignalSink(100);
+    var sink = new SignalSink();
+
+    await using var coordinator = new EphemeralWorkCoordinator<int>(
+        async (item, ct) => await Task.CompletedTask,
+        new EphemeralOptions { MaxTrackedOperations = 100, Signals = sink });
 
     await using var logger = new ConsoleSignalLoggerAtom(sink, new ConsoleSignalLoggerOptions
     {
@@ -515,7 +523,7 @@ async Task RunComplexPipelineDemo()
         ExcludePatterns = new List<string> { "rate.*.allowed" } // Reduce noise
     });
 
-    await using var windowAtom = new WindowSizeAtom(sink);
+    await using var windowAtom = new WindowSizeAtom(coordinator, sink);
 
     // Rate limiter: 1.5 requests per second (allows ~3 per 2s)
     await using var rateLimiter = new RateLimitAtom(sink, new RateLimitOptions

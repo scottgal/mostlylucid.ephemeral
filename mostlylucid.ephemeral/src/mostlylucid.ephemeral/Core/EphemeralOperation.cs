@@ -9,17 +9,20 @@ public sealed class EphemeralOperation : ISignalEmitter
     private readonly SignalConstraints? _constraints;
     private readonly Action<SignalEvent>? _onSignal;
     private readonly Action<SignalRetractedEvent>? _onSignalRetracted;
-    private readonly SignalSink? _sink;
+    private readonly Action<SignalEvent>? _notifySinksCallback; // v3.0: Coordinator callback
     internal List<string>? _signals;
 
+    /// <summary>
+    ///     v3.0: Operations no longer hold direct sink reference. Use notifySinksCallback instead.
+    /// </summary>
     public EphemeralOperation(
-        SignalSink? sink = null,
+        Action<SignalEvent>? notifySinksCallback = null,
         Action<SignalEvent>? onSignal = null,
         Action<SignalRetractedEvent>? onSignalRetracted = null,
         SignalConstraints? constraints = null,
         long? id = null)
     {
-        _sink = sink;
+        _notifySinksCallback = notifySinksCallback;
         _onSignal = onSignal;
         _onSignalRetracted = onSignalRetracted;
         _constraints = constraints;
@@ -118,7 +121,9 @@ public sealed class EphemeralOperation : ISignalEmitter
         if (_constraints?.IsLeaf(signal) != true) propagation = cause?.Extend(signal) ?? SignalPropagation.Root(signal);
 
         var evt = new SignalEvent(signal, Id, Key, DateTimeOffset.UtcNow, propagation);
-        _sink?.Raise(evt);
+
+        // v3.0: Notify coordinator, which then notifies attached sinks
+        _notifySinksCallback?.Invoke(evt);
 
         if (_onSignal is not null)
             try
@@ -322,7 +327,9 @@ internal sealed class EphemeralOperation<TResult> : ISignalEmitter
         if (_constraints?.IsLeaf(signal) != true) propagation = cause?.Extend(signal) ?? SignalPropagation.Root(signal);
 
         var evt = new SignalEvent(signal, Id, Key, DateTimeOffset.UtcNow, propagation);
-        _sink?.Raise(evt);
+
+        // v3.0: Notify coordinator, which then notifies attached sinks
+        _notifySinksCallback?.Invoke(evt);
 
         if (_onSignal is not null)
             try

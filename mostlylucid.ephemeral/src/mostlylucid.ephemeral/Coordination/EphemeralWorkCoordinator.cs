@@ -10,7 +10,7 @@ namespace Mostlylucid.Ephemeral;
 ///     and lets you enqueue items over time, inspect operations, and gracefully shutdown.
 /// </summary>
 public sealed class EphemeralWorkCoordinator<T> : IEphemeralCoordinator, IOperationPinning, IOperationFinalization,
-    IOperationEvictor
+    IOperationEvictor, ISignalSource
 {
     private readonly Func<T, CancellationToken, Task> _body;
 
@@ -25,6 +25,10 @@ public sealed class EphemeralWorkCoordinator<T> : IEphemeralCoordinator, IOperat
     private readonly ConcurrentQueue<EphemeralOperation> _recent;
     private readonly Task? _sourceConsumerTask;
     private readonly object _windowLock = new(); // Protects _recent during Evict/Trim operations
+
+    // v3.0: Track attached sinks for bidirectional linking
+    private readonly object _sinksLock = new();
+    private volatile SignalSink?[] _sinks = Array.Empty<SignalSink?>();
     private int _activeTaskCount;
     private bool _channelIterationComplete;
     private bool _completed;
@@ -62,7 +66,31 @@ public sealed class EphemeralWorkCoordinator<T> : IEphemeralCoordinator, IOperat
             SingleWriter = false
         });
 
+        // v3.0: Attach to signal sink for bidirectional linking
+        AttachToSink(_options.Signals);
+
         _processingTask = ProcessAsync();
+    }
+
+    private void AttachToSink(SignalSink? sink)
+    {
+        if (sink is null)
+            return;
+
+        // Bidirectional: sink tracks us, we track sink
+        sink.AttachSource(this);
+
+        lock (_sinksLock)
+        {
+            var current = _sinks;
+            if (Array.IndexOf(current, sink) >= 0)
+                return; // Already attached
+
+            var newSinks = new SignalSink?[current.Length + 1];
+            Array.Copy(current, newSinks, current.Length);
+            newSinks[current.Length] = sink;
+            _sinks = newSinks;
+        }
     }
 
     /// <summary>
@@ -90,6 +118,9 @@ public sealed class EphemeralWorkCoordinator<T> : IEphemeralCoordinator, IOperat
             SingleReader = false,
             SingleWriter = false
         });
+
+        // v3.0: Attach to signal sink for bidirectional linking
+        AttachToSink(_options.Signals);
 
         _processingTask = ProcessAsync();
         _sourceConsumerTask = ConsumeSourceAsync(source);
@@ -818,7 +849,8 @@ public sealed class EphemeralWorkCoordinator<T> : IEphemeralCoordinator, IOperat
 
                 await _concurrency.WaitAsync(_cts.Token).ConfigureAwait(false);
 
-                var op = new EphemeralOperation(_options.Signals, _options.OnSignal, _options.OnSignalRetracted,
+                // v3.0: Pass NotifySinks callback instead of sink directly
+                var op = new EphemeralOperation(NotifySinks, _options.OnSignal, _options.OnSignalRetracted,
                     _options.SignalConstraints, work.Id);
                 EnqueueOperation(op);
                 Interlocked.Decrement(ref _pendingCount);
@@ -1136,6 +1168,61 @@ public sealed class EphemeralWorkCoordinator<T> : IEphemeralCoordinator, IOperat
 
         return found;
     }
+
+    #region ISignalSource Implementation (v3.0)
+
+    /// <summary>
+    ///     Gets all signals from current operations (ISignalSource).
+    /// </summary>
+    IReadOnlyList<SignalEvent> ISignalSource.GetSignals()
+    {
+        return GetSignalsCore(null);
+    }
+
+    /// <summary>
+    ///     Checks if any current operation has a specific signal (ISignalSource).
+    /// </summary>
+    bool ISignalSource.HasSignal(string signalName)
+    {
+        return HasSignal(signalName);
+    }
+
+    /// <summary>
+    ///     Gets signals matching a pattern from current operations (ISignalSource).
+    /// </summary>
+    IReadOnlyList<SignalEvent> ISignalSource.GetSignalsByPattern(string pattern)
+    {
+        return GetSignalsByPattern(pattern);
+    }
+
+    /// <summary>
+    ///     Counts total signals across current operations (ISignalSource).
+    /// </summary>
+    int ISignalSource.CountSignals()
+    {
+        return CountSignals();
+    }
+
+    /// <summary>
+    ///     Counts signals matching a specific name (ISignalSource).
+    /// </summary>
+    int ISignalSource.CountSignals(string signalName)
+    {
+        return CountSignals(signalName);
+    }
+
+    /// <summary>
+    ///     Notifies all attached sinks of a signal event.
+    ///     Called when operations emit signals.
+    /// </summary>
+    internal void NotifySinks(SignalEvent signal)
+    {
+        var sinks = _sinks; // Volatile read
+        for (var i = 0; i < sinks.Length; i++)
+            sinks[i]?.NotifyListeners(signal);
+    }
+
+    #endregion
 
     private readonly record struct WorkItem(T Item, long? Id);
 }

@@ -351,73 +351,131 @@ public interface ISignalEmitter
 }
 
 /// <summary>
-///     Global signal sink. Operations raise signals here.
-///     Acts as a readonly view onto signals from all coordinators.
-///     Coordinators manage signal lifetime - the sink is just an event bus and query surface.
+///     Interface for signal sources (coordinators) that can be queried by SignalSink.
+///     Coordinators implement this to expose their operation signals for querying.
 /// </summary>
+public interface ISignalSource
+{
+    /// <summary>
+    ///     Gets all signals from current operations in this source.
+    /// </summary>
+    IReadOnlyList<SignalEvent> GetSignals();
+
+    /// <summary>
+    ///     Checks if any current operation has a specific signal.
+    /// </summary>
+    bool HasSignal(string signalName);
+
+    /// <summary>
+    ///     Gets signals matching a pattern from current operations.
+    /// </summary>
+    IReadOnlyList<SignalEvent> GetSignalsByPattern(string pattern);
+
+    /// <summary>
+    ///     Counts total signals across current operations.
+    /// </summary>
+    int CountSignals();
+
+    /// <summary>
+    ///     Counts signals matching a specific name.
+    /// </summary>
+    int CountSignals(string signalName);
+}
+
+/// <summary>
+///     Global signal sink - a readonly view over signals from attached coordinators.
+///     Acts as both an event bus (for Subscribe) and a query surface (for Sense/Detect).
+///     Signals are stored in operations, sink just provides a unified view.
+/// </summary>
+/// <remarks>
+///     v3.0 Architecture:
+///     - SignalSink is stateless - no signal storage
+///     - Queries delegate to attached coordinators
+///     - Many-to-many: sink can attach to multiple coordinators, coordinator can use multiple sinks
+///     - Operations own signals, coordinators own operations, sink provides view
+/// </remarks>
 public sealed class SignalSink
 {
     private readonly object _listenersLock = new();
-    private readonly ConcurrentQueue<SignalEvent> _window = new();
-    private readonly object _windowSizeLock = new(); // For synchronizing Clear operations
+    private readonly object _sourcesLock = new();
 
-    // Lock-free listener array for optimal performance
+    // Lock-free arrays for optimal read performance
     private volatile Action<SignalEvent>[] _listeners = Array.Empty<Action<SignalEvent>>();
+    private volatile ISignalSource[] _sources = Array.Empty<ISignalSource>();
 
     /// <summary>
-    ///     Creates a new signal sink. Coordinators manage signal lifetime - the sink is just a view.
+    ///     Attaches a signal source (coordinator) to this sink.
+    ///     The sink will query this source for signals and receive events from it.
     /// </summary>
-    public SignalSink()
+    /// <remarks>
+    ///     Internal: Called by coordinators when they're configured with this sink.
+    ///     Creates bidirectional link: sink→source for queries, source→sink for events.
+    /// </remarks>
+    internal void AttachSource(ISignalSource source)
     {
+        if (source is null)
+            throw new ArgumentNullException(nameof(source));
+
+        lock (_sourcesLock)
+        {
+            var current = _sources;
+            if (Array.IndexOf(current, source) >= 0)
+                return; // Already attached
+
+            var newSources = new ISignalSource[current.Length + 1];
+            Array.Copy(current, newSources, current.Length);
+            newSources[current.Length] = source;
+            _sources = newSources;
+        }
     }
 
     /// <summary>
-    ///     Creates a new signal sink with capacity and age parameters.
+    ///     Detaches a signal source from this sink.
     /// </summary>
-    /// <param name="maxCapacity">Obsolete - coordinators manage signal lifetime.</param>
-    /// <param name="maxAge">Obsolete - coordinators manage signal lifetime.</param>
-    [Obsolete("SignalSink no longer manages signal lifetime. Coordinators control operation/signal lifetime via MaxTrackedOperations and MaxOperationLifetime. Use the parameterless constructor.")]
-    public SignalSink(int maxCapacity = 1000, TimeSpan? maxAge = null)
+    internal void DetachSource(ISignalSource source)
     {
-        // No-op - parameters ignored. Coordinators manage lifetime.
+        if (source is null)
+            return;
+
+        lock (_sourcesLock)
+        {
+            var current = _sources;
+            var index = Array.IndexOf(current, source);
+            if (index < 0) return;
+
+            var newSources = new ISignalSource[current.Length - 1];
+            Array.Copy(current, 0, newSources, 0, index);
+            Array.Copy(current, index + 1, newSources, index, current.Length - index - 1);
+            _sources = newSources;
+        }
     }
 
     /// <summary>
-    ///     Count of signals currently in the window.
+    ///     Count of signals across all attached coordinators (lock-free read).
     /// </summary>
-    public int Count => _window.Count;
-
-    /// <summary>
-    ///     Obsolete - SignalSink no longer manages capacity. Coordinators control signal lifetime.
-    /// </summary>
-    [Obsolete("SignalSink no longer manages signal lifetime. Use coordinator options (MaxTrackedOperations, MaxOperationLifetime) instead.")]
-    public int MaxCapacity => 0;
-
-    /// <summary>
-    ///     Obsolete - SignalSink no longer manages age. Coordinators control signal lifetime.
-    /// </summary>
-    [Obsolete("SignalSink no longer manages signal lifetime. Use coordinator options (MaxTrackedOperations, MaxOperationLifetime) instead.")]
-    public TimeSpan MaxAge => TimeSpan.Zero;
-
-    /// <summary>
-    ///     Obsolete - SignalSink no longer manages window size. Coordinators control signal lifetime.
-    /// </summary>
-    /// <param name="maxCapacity">Obsolete - ignored.</param>
-    /// <param name="maxAge">Obsolete - ignored.</param>
-    [Obsolete("SignalSink no longer manages signal lifetime. Use coordinator options (MaxTrackedOperations, MaxOperationLifetime) instead.")]
-    public void UpdateWindowSize(int? maxCapacity = null, TimeSpan? maxAge = null)
+    public int Count
     {
-        // No-op - parameters ignored. Coordinators manage lifetime.
+        get
+        {
+            var sources = _sources; // Volatile read
+            var count = 0;
+            for (var i = 0; i < sources.Length; i++)
+                count += sources[i].CountSignals();
+            return count;
+        }
     }
 
     /// <summary>
-    ///     Raise a signal.
+    ///     Notifies all subscribers of a signal event.
+    ///     Called internally by coordinators when operations emit signals.
     /// </summary>
+    /// <remarks>
+    ///     v3.0: Coordinators raise signals, not the sink directly.
+    ///     This method is internal - user code cannot call sink.Raise() anymore.
+    /// </remarks>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public void Raise(SignalEvent signal)
+    internal void NotifyListeners(SignalEvent signal)
     {
-        _window.Enqueue(signal);
-
         // Lock-free listener invocation - volatile read ensures we get latest array
         var listeners = _listeners;
         var len = listeners.Length;
@@ -435,32 +493,32 @@ public sealed class SignalSink
     }
 
     /// <summary>
-    ///     Raise a signal with just the name (generates ID and timestamp).
-    /// </summary>
-    public void Raise(string signal, string? key = null)
-    {
-        Raise(new SignalEvent(signal, EphemeralIdGenerator.NextId(), key, DateTimeOffset.UtcNow));
-    }
-
-    /// <summary>
-    ///     Sense all visible signals.
-    ///     Since cleanup runs periodically, most signals in the queue are valid.
-    ///     Returns a snapshot - the queue may continue to change.
+    ///     Sense all visible signals from attached coordinators (lock-free read).
+    ///     Returns signals from current operations across all attached sources.
     /// </summary>
     public IReadOnlyList<SignalEvent> Sense()
     {
-        // Rely on periodic cleanup; avoid O(n) age check on hot path
-        return _window.ToArray();
+        var sources = _sources; // Volatile read
+        if (sources.Length == 0)
+            return Array.Empty<SignalEvent>();
+
+        if (sources.Length == 1)
+            return sources[0].GetSignals();
+
+        var results = new List<SignalEvent>();
+        for (var i = 0; i < sources.Length; i++)
+            results.AddRange(sources[i].GetSignals());
+        return results;
     }
 
     /// <summary>
-    ///     Sense signals matching predicate.
+    ///     Sense signals matching predicate from attached coordinators.
     /// </summary>
     public IReadOnlyList<SignalEvent> Sense(Func<SignalEvent, bool> predicate)
     {
-        // Use pre-sized list to reduce allocations for common cases
-        var results = new List<SignalEvent>(Math.Min(_window.Count, 64));
-        foreach (var s in _window)
+        var all = Sense();
+        var results = new List<SignalEvent>(Math.Min(all.Count, 64));
+        foreach (var s in all)
             if (predicate(s))
                 results.Add(s);
         return results;
@@ -505,83 +563,85 @@ public sealed class SignalSink
     }
 
     /// <summary>
-    ///     Detect any signals matching predicate.
+    ///     Detect any signals matching predicate across attached coordinators (lock-free).
     ///     Short-circuits on first match for O(1) best case.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool Detect(Func<SignalEvent, bool> predicate)
     {
-        foreach (var s in _window)
-            if (predicate(s))
-                return true;
+        var sources = _sources; // Volatile read
+        for (var i = 0; i < sources.Length; i++)
+        {
+            var signals = sources[i].GetSignals();
+            foreach (var s in signals)
+                if (predicate(s))
+                    return true;
+        }
         return false;
     }
 
     /// <summary>
-    ///     Detect any signals with name.
+    ///     Detect any signals with name across attached coordinators (lock-free).
     ///     Optimized for exact string match - short-circuits on first match.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool Detect(string signalName)
     {
-        // Fast ordinal comparison for hot path
-        foreach (var s in _window)
-            if (string.Equals(s.Signal, signalName, StringComparison.Ordinal))
+        var sources = _sources; // Volatile read
+        for (var i = 0; i < sources.Length; i++)
+            if (sources[i].HasSignal(signalName))
                 return true;
         return false;
     }
 
     /// <summary>
-    ///     Detect any signals with name (span overload for zero-allocation hot paths).
+    ///     Detect any signals with name (span overload).
     ///     Optimized for exact match - short-circuits on first match.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool Detect(ReadOnlySpan<char> signalName)
     {
-        foreach (var s in _window)
-            if (s.Signal.AsSpan().SequenceEqual(signalName))
-                return true;
-        return false;
+        return Detect(signalName.ToString());
     }
 
     /// <summary>
-    ///     Count signals matching a prefix pattern within a time window.
+    ///     Count signals matching a prefix pattern within a time window across attached coordinators.
     ///     Optimized for health-check pattern: count recent failures.
-    ///     Uses StartsWith instead of Contains for better performance.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public int CountRecentByPrefix(string prefix, DateTimeOffset since)
     {
         var count = 0;
-        foreach (var s in _window)
+        var signals = Sense();
+        foreach (var s in signals)
             if (s.Timestamp >= since && s.Signal.StartsWith(prefix, StringComparison.Ordinal))
                 count++;
         return count;
     }
 
     /// <summary>
-    ///     Count signals containing a substring within a time window.
-    ///     Use CountRecentByPrefix if possible - it's faster.
+    ///     Count signals containing a substring within a time window across attached coordinators.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public int CountRecentByContains(string substring, DateTimeOffset since)
     {
         var count = 0;
-        foreach (var s in _window)
+        var signals = Sense();
+        foreach (var s in signals)
             if (s.Timestamp >= since && s.Signal.Contains(substring))
                 count++;
         return count;
     }
 
     /// <summary>
-    ///     Count exact signal matches within a time window.
-    ///     Fastest option for exact signal name queries.
+    ///     Count exact signal matches within a time window across attached coordinators.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public int CountRecentExact(string signalName, DateTimeOffset since)
     {
         var count = 0;
-        foreach (var s in _window)
+        var signals = Sense();
+        foreach (var s in signals)
             if (s.Timestamp >= since && string.Equals(s.Signal, signalName, StringComparison.Ordinal))
                 count++;
         return count;

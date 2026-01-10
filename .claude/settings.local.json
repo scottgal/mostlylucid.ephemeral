@@ -23,7 +23,9 @@
       "Bash(git push:*)",
       "Bash(git branch:*)",
       "Bash(dotnet restore:*)",
-      "WebSearch"
+      "WebSearch",
+      "Bash(grep:*)",
+      "Bash(git restore:*)"
     ],
     "deny": [],
     "ask": []

@@ -8,8 +8,11 @@ the learning forensic semantic firewall)**
 **Fire... and Don't *Quite* Forget.**
 
 > **Note:** This library is production-ready. The 2.x release introduces the **Ledger** system for evidence
-> accumulation, lock-free signal subscriptions via `Subscribe()`, and expanded taxonomy atoms. See
-> the [Detection Ledger](#detection-ledger-evidence-accumulation) section for migration guidance.
+> accumulation, lock-free signal subscriptions via `Subscribe()`, and expanded taxonomy atoms.
+>
+> **v2.3+ Breaking Change (Mitigated):** `SignalSink` is now a readonly view - coordinators manage signal lifetime.
+> Old `SignalSink(maxCapacity, maxAge)` constructor is obsolete but still works (no-op). Use coordinator options instead:
+> `MaxTrackedOperations` and `MaxOperationLifetime`. See [SIGNALSINK_V2.3_CHANGES.md](SIGNALSINK_V2.3_CHANGES.md) for migration.
 
 A lightweight .NET library for bounded, observable, self-cleaning async execution with signal-based coordination.
 Targets .NET 6.0, 7.0, 8.0, 9.0, and 10.0.

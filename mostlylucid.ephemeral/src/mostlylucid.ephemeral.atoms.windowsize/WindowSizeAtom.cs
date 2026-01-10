@@ -9,6 +9,13 @@ namespace Mostlylucid.Ephemeral.Atoms.WindowSize;
 /// </summary>
 /// <remarks>
 ///     <para>
+///         <strong>OBSOLETE (v2.3+):</strong> SignalSink no longer manages signal lifetime.
+///         Coordinators control signal lifetime via MaxTrackedOperations and MaxOperationLifetime.
+///         This atom's UpdateWindowSize calls are now no-ops.
+///     </para>
+/// </remarks>
+/// <remarks>
+///     <para>
 ///         <strong>Use Cases:</strong>
 ///     </para>
 ///     <list type="bullet">
@@ -44,6 +51,7 @@ namespace Mostlylucid.Ephemeral.Atoms.WindowSize;
 /// sink.Raise("window.time.set:10m");
 /// </code>
 /// </example>
+[Obsolete("WindowSizeAtom is obsolete. SignalSink no longer manages signal lifetime - coordinators do via MaxTrackedOperations/MaxOperationLifetime.")]
 public sealed class WindowSizeAtom : IAsyncDisposable
 {
     private readonly WindowSizeAtomOptions _options;

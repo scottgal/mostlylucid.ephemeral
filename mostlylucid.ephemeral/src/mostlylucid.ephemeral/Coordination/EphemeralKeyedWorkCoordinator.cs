@@ -422,6 +422,25 @@ public sealed class EphemeralKeyedWorkCoordinator<T, TKey> : IAsyncDisposable, I
         return count;
     }
 
+    public int CountSignals(string signalName)
+    {
+        var count = 0;
+        foreach (var op in _recent)
+        {
+            if (op._signals is not { Count: > 0 })
+                continue;
+
+            // Manual loop for better performance
+            var signals = op._signals;
+            var signalCount = signals.Count;
+            for (var i = 0; i < signalCount; i++)
+                if (signals[i] == signalName)
+                    count++;
+        }
+
+        return count;
+    }
+
     private IReadOnlyList<SignalEvent> GetSignalsCore(Func<EphemeralOperationSnapshot, bool>? predicate)
     {
         var results = new List<SignalEvent>();

@@ -32,12 +32,17 @@ public static class ParallelEphemeral
         // Pre-size if source is a collection
         if (source is ICollection<T> coll) running.Capacity = Math.Min(coll.Count, options.MaxConcurrency * 2);
 
+        // v3.0: Create callback to notify sink when operations emit signals
+        Action<SignalEvent>? notifySinks = options.Signals is { } sink
+            ? evt => sink.NotifyListeners(evt)
+            : null;
+
         foreach (var item in source)
         {
             cancellationToken.ThrowIfCancellationRequested();
             await concurrency.WaitAsync(cancellationToken).ConfigureAwait(false);
 
-            var op = new EphemeralOperation(options.Signals, options.OnSignal, options.OnSignalRetracted,
+            var op = new EphemeralOperation(notifySinks, options.OnSignal, options.OnSignalRetracted,
                 options.SignalConstraints);
             EnqueueEphemeral(op, recent, options);
 
@@ -67,6 +72,11 @@ public static class ParallelEphemeral
         // If a signal sink is provided, create operation with it
         var effectiveSignals = signals ?? options.Signals;
 
+        // v3.0: Create callback to notify sink when operations emit signals
+        Action<SignalEvent>? notifySinks = effectiveSignals is { } sink
+            ? evt => sink.NotifyListeners(evt)
+            : null;
+
         using var concurrency = new SemaphoreSlim(options.MaxConcurrency, options.MaxConcurrency);
         var recent = new ConcurrentQueue<EphemeralOperation>();
 
@@ -79,7 +89,7 @@ public static class ParallelEphemeral
             cancellationToken.ThrowIfCancellationRequested();
             await concurrency.WaitAsync(cancellationToken).ConfigureAwait(false);
 
-            var op = new EphemeralOperation(effectiveSignals, options.OnSignal, options.OnSignalRetracted,
+            var op = new EphemeralOperation(notifySinks, options.OnSignal, options.OnSignalRetracted,
                 options.SignalConstraints);
             EnqueueEphemeral(op, recent, options);
 
@@ -131,6 +141,11 @@ public static class ParallelEphemeral
     {
         options ??= new EphemeralOptions();
 
+        // v3.0: Create callback to notify sink when operations emit signals
+        Action<SignalEvent>? notifySinks = options.Signals is { } sink
+            ? evt => sink.NotifyListeners(evt)
+            : null;
+
         using var globalConcurrency = new SemaphoreSlim(options.MaxConcurrency, options.MaxConcurrency);
         var perKeyLocks = new ConcurrentDictionary<TKey, SemaphoreSlim>();
         var recent = new ConcurrentQueue<EphemeralOperation>();
@@ -158,7 +173,7 @@ public static class ParallelEphemeral
                 await globalConcurrency.WaitAsync(cancellationToken).ConfigureAwait(false);
                 await keyGate.WaitAsync(cancellationToken).ConfigureAwait(false);
 
-                var op = new EphemeralOperation(options.Signals, options.OnSignal, options.OnSignalRetracted,
+                var op = new EphemeralOperation(notifySinks, options.OnSignal, options.OnSignalRetracted,
                     options.SignalConstraints) { Key = key?.ToString() };
                 EnqueueEphemeral(op, recent, options);
 

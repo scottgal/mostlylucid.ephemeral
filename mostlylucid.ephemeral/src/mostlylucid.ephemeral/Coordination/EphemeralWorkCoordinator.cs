@@ -892,30 +892,10 @@ public sealed class EphemeralWorkCoordinator<T> : IEphemeralCoordinator, IOperat
             foreach (var signal in op._signals)
                 if (StringPatternMatcher.MatchesAny(signal, _options.ClearOnSignals))
                 {
-                    // Found a clear signal - clear the sink
-                    if (_options.ClearOnSignalsUsePattern)
-                    {
-                        // Extract pattern from signal name (e.g., "clear.errors" → "error.*")
-                        // Optimized: Use span-based parsing to avoid String.Split() allocation
-                        var firstDot = signal.IndexOf('.');
-                        if (firstDot > 0 && signal.AsSpan(0, firstDot).SequenceEqual("clear"))
-                        {
-                            var pattern = signal.Substring(firstDot + 1) + ".*";
-                            _options.Signals.ClearPattern(pattern);
-                        }
-                        else
-                        {
-                            // Fallback: clear all
-                            _options.Signals.Clear();
-                        }
-                    }
-                    else
-                    {
-                        // Clear entire sink
-                        _options.Signals.Clear();
-                    }
-
-                    return; // Only clear once per check
+                    // v3.0: Signal clearing no longer applicable - SignalSink doesn't own signal storage.
+                    // Signals live in operations and are evicted by coordinator via MaxTrackedOperations/MaxOperationLifetime.
+                    // This check remains for backward compatibility but takes no action.
+                    return;
                 }
         }
     }

@@ -404,6 +404,34 @@ public sealed class SignalSink
     private volatile ISignalSource[] _sources = Array.Empty<ISignalSource>();
 
     /// <summary>
+    ///     Creates a new signal sink.
+    /// </summary>
+    public SignalSink()
+    {
+    }
+
+    /// <summary>
+    ///     Obsolete constructor for backward compatibility.
+    /// </summary>
+    [Obsolete("SignalSink no longer manages signal lifetime. Use parameterless constructor. Coordinators control signal lifetime via MaxTrackedOperations/MaxOperationLifetime.")]
+    public SignalSink(int maxCapacity, TimeSpan? maxAge = null)
+    {
+        // v3.0: No-op - SignalSink is stateless, doesn't own signal storage
+    }
+
+    /// <summary>
+    ///     Obsolete MaxCapacity property for backward compatibility.
+    /// </summary>
+    [Obsolete("SignalSink no longer manages signal lifetime. This property always returns 0. Coordinators control signal lifetime via MaxTrackedOperations.")]
+    public int MaxCapacity => 0;
+
+    /// <summary>
+    ///     Obsolete MaxAge property for backward compatibility.
+    /// </summary>
+    [Obsolete("SignalSink no longer manages signal lifetime. This property always returns TimeSpan.Zero. Coordinators control signal lifetime via MaxOperationLifetime.")]
+    public TimeSpan MaxAge => TimeSpan.Zero;
+
+    /// <summary>
     ///     Attaches a signal source (coordinator) to this sink.
     ///     The sink will query this source for signals and receive events from it.
     /// </summary>
@@ -490,6 +518,46 @@ public sealed class SignalSink
             {
                 /* never throw from signal fan-out */
             }
+    }
+
+    /// <summary>
+    ///     Obsolete Raise method for backward compatibility.
+    ///     In v3.0, signals are raised by operations through coordinator callbacks.
+    /// </summary>
+    [Obsolete("SignalSink.Raise() is obsolete. Signals are now emitted by operations via ISignalEmitter.Emit(). This call is forwarded to NotifyListeners() for backward compatibility but should be avoided.")]
+    public void Raise(SignalEvent signal)
+    {
+        // v3.0: Forward to NotifyListeners for backward compatibility
+        NotifyListeners(signal);
+    }
+
+    /// <summary>
+    ///     Obsolete Raise overload for backward compatibility.
+    /// </summary>
+    [Obsolete("SignalSink.Raise(string, string?) is obsolete. Signals are now emitted by operations via ISignalEmitter.Emit().")]
+    public void Raise(string signalName, string? operationKey = null)
+    {
+        var evt = new SignalEvent(
+            signalName,
+            EphemeralIdGenerator.NextId(),
+            operationKey,
+            DateTimeOffset.UtcNow);
+        NotifyListeners(evt);
+    }
+
+    /// <summary>
+    ///     Obsolete Raise overload for backward compatibility.
+    /// </summary>
+    [Obsolete("SignalSink.Raise(string, object?, string?) is obsolete. Signals are now emitted by operations via ISignalEmitter.Emit(). Payloads should be stored externally.")]
+    public void Raise(string signalName, object? payload, string? operationKey = null)
+    {
+        // v3.0: Payloads are no longer supported inline - store externally and reference via key
+        var evt = new SignalEvent(
+            signalName,
+            EphemeralIdGenerator.NextId(),
+            operationKey,
+            DateTimeOffset.UtcNow);
+        NotifyListeners(evt);
     }
 
     /// <summary>
@@ -684,169 +752,6 @@ public sealed class SignalSink
         }
     }
 
-    /// <summary>
-    ///     Immediately clear all signals from the window.
-    ///     Thread-safe but briefly blocks other window operations.
-    ///     Emits "sink.cleared" signal with count in Key field.
-    /// </summary>
-    /// <returns>Number of signals removed.</returns>
-    public int Clear()
-    {
-        int count;
-        lock (_windowSizeLock)
-        {
-            count = 0;
-            while (_window.TryDequeue(out _)) count++;
-        }
-
-        // Emit meta-signal about the clear operation
-        if (count > 0)
-            Raise(new SignalEvent(
-                "sink.cleared",
-                EphemeralIdGenerator.NextId(),
-                count.ToString(), // Count in key field
-                DateTimeOffset.UtcNow
-            ));
-
-        return count;
-    }
-
-    /// <summary>
-    ///     Remove all signals matching a predicate.
-    ///     Thread-safe but briefly blocks other window operations.
-    /// </summary>
-    /// <param name="predicate">Condition to match signals for removal.</param>
-    /// <returns>Number of signals removed.</returns>
-    public int ClearMatching(Func<SignalEvent, bool> predicate)
-    {
-        if (predicate == null) throw new ArgumentNullException(nameof(predicate));
-
-        lock (_windowSizeLock)
-        {
-            var toKeep = new List<SignalEvent>();
-            var removed = 0;
-
-            while (_window.TryDequeue(out var signal))
-                if (predicate(signal))
-                    removed++; // Don't re-add
-                else
-                    toKeep.Add(signal);
-
-            // Re-enqueue kept signals
-            foreach (var signal in toKeep) _window.Enqueue(signal);
-
-            return removed;
-        }
-    }
-
-    /// <summary>
-    ///     Remove all signals matching a pattern (glob-style with * and ?).
-    ///     Thread-safe but briefly blocks other window operations.
-    ///     Emits "sink.cleared.pattern" signal with pattern in Key field.
-    /// </summary>
-    /// <param name="pattern">Pattern to match signal names (supports * and ? wildcards).</param>
-    /// <returns>Number of signals removed.</returns>
-    public int ClearPattern(string pattern)
-    {
-        if (string.IsNullOrEmpty(pattern)) throw new ArgumentNullException(nameof(pattern));
-
-        var removed = ClearMatching(s => StringPatternMatcher.Matches(s.Signal, pattern));
-
-        // Emit meta-signal about the pattern clear
-        if (removed > 0)
-            Raise(new SignalEvent(
-                "sink.cleared.pattern",
-                EphemeralIdGenerator.NextId(),
-                $"{pattern}:{removed}", // Pattern:count in key field
-                DateTimeOffset.UtcNow
-            ));
-
-        return removed;
-    }
-
-    /// <summary>
-    ///     Remove all signals for a specific operation ID.
-    ///     Convenience method for: ClearMatching(s => s.OperationId == operationId)
-    /// </summary>
-    /// <param name="operationId">Operation ID to clear.</param>
-    /// <returns>Number of signals removed.</returns>
-    public int ClearOperation(long operationId)
-    {
-        return ClearMatching(s => s.OperationId == operationId);
-    }
-
-    /// <summary>
-    ///     Remove all signals for a specific key.
-    ///     Convenience method for: ClearMatching(s => s.Key == key)
-    /// </summary>
-    /// <param name="key">Key to clear.</param>
-    /// <returns>Number of signals removed.</returns>
-    public int ClearKey(string key)
-    {
-        if (string.IsNullOrEmpty(key)) throw new ArgumentNullException(nameof(key));
-
-        return ClearMatching(s => s.Key == key);
-    }
-
-    /// <summary>
-    ///     Request all coordinators attached to this sink to begin draining.
-    ///     Emits "coordinator.drain.all" signal that coordinators listen for.
-    ///     Coordinators with DrainOnSignals matching this pattern will complete intake and drain.
-    /// </summary>
-    public void RequestDrainAll()
-    {
-        Raise(new SignalEvent(
-            "coordinator.drain.all",
-            EphemeralIdGenerator.NextId(),
-            null,
-            DateTimeOffset.UtcNow
-        ));
-    }
-
-    /// <summary>
-    ///     Request drain of all coordinators AND clear the signal window.
-    ///     Emits "coordinator.drain.all" followed by immediate sink clear.
-    ///     This is the "nuclear option" - signal all work to stop, then wipe the slate clean.
-    /// </summary>
-    /// <returns>Number of signals cleared.</returns>
-    public int RequestDrainAndClear()
-    {
-        RequestDrainAll();
-        return Clear();
-    }
-
-    /// <summary>
-    ///     Request drain of a specific coordinator by ID.
-    ///     Emits "coordinator.drain.id:{id}" signal.
-    /// </summary>
-    /// <param name="coordinatorId">The coordinator ID to drain (matches coordinator's OperationId or configured ID).</param>
-    public void RequestDrain(long coordinatorId)
-    {
-        Raise(new SignalEvent(
-            "coordinator.drain.id",
-            EphemeralIdGenerator.NextId(),
-            coordinatorId.ToString(),
-            DateTimeOffset.UtcNow
-        ));
-    }
-
-    /// <summary>
-    ///     Request drain of all coordinators matching a specific pattern.
-    ///     Emits "coordinator.drain.pattern" signal with the pattern in the Key field.
-    ///     Coordinators can match against their name, key, or other identifiers.
-    /// </summary>
-    /// <param name="pattern">Pattern to match coordinator identifiers (glob-style with * and ?).</param>
-    public void RequestDrainPattern(string pattern)
-    {
-        if (string.IsNullOrEmpty(pattern)) throw new ArgumentNullException(nameof(pattern));
-
-        Raise(new SignalEvent(
-            "coordinator.drain.pattern",
-            EphemeralIdGenerator.NextId(),
-            pattern,
-            DateTimeOffset.UtcNow
-        ));
-    }
 
     [Obsolete("SignalSink no longer manages cleanup. Coordinators control signal lifetime.")]
     private void Cleanup()

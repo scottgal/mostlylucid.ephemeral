@@ -294,6 +294,42 @@ public sealed class EphemeralResultCoordinator<TInput, TResult> : IAsyncDisposab
         return count;
     }
 
+    public int CountSignals(string signalName)
+    {
+        var count = 0;
+        foreach (var op in _recent)
+        {
+            if (op._signals is not { Count: > 0 })
+                continue;
+
+            // Manual loop for better performance
+            var signals = op._signals;
+            var signalCount = signals.Count;
+            for (var i = 0; i < signalCount; i++)
+                if (signals[i] == signalName)
+                    count++;
+        }
+
+        return count;
+    }
+
+    public IReadOnlyList<SignalEvent> GetSignalsByPattern(string pattern)
+    {
+        var results = new List<SignalEvent>();
+        foreach (var op in _recent)
+        {
+            if (op._signals is not { Count: > 0 })
+                continue;
+
+            var timestamp = op.Completed ?? op.Started;
+            foreach (var signal in op._signals)
+                if (StringPatternMatcher.Matches(signal, pattern))
+                    results.Add(new SignalEvent(signal, op.Id, op.Key, timestamp));
+        }
+
+        return results;
+    }
+
     private IReadOnlyList<SignalEvent> GetSignalsCore(Func<EphemeralOperationSnapshot, bool>? predicate)
     {
         var results = new List<SignalEvent>();

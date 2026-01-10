@@ -405,16 +405,10 @@ public sealed class SignalSink
 
     /// <summary>
     ///     Creates a new signal sink.
+    ///     v3.0: SignalSink is now stateless. Parameters are ignored for backward compatibility.
     /// </summary>
-    public SignalSink()
-    {
-    }
-
-    /// <summary>
-    ///     Obsolete constructor for backward compatibility.
-    /// </summary>
-    [Obsolete("SignalSink no longer manages signal lifetime. Use parameterless constructor. Coordinators control signal lifetime via MaxTrackedOperations/MaxOperationLifetime.")]
-    public SignalSink(int maxCapacity, TimeSpan? maxAge = null)
+    [Obsolete("SignalSink(maxCapacity, maxAge) parameters are obsolete. SignalSink is now stateless. Coordinators control signal lifetime via MaxTrackedOperations/MaxOperationLifetime.", DiagnosticId = "EPHEMERAL001", UrlFormat = "https://github.com/scottgal/mostlylucid/wiki/v3.0-migration")]
+    public SignalSink(int maxCapacity = 0, TimeSpan? maxAge = null)
     {
         // v3.0: No-op - SignalSink is stateless, doesn't own signal storage
     }
@@ -430,6 +424,15 @@ public sealed class SignalSink
     /// </summary>
     [Obsolete("SignalSink no longer manages signal lifetime. This property always returns TimeSpan.Zero. Coordinators control signal lifetime via MaxOperationLifetime.")]
     public TimeSpan MaxAge => TimeSpan.Zero;
+
+    /// <summary>
+    ///     Obsolete UpdateWindowSize method for backward compatibility.
+    /// </summary>
+    [Obsolete("SignalSink no longer manages window size. Window size is controlled by coordinators via MaxTrackedOperations. This method is a no-op.")]
+    public void UpdateWindowSize(int? maxCapacity = null, TimeSpan? maxAge = null)
+    {
+        // v3.0: No-op - window size is managed by coordinators
+    }
 
     /// <summary>
     ///     Attaches a signal source (coordinator) to this sink.

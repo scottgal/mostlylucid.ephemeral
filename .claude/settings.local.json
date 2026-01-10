@@ -25,7 +25,8 @@
       "Bash(dotnet restore:*)",
       "WebSearch",
       "Bash(grep:*)",
-      "Bash(git restore:*)"
+      "Bash(git restore:*)",
+      "Bash(git checkout:*)"
     ],
     "deny": [],
     "ask": []

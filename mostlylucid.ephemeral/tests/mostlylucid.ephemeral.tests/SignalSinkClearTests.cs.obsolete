@@ -4,7 +4,7 @@ namespace Mostlylucid.Ephemeral.Tests;
 
 public class SignalSinkClearTests
 {
-    [Fact]
+    [Fact(Skip = "v3.0: Signal clearing removed. SignalSink no longer owns signal storage.")]
     public void Clear_RemovesAllSignals()
     {
         var sink = new SignalSink();
@@ -25,7 +25,7 @@ public class SignalSinkClearTests
         Assert.Equal("sink.cleared", remaining[0].Signal);
     }
 
-    [Fact]
+    [Fact(Skip = "v3.0: Signal clearing removed. SignalSink no longer owns signal storage.")]
     public void ClearMatching_RemovesOnlyMatchingSignals()
     {
         var sink = new SignalSink();
@@ -45,7 +45,7 @@ public class SignalSinkClearTests
         Assert.Contains(remaining, s => s.Signal == "info.started");
     }
 
-    [Fact]
+    [Fact(Skip = "v3.0: Signal clearing removed. SignalSink no longer owns signal storage.")]
     public void ClearPattern_RemovesSignalsMatchingPattern()
     {
         var sink = new SignalSink();
@@ -68,7 +68,7 @@ public class SignalSinkClearTests
         Assert.Contains(remaining, s => s.Signal == "sink.cleared.pattern");
     }
 
-    [Fact]
+    [Fact(Skip = "v3.0: Signal clearing removed. SignalSink no longer owns signal storage.")]
     public void ClearPattern_SupportsWildcards()
     {
         var sink = new SignalSink();
@@ -90,7 +90,7 @@ public class SignalSinkClearTests
         Assert.Contains(remaining, s => s.Signal == "sink.cleared.pattern");
     }
 
-    [Fact]
+    [Fact(Skip = "v3.0: Signal clearing removed. SignalSink no longer owns signal storage.")]
     public void ClearOperation_RemovesSignalsForSpecificOperation()
     {
         var sink = new SignalSink();
@@ -114,7 +114,7 @@ public class SignalSinkClearTests
         Assert.All(remaining, s => Assert.Equal(84, s.OperationId));
     }
 
-    [Fact]
+    [Fact(Skip = "v3.0: Signal clearing removed. SignalSink no longer owns signal storage.")]
     public void ClearKey_RemovesSignalsForSpecificKey()
     {
         var sink = new SignalSink();
@@ -133,7 +133,7 @@ public class SignalSinkClearTests
         Assert.All(remaining, s => Assert.Equal("TENANT-B", s.Key));
     }
 
-    [Fact]
+    [Fact(Skip = "v3.0: Signal clearing removed. SignalSink no longer owns signal storage.")]
     public async Task ClearOnSignals_ClearsEntireSinkWhenSignalRaised()
     {
         var sink = new SignalSink();
@@ -166,7 +166,7 @@ public class SignalSinkClearTests
         Assert.True(signals.Count < 20); // Should be less than 10 items × 2 signals each
     }
 
-    [Fact]
+    [Fact(Skip = "v3.0: Signal clearing removed. SignalSink no longer owns signal storage.")]
     public async Task ClearOnSignals_WithPattern_MatchesSignalPattern()
     {
         var sink = new SignalSink();
@@ -198,7 +198,7 @@ public class SignalSinkClearTests
         Assert.True(true, "ClearOnSignals pattern matching configuration is valid");
     }
 
-    [Fact]
+    [Fact(Skip = "v3.0: Signal clearing removed. SignalSink no longer owns signal storage.")]
     public void ClearMatching_ThreadSafe()
     {
         var sink = new SignalSink(10000);
@@ -226,7 +226,7 @@ public class SignalSinkClearTests
         Assert.All(remaining, s => Assert.NotNull(s.Signal));
     }
 
-    [Fact]
+    [Fact(Skip = "v3.0: Signal clearing removed. SignalSink no longer owns signal storage.")]
     public void Clear_WithEmptySink_ReturnsZero()
     {
         var sink = new SignalSink();
@@ -237,7 +237,7 @@ public class SignalSinkClearTests
         Assert.Equal(0, sink.Count);
     }
 
-    [Fact]
+    [Fact(Skip = "v3.0: Signal clearing removed. SignalSink no longer owns signal storage.")]
     public void ClearPattern_WithNoMatches_ReturnsZero()
     {
         var sink = new SignalSink();
@@ -250,7 +250,7 @@ public class SignalSinkClearTests
         Assert.Equal(2, sink.Count);
     }
 
-    [Fact]
+    [Fact(Skip = "v3.0: Signal clearing removed. SignalSink no longer owns signal storage.")]
     public void ClearOperation_WithNonexistentId_ReturnsZero()
     {
         var sink = new SignalSink();
@@ -262,7 +262,7 @@ public class SignalSinkClearTests
         Assert.Equal(1, sink.Count);
     }
 
-    [Fact]
+    [Fact(Skip = "v3.0: Signal clearing removed. SignalSink no longer owns signal storage.")]
     public void ClearKey_WithNullKey_ThrowsArgumentNullException()
     {
         var sink = new SignalSink();
@@ -270,7 +270,7 @@ public class SignalSinkClearTests
         Assert.Throws<ArgumentNullException>(() => sink.ClearKey(null!));
     }
 
-    [Fact]
+    [Fact(Skip = "v3.0: Signal clearing removed. SignalSink no longer owns signal storage.")]
     public void ClearPattern_WithNullPattern_ThrowsArgumentNullException()
     {
         var sink = new SignalSink();
@@ -278,7 +278,7 @@ public class SignalSinkClearTests
         Assert.Throws<ArgumentNullException>(() => sink.ClearPattern(null!));
     }
 
-    [Fact]
+    [Fact(Skip = "v3.0: Signal clearing removed. SignalSink no longer owns signal storage.")]
     public void ClearMatching_WithNullPredicate_ThrowsArgumentNullException()
     {
         var sink = new SignalSink();

@@ -22,7 +22,7 @@ namespace Mostlylucid.Ephemeral.Atoms.Taxonomy.Atoms;
 ///     - Low salience → ephemeral (dies with source atom)
 ///     Signals don't care about their fate - the system chooses.
 /// </remarks>
-public sealed class LedgerAtom : ISignalSource, IAsyncDisposable
+public sealed class LedgerAtom : Signals.ISignalSource, IAsyncDisposable
 {
     private readonly CancellationTokenSource _cts = new();
     private readonly SignalView _inputView;

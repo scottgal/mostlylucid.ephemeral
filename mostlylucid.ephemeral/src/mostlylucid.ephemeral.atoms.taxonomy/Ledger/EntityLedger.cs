@@ -54,6 +54,37 @@ public sealed class EntityLedger : IEntityLedger
         Record(signal);
     }
 
+    public void RecordRef(
+        string key,
+        string? valueRef,
+        double salience,
+        string sourceAtom,
+        string? sourceKind = null,
+        IDictionary<string, string>? metadata = null)
+    {
+        // Convert string metadata to object metadata for compatibility
+        IDictionary<string, object>? objectMetadata = null;
+        if (metadata is not null)
+        {
+            objectMetadata = new Dictionary<string, object>(metadata.Count);
+            foreach (var kvp in metadata)
+                objectMetadata[kvp.Key] = kvp.Value;
+        }
+
+        var signal = new LedgerSignal
+        {
+            Key = key,
+            ValueRef = valueRef,
+            Salience = Math.Clamp(salience, 0.0, 1.0),
+            SourceAtom = sourceAtom,
+            SourceKind = sourceKind,
+            Timestamp = DateTimeOffset.UtcNow,
+            Metadata = objectMetadata
+        };
+
+        Record(signal);
+    }
+
     public bool HasSignal(string key)
     {
         return _signals.ContainsKey(key);

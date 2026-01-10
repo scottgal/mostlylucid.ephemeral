@@ -7,6 +7,11 @@ namespace Mostlylucid.Ephemeral;
 ///     A signal event raised by an operation.
 ///     Readonly struct for zero-allocation hot path (~48 bytes on stack, no GC pressure).
 /// </summary>
+/// <remarks>
+///     Best practice: Store large data externally (cache, persistence, shared storage).
+///     Use Key to signal the storage location/reference. Signals are coordination, not transport.
+///     Example: After saving file → Emit("file.saved", key: "cache://images/abc123")
+/// </remarks>
 public readonly record struct SignalEvent(
     string Signal,
     long OperationId,

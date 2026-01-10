@@ -52,6 +52,18 @@ public interface IEntityLedger : IDisposable
         IDictionary<string, object>? metadata = null);
 
     /// <summary>
+    ///     Records a signal with a reference to externally stored data (avoids boxing).
+    ///     Preferred for large data - store externally and pass the storage key/location.
+    /// </summary>
+    void RecordRef(
+        string key,
+        string? valueRef,
+        double salience,
+        string sourceAtom,
+        string? sourceKind = null,
+        IDictionary<string, string>? metadata = null);
+
+    /// <summary>
     ///     Checks if a signal exists in the ledger.
     /// </summary>
     bool HasSignal(string key);
@@ -100,6 +112,11 @@ public interface IEntityLedger : IDisposable
 /// <summary>
 ///     A signal stored in an entity ledger.
 /// </summary>
+/// <remarks>
+///     Best practice: Store large data externally (cache, persistence, shared storage).
+///     Use ValueRef to point to storage location. Ledger signals are coordination, not transport.
+///     Example: After processing image → RecordRef("image.processed", valueRef: "cache://processed/abc123")
+/// </remarks>
 public sealed class LedgerSignal
 {
     /// <summary>
@@ -108,9 +125,17 @@ public sealed class LedgerSignal
     public required string Key { get; init; }
 
     /// <summary>
-    ///     Signal value (can be any type).
+    ///     Signal value (can be any type). May cause boxing for value types.
+    ///     Consider using ValueRef for large data to avoid boxing and keep signals lightweight.
     /// </summary>
     public object? Value { get; init; }
+
+    /// <summary>
+    ///     Reference to stored value (e.g., storage key, URI, identifier).
+    ///     Preferred over Value for large data - avoids boxing, keeps signals lightweight.
+    ///     Example: "cache://processed/abc123" or "blob://container/image.jpg"
+    /// </summary>
+    public string? ValueRef { get; init; }
 
     /// <summary>
     ///     Salience score (0.0 to 1.0). Higher = more important.

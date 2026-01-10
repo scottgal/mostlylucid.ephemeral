@@ -347,48 +347,62 @@ public interface ISignalEmitter
 
 /// <summary>
 ///     Global signal sink. Operations raise signals here.
-///     Process with another coordinator or poll the window.
+///     Acts as a readonly view onto signals from all coordinators.
+///     Coordinators manage signal lifetime - the sink is just an event bus and query surface.
 /// </summary>
 public sealed class SignalSink
 {
     private readonly object _listenersLock = new();
     private readonly ConcurrentQueue<SignalEvent> _window = new();
-
-    private readonly object _windowSizeLock = new();
+    private readonly object _windowSizeLock = new(); // For synchronizing Clear operations
 
     // Lock-free listener array for optimal performance
     private volatile Action<SignalEvent>[] _listeners = Array.Empty<Action<SignalEvent>>();
-    private long _maxAgeTicks;
-    private int _maxCapacity;
-    private long _raiseCounter;
-
-
-    public SignalSink(int maxCapacity = 1000, TimeSpan? maxAge = null)
-    {
-        _maxCapacity = maxCapacity;
-        _maxAgeTicks = (maxAge ?? TimeSpan.FromMinutes(1)).Ticks;
-    }
-
-    public int MaxCapacity => Volatile.Read(ref _maxCapacity);
-
-    public TimeSpan MaxAge => TimeSpan.FromTicks(Volatile.Read(ref _maxAgeTicks));
 
     /// <summary>
-    ///     Approximate count of signals in the window.
-    ///     May include some expired signals between cleanup cycles.
+    ///     Creates a new signal sink. Coordinators manage signal lifetime - the sink is just a view.
+    /// </summary>
+    public SignalSink()
+    {
+    }
+
+    /// <summary>
+    ///     Creates a new signal sink with capacity and age parameters.
+    /// </summary>
+    /// <param name="maxCapacity">Obsolete - coordinators manage signal lifetime.</param>
+    /// <param name="maxAge">Obsolete - coordinators manage signal lifetime.</param>
+    [Obsolete("SignalSink no longer manages signal lifetime. Coordinators control operation/signal lifetime via MaxTrackedOperations and MaxOperationLifetime. Use the parameterless constructor.")]
+    public SignalSink(int maxCapacity = 1000, TimeSpan? maxAge = null)
+    {
+        // No-op - parameters ignored. Coordinators manage lifetime.
+    }
+
+    /// <summary>
+    ///     Count of signals currently in the window.
     /// </summary>
     public int Count => _window.Count;
 
+    /// <summary>
+    ///     Obsolete - SignalSink no longer manages capacity. Coordinators control signal lifetime.
+    /// </summary>
+    [Obsolete("SignalSink no longer manages signal lifetime. Use coordinator options (MaxTrackedOperations, MaxOperationLifetime) instead.")]
+    public int MaxCapacity => 0;
+
+    /// <summary>
+    ///     Obsolete - SignalSink no longer manages age. Coordinators control signal lifetime.
+    /// </summary>
+    [Obsolete("SignalSink no longer manages signal lifetime. Use coordinator options (MaxTrackedOperations, MaxOperationLifetime) instead.")]
+    public TimeSpan MaxAge => TimeSpan.Zero;
+
+    /// <summary>
+    ///     Obsolete - SignalSink no longer manages window size. Coordinators control signal lifetime.
+    /// </summary>
+    /// <param name="maxCapacity">Obsolete - ignored.</param>
+    /// <param name="maxAge">Obsolete - ignored.</param>
+    [Obsolete("SignalSink no longer manages signal lifetime. Use coordinator options (MaxTrackedOperations, MaxOperationLifetime) instead.")]
     public void UpdateWindowSize(int? maxCapacity = null, TimeSpan? maxAge = null)
     {
-        lock (_windowSizeLock)
-        {
-            if (maxCapacity.HasValue)
-                Interlocked.Exchange(ref _maxCapacity, Math.Max(1, maxCapacity.Value));
-
-            if (maxAge.HasValue && maxAge.Value > TimeSpan.Zero)
-                Interlocked.Exchange(ref _maxAgeTicks, maxAge.Value.Ticks);
-        }
+        // No-op - parameters ignored. Coordinators manage lifetime.
     }
 
     /// <summary>
@@ -413,10 +427,6 @@ public sealed class SignalSink
             {
                 /* never throw from signal fan-out */
             }
-
-        // Only cleanup every ~1024 calls to avoid contention
-        if ((Interlocked.Increment(ref _raiseCounter) & 0x3FF) == 0)
-            Cleanup();
     }
 
     /// <summary>
@@ -773,25 +783,10 @@ public sealed class SignalSink
         ));
     }
 
+    [Obsolete("SignalSink no longer manages cleanup. Coordinators control signal lifetime.")]
     private void Cleanup()
     {
-        var cutoff = DateTimeOffset.UtcNow - MaxAge;
-        var maxCapacity = MaxCapacity;
-
-        // Size-based - limit iterations to prevent unbounded cleanup
-        var removed = 0;
-        while (_window.Count > maxCapacity && removed < 1000 && _window.TryDequeue(out _)) removed++;
-
-        // Age-based - use safe TryDequeue pattern
-        removed = 0;
-        while (removed < 1000 && _window.TryDequeue(out var item))
-        {
-            if (item.Timestamp >= cutoff)
-                // Put it back if not expired - relies on timestamp ordering
-                // Note: This is a best-effort approach; concurrent modifications may skip items
-                break;
-            removed++;
-        }
+        // No-op - coordinators manage signal lifetime through operation eviction.
     }
 
     private sealed class Subscription : IDisposable

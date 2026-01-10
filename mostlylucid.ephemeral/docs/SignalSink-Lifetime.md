@@ -2,15 +2,17 @@
 
 ## Overview
 
-`SignalSink` is a **shared, long-lived signal repository** that acts as a global event bus for ephemeral operations.
-Unlike coordinators (which manage work execution), a sink is purely observational - it collects, stores, and makes
-signals queryable across multiple coordinators.
+`SignalSink` is a **shared, readonly view** onto signals from ephemeral operations across coordinators.
+It acts as a global event bus and query surface, but **does NOT manage signal lifetime** - coordinators handle that.
+
+**Key Change (v2.3+):** SignalSink no longer performs automatic cleanup, capacity limits, or age-based eviction.
+All signal lifetime management is delegated to coordinators via `MaxTrackedOperations` and `MaxOperationLifetime`.
 
 This document covers:
 
-- SignalSink lifetime management
+- SignalSink as a readonly view
 - Sharing sinks across coordinators
-- Memory management and cleanup
+- Coordinator-based signal lifetime management
 - Thread-safety guarantees
 - Common patterns and anti-patterns
 
@@ -23,18 +25,19 @@ This document covers:
 ```csharp
 public sealed class SignalSink
 {
-    public SignalSink(int maxCapacity = 1000, TimeSpan? maxAge = null)
+    public SignalSink()  // Parameterless - no capacity/age management
 }
 ```
 
 A `SignalSink`:
 
-- Stores `SignalEvent` structs in a bounded `ConcurrentQueue<SignalEvent>`
-- Auto-cleans based on **capacity** (size-based eviction) and **age** (time-based eviction)
-- Provides push-based notification via `Subscribe()` and `SignalRaised` event
+- Stores `SignalEvent` structs in a `ConcurrentQueue<SignalEvent>` - **NO automatic cleanup**
+- Acts as a **readonly view** and event bus for signals from coordinators
+- Provides push-based notification via `Subscribe()` for real-time signal observation
 - Provides pull-based querying via `Sense()`, `Detect()`, `GetOpSignals()`
 - Is **thread-safe** for all operations
-- Has **no Dispose pattern** - cleanup is automatic
+- Has **no Dispose pattern** - it's a passive data structure
+- **Coordinators manage signal lifetime** via operation eviction, not the sink
 
 ### Key Characteristics
 
@@ -42,8 +45,8 @@ A `SignalSink`:
 |-------------------|----------------------------------------------------------------------|
 | **Lifetime**      | Lives as long as you hold a reference - no explicit disposal needed  |
 | **Thread-Safety** | Fully concurrent - safe to share across threads and coordinators     |
-| **Memory Model**  | Bounded sliding window with automatic cleanup                        |
-| **Cleanup**       | Periodic (every ~1024 raises) with limited scan budget               |
+| **Memory Model**  | Unbounded queue - coordinators control lifetime via operation eviction |
+| **Cleanup**       | None - coordinators evict operations which removes their signals     |
 | **Ownership**     | Shared reference - multiple coordinators can reference the same sink |
 
 ---
@@ -93,57 +96,87 @@ var sink = new SignalSink();
 // sink.Dispose();             // Doesn't exist
 
 // ✅ Just let it go out of scope
-// Cleanup happens automatically via periodic maintenance
+// GC will collect it when no longer referenced
 ```
 
 **Why?** SignalSink is a passive data structure with no background threads or unmanaged resources. The `ConcurrentQueue`
 is managed memory that GC will collect.
 
-### Memory Management
+### Signal Lifetime Management
 
-SignalSink manages memory through **two cleanup mechanisms**:
+**Important:** SignalSink NO LONGER manages signal lifetime. This is now handled by coordinators.
 
-#### 1. Size-Based Cleanup (Capacity)
+Coordinators control when operations (and their signals) are evicted via:
 
-```csharp
-var sink = new SignalSink(maxCapacity: 1000);
-
-// When signal count exceeds capacity, oldest signals are removed
-// Cleanup runs periodically (every ~1024 raises) with budget of 1000 items
-```
-
-From `Signals.cs:590-600`:
+#### 1. Operation Count Limits (MaxTrackedOperations)
 
 ```csharp
-private void Cleanup()
-{
-    var cutoff = DateTimeOffset.UtcNow - MaxAge;
-    var maxCapacity = MaxCapacity;
-
-    // Size-based - limit iterations to prevent unbounded cleanup
-    var removed = 0;
-    while (_window.Count > maxCapacity && removed < 1000 && _window.TryDequeue(out _))
+var coordinator = new EphemeralWorkCoordinator<Task>(
+    async (task, ct) => await task,
+    new EphemeralOptions
     {
-        removed++;
+        MaxTrackedOperations = 1000,  // Keep at most 1000 operations in window
+        Signals = sink
     }
-    // ...
-}
+);
+
+// When operation count exceeds MaxTrackedOperations, oldest operations are evicted
+// When an operation is evicted, its signals are NO LONGER sent to the sink
+// (because the operation no longer exists to emit signals)
 ```
 
-#### 2. Age-Based Cleanup (Time)
+#### 2. Age-Based Eviction (MaxOperationLifetime)
 
 ```csharp
-var sink = new SignalSink(
-    maxCapacity: 5000,
-    maxAge: TimeSpan.FromMinutes(1)  // Signals older than 1 minute are evicted
+var coordinator = new EphemeralWorkCoordinator<Task>(
+    async (task, ct) => await task,
+    new EphemeralOptions
+    {
+        MaxOperationLifetime = TimeSpan.FromMinutes(5),  // Evict operations older than 5 minutes
+        Signals = sink
+    }
 );
 ```
 
-**Cleanup Trigger:**
+**How Eviction Works:**
 
-- Runs every ~1024 signal raises (see `Signals.cs:418`)
-- Limited to processing 1000 items per cleanup pass (prevents hangs)
-- Not guaranteed to remove ALL expired items immediately (eventual consistency)
+- Coordinators trim their operation window based on `MaxTrackedOperations` and `MaxOperationLifetime`
+- When an operation is evicted from the coordinator's window, it can no longer emit signals
+- However, signals ALREADY emitted to the sink remain until manually cleared via `sink.Clear()`
+- This means SignalSink acts as a **persistent view** of signal history across coordinator lifecycles
+
+#### Obsolete Constructor Parameters (v2.3+)
+
+The following SignalSink APIs are now **obsolete** and do nothing:
+
+```csharp
+// ❌ OBSOLETE - parameters ignored
+var sink = new SignalSink(maxCapacity: 1000, maxAge: TimeSpan.FromMinutes(1));
+
+// ❌ OBSOLETE - returns 0
+var capacity = sink.MaxCapacity;
+var age = sink.MaxAge;
+
+// ❌ OBSOLETE - no-op
+sink.UpdateWindowSize(2000, TimeSpan.FromMinutes(5));
+
+// ✅ CORRECT - use parameterless constructor
+var sink = new SignalSink();
+```
+
+To manage signal lifetime, configure your coordinator instead:
+
+```csharp
+var coordinator = new EphemeralWorkCoordinator<T>(
+    body,
+    new EphemeralOptions
+    {
+        MaxTrackedOperations = 1000,
+        MaxOperationLifetime = TimeSpan.FromMinutes(1),
+        Signals = sink
+    }
+);
+```
 
 ---
 

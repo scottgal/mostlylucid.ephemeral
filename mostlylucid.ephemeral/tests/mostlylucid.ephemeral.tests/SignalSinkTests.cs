@@ -70,70 +70,82 @@ public class SignalSinkTests
     }
 
     [Fact]
+    [Obsolete("SignalSink no longer manages cleanup - coordinators control signal lifetime")]
     public void Cleanup_LimitsIterations_PreventingUnboundedLoop()
     {
-        var sink = new SignalSink(10);
+        // OBSOLETE TEST: SignalSink no longer performs cleanup.
+        // Coordinators manage signal lifetime through operation eviction.
+        var sink = new SignalSink();
 
-        // Add way more signals than capacity
+        // Add many signals - sink no longer enforces capacity limits
         for (var i = 0; i < 5000; i++) sink.Raise($"signal.{i}");
-
-        // Trigger cleanup by adding more
         for (var i = 0; i < 1100; i++) sink.Raise($"cleanup.{i}");
 
-        // Should not hang - cleanup is bounded
-        // After bounded cleanup, count should be reasonable (not thousands)
-        Assert.True(sink.Count < 2000); // Should be much less than 5000+1100
+        // Sink just holds all signals - no automatic cleanup
+        Assert.Equal(6100, sink.Count);
     }
 
     [Fact]
+    [Obsolete("SignalSink no longer manages cleanup - coordinators control signal lifetime")]
     public async Task Cleanup_HandlesExpiredSignals()
     {
-        var sink = new SignalSink(100, TimeSpan.FromMilliseconds(50));
+        // OBSOLETE TEST: SignalSink no longer performs age-based cleanup.
+        // Coordinators manage signal lifetime through operation eviction.
+        var sink = new SignalSink();
 
         sink.Raise("signal.1");
         sink.Raise("signal.2");
 
-        await Task.Delay(100); // Wait for signals to expire
+        await Task.Delay(100);
 
-        // Add more to trigger cleanup
-        for (var i = 0; i < 1100; i++) sink.Raise($"new.{i}");
+        // Add more signals
+        for (var i = 0; i < 10; i++) sink.Raise($"new.{i}");
 
-        // Old signals should be cleaned up
+        // Old signals remain - no automatic cleanup based on age
         var signals = sink.Sense();
-        Assert.DoesNotContain(signals, s => s.Signal == "signal.1");
-        Assert.DoesNotContain(signals, s => s.Signal == "signal.2");
+        Assert.Contains(signals, s => s.Signal == "signal.1");
+        Assert.Contains(signals, s => s.Signal == "signal.2");
     }
 
     [Fact]
+    [Obsolete("SignalSink.UpdateWindowSize is obsolete - coordinators control signal lifetime")]
     public void UpdateWindowSize_UpdatesCapacityAndAge()
     {
-        var sink = new SignalSink(100, TimeSpan.FromMinutes(1));
+        // OBSOLETE TEST: UpdateWindowSize is now a no-op.
+        var sink = new SignalSink();
 
         sink.UpdateWindowSize(200, TimeSpan.FromMinutes(5));
 
-        Assert.Equal(200, sink.MaxCapacity);
-        Assert.Equal(TimeSpan.FromMinutes(5), sink.MaxAge);
+        // Properties return 0 - no longer managed by sink
+        Assert.Equal(0, sink.MaxCapacity);
+        Assert.Equal(TimeSpan.Zero, sink.MaxAge);
     }
 
     [Fact]
+    [Obsolete("SignalSink.UpdateWindowSize is obsolete - coordinators control signal lifetime")]
     public void UpdateWindowSize_OnlyUpdatesSpecifiedParameters()
     {
-        var sink = new SignalSink(100, TimeSpan.FromMinutes(1));
+        // OBSOLETE TEST: UpdateWindowSize is now a no-op.
+        var sink = new SignalSink();
 
         sink.UpdateWindowSize(200);
 
-        Assert.Equal(200, sink.MaxCapacity);
-        Assert.Equal(TimeSpan.FromMinutes(1), sink.MaxAge); // Unchanged
+        // Properties return 0 - no longer managed by sink
+        Assert.Equal(0, sink.MaxCapacity);
+        Assert.Equal(TimeSpan.Zero, sink.MaxAge);
     }
 
     [Fact]
+    [Obsolete("SignalSink.UpdateWindowSize is obsolete - coordinators control signal lifetime")]
     public void UpdateWindowSize_ClampsToMinimumOne()
     {
+        // OBSOLETE TEST: UpdateWindowSize is now a no-op.
         var sink = new SignalSink();
 
         sink.UpdateWindowSize(-100);
 
-        Assert.True(sink.MaxCapacity >= 1);
+        // Property returns 0 - no longer managed by sink
+        Assert.Equal(0, sink.MaxCapacity);
     }
 
     [Fact]
@@ -230,7 +242,8 @@ public class SignalSinkTests
 
         await Task.WhenAll(tasks);
 
-        // Should maintain capacity limits
-        Assert.True(sink.Count <= 1000 + 1000); // Capacity + cleanup buffer
+        // SignalSink no longer enforces capacity limits - just stores all signals
+        // Coordinators manage signal lifetime through operation eviction
+        Assert.Equal(10_000, sink.Count);
     }
 }

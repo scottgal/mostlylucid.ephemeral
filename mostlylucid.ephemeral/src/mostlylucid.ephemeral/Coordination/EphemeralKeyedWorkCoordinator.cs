@@ -8,7 +8,7 @@ namespace Mostlylucid.Ephemeral;
 ///     Keyed version: per-key sequential execution with fair scheduling.
 /// </summary>
 public sealed class EphemeralKeyedWorkCoordinator<T, TKey> : IAsyncDisposable, IOperationPinning,
-    IOperationFinalization, IOperationEvictor
+    IOperationFinalization, IOperationEvictor, ISignalSource
     where TKey : notnull
 {
     private const long KeyLockIdleTimeoutMs = 60_000;
@@ -28,6 +28,10 @@ public sealed class EphemeralKeyedWorkCoordinator<T, TKey> : IAsyncDisposable, I
     private readonly ConcurrentQueue<EphemeralOperation> _recent;
     private readonly Task? _sourceConsumerTask;
     private readonly object _windowLock = new();
+
+    // v3.0: Track attached sinks for bidirectional linking
+    private readonly object _sinksLock = new();
+    private volatile SignalSink?[] _sinks = Array.Empty<SignalSink?>();
     private int _activeTaskCount;
     private bool _channelIterationComplete;
     private bool _completed;
@@ -63,6 +67,9 @@ public sealed class EphemeralKeyedWorkCoordinator<T, TKey> : IAsyncDisposable, I
             SingleWriter = false
         });
 
+        // v3.0: Attach to signal sink
+        AttachToSink(_options.Signals);
+
         _processingTask = ProcessAsync();
     }
 
@@ -91,8 +98,38 @@ public sealed class EphemeralKeyedWorkCoordinator<T, TKey> : IAsyncDisposable, I
             SingleWriter = false
         });
 
+        // v3.0: Attach to signal sink
+        AttachToSink(_options.Signals);
+
         _processingTask = ProcessAsync();
         _sourceConsumerTask = ConsumeSourceAsync(source);
+    }
+
+    private void AttachToSink(SignalSink? sink)
+    {
+        if (sink is null)
+            return;
+
+        sink.AttachSource(this);
+
+        lock (_sinksLock)
+        {
+            var current = _sinks;
+            if (Array.IndexOf(current, sink) >= 0)
+                return;
+
+            var newSinks = new SignalSink?[current.Length + 1];
+            Array.Copy(current, newSinks, current.Length);
+            newSinks[current.Length] = sink;
+            _sinks = newSinks;
+        }
+    }
+
+    internal void NotifySinks(SignalEvent signal)
+    {
+        var sinks = _sinks;
+        for (var i = 0; i < sinks.Length; i++)
+            sinks[i]?.NotifyListeners(signal);
     }
 
     public int PendingCount => Volatile.Read(ref _pendingCount);
@@ -559,7 +596,8 @@ public sealed class EphemeralKeyedWorkCoordinator<T, TKey> : IAsyncDisposable, I
                 await keyLock.Gate.WaitAsync(_cts.Token).ConfigureAwait(false);
                 keyLock.Touch();
 
-                var op = new EphemeralOperation(_options.Signals, _options.OnSignal, _options.OnSignalRetracted,
+                // v3.0: Pass NotifySinks callback
+                var op = new EphemeralOperation(NotifySinks, _options.OnSignal, _options.OnSignalRetracted,
                     _options.SignalConstraints) { Key = key.ToString() };
                 EnqueueOperation(op);
                 Interlocked.Decrement(ref _pendingCount);
@@ -749,6 +787,35 @@ public sealed class EphemeralKeyedWorkCoordinator<T, TKey> : IAsyncDisposable, I
     /// <summary>
     ///     Tracks a per-key semaphore with last usage time for cleanup.
     /// </summary>
+    #region ISignalSource Implementation (v3.0)
+
+    IReadOnlyList<SignalEvent> ISignalSource.GetSignals()
+    {
+        return GetSignalsCore(null);
+    }
+
+    bool ISignalSource.HasSignal(string signalName)
+    {
+        return HasSignal(signalName);
+    }
+
+    IReadOnlyList<SignalEvent> ISignalSource.GetSignalsByPattern(string pattern)
+    {
+        return GetSignalsByPattern(pattern);
+    }
+
+    int ISignalSource.CountSignals()
+    {
+        return CountSignals();
+    }
+
+    int ISignalSource.CountSignals(string signalName)
+    {
+        return CountSignals(signalName);
+    }
+
+    #endregion
+
     private sealed class KeyLock(SemaphoreSlim gate, int maxCount)
     {
         public long LastUsedTicks = Environment.TickCount64;

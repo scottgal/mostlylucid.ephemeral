@@ -287,10 +287,30 @@ public class DetectionLedger
             // Sigmoid function: 1 / (1 + e^(-x))
             BotProbability = 1.0 / (1.0 + Math.Exp(-weightedSum));
 
-            // Confidence based on evidence strength and coverage
-            var evidenceStrength = Math.Abs(BotProbability - 0.5) * 2.0;
+            // Confidence is independent of bot probability — it reflects how much
+            // evidence we collected and how strongly detectors agree.
+            // You can be highly confident (0.95) that something is human (prob 0.1).
+
+            // 1. Weight coverage: total evidence weight vs expected baseline
             var weightFactor = Math.Min(1.0, totalWeight / 5.0);
-            Confidence = Math.Max(weightFactor, evidenceStrength);
+
+            // 2. Agreement: fraction of weighted evidence pointing in the majority direction
+            var positiveWeight = weighted.Where(c => c.ConfidenceDelta > 0)
+                .Sum(c => Math.Abs(c.ConfidenceDelta * c.Weight));
+            var negativeWeight = weighted.Where(c => c.ConfidenceDelta < 0)
+                .Sum(c => Math.Abs(c.ConfidenceDelta * c.Weight));
+            var totalSignalWeight = positiveWeight + negativeWeight;
+            var agreementFactor = totalSignalWeight > 0
+                ? Math.Max(positiveWeight, negativeWeight) / totalSignalWeight
+                : 0.0;
+
+            // 3. Detector count: more distinct detectors = more confident
+            var distinctDetectors = weighted.Select(c => c.DetectorName)
+                .Distinct(StringComparer.OrdinalIgnoreCase).Count();
+            var countFactor = Math.Min(1.0, distinctDetectors / 4.0);
+
+            // Combine: agreement (40%) + weight coverage (35%) + detector count (25%)
+            Confidence = (agreementFactor * 0.40) + (weightFactor * 0.35) + (countFactor * 0.25);
         }
     }
 

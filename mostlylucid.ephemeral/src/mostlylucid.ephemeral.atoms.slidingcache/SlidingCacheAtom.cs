@@ -14,10 +14,12 @@ public sealed class SlidingCacheAtom<TKey, TResult> : IAsyncDisposable where TKe
     private readonly ConcurrentDictionary<TKey, CacheEntry> _cache = new();
     private readonly SemaphoreSlim _cleanupLock = new(1, 1);
     private readonly Task _cleanupLoop;
+    private readonly TimeSpan _cleanupInterval;
     private readonly EphemeralWorkCoordinator<CacheRequest> _coordinator;
     private readonly CancellationTokenSource _cts = new();
     private readonly Func<TKey, CancellationToken, Task<TResult>> _factory;
     private readonly int _maxSize;
+    private readonly Func<TKey, TResult, double>? _retentionScorer;
     private readonly int _sampleRate;
     private readonly SignalSink _signals;
     private readonly TimeSpan _slidingExpiration;
@@ -33,6 +35,13 @@ public sealed class SlidingCacheAtom<TKey, TResult> : IAsyncDisposable where TKe
     /// <param name="maxConcurrency">Max concurrent factory calls (default: ProcessorCount)</param>
     /// <param name="sampleRate">Signal sampling rate, 1 = all, 10 = 1 in 10 (default: 1)</param>
     /// <param name="signals">Optional shared signal sink</param>
+    /// <param name="retentionScorer">
+    ///     Optional delegate returning a retention priority score for a cache entry.
+    ///     Called only during eviction (never on the hot path). Higher score = harder to evict.
+    ///     Eviction priority = (AccessCount + 1) * (1.0 + RetentionScore); entries with the
+    ///     lowest priority are removed first. Exceptions are swallowed; the existing score is kept.
+    /// </param>
+    /// <param name="cleanupInterval">How often the background cleanup loop runs (default: 30 seconds)</param>
     public SlidingCacheAtom(
         Func<TKey, CancellationToken, Task<TResult>> factory,
         TimeSpan? slidingExpiration = null,
@@ -40,13 +49,17 @@ public sealed class SlidingCacheAtom<TKey, TResult> : IAsyncDisposable where TKe
         int maxSize = 1000,
         int? maxConcurrency = null,
         int sampleRate = 1,
-        SignalSink? signals = null)
+        SignalSink? signals = null,
+        Func<TKey, TResult, double>? retentionScorer = null,
+        TimeSpan? cleanupInterval = null)
     {
         _factory = factory ?? throw new ArgumentNullException(nameof(factory));
         _slidingExpiration = slidingExpiration ?? TimeSpan.FromMinutes(5);
         _absoluteExpiration = absoluteExpiration ?? TimeSpan.FromHours(1);
         _maxSize = maxSize;
         _sampleRate = Math.Max(1, sampleRate);
+        _retentionScorer = retentionScorer;
+        _cleanupInterval = cleanupInterval ?? TimeSpan.FromSeconds(30);
 
         _signals = signals ?? new SignalSink(maxSize * 2, TimeSpan.FromMinutes(5));
 
@@ -254,12 +267,21 @@ public sealed class SlidingCacheAtom<TKey, TResult> : IAsyncDisposable where TKe
                 if (_cache.TryRemove(key, out _))
                     EmitSignal($"cache.evict.expired:{key}");
 
-            // Second pass: if still over size, remove coldest entries
+            // Second pass: if still over size, remove lowest-priority entries
             if (_cache.Count > _maxSize)
             {
+                // Refresh retention scores if a scorer is registered (not on the hot path)
+                if (_retentionScorer != null)
+                {
+                    foreach (var kvp in _cache)
+                    {
+                        try { kvp.Value.RetentionScore = _retentionScorer(kvp.Key, kvp.Value.Value); }
+                        catch { /* non-critical - leave existing score */ }
+                    }
+                }
+
                 var toRemove = _cache
-                    .OrderBy(kvp => kvp.Value.AccessCount)
-                    .ThenBy(kvp => kvp.Value.LastAccess)
+                    .OrderBy(kvp => (kvp.Value.AccessCount + 1) * (1.0 + kvp.Value.RetentionScore))
                     .Take(_cache.Count - _maxSize)
                     .Select(kvp => kvp.Key)
                     .ToList();
@@ -280,7 +302,7 @@ public sealed class SlidingCacheAtom<TKey, TResult> : IAsyncDisposable where TKe
         while (!_cts.IsCancellationRequested)
             try
             {
-                await Task.Delay(TimeSpan.FromSeconds(30), _cts.Token).ConfigureAwait(false);
+                await Task.Delay(_cleanupInterval, _cts.Token).ConfigureAwait(false);
                 await TriggerCleanupAsync().ConfigureAwait(false);
             }
             catch (OperationCanceledException)
@@ -318,6 +340,7 @@ public sealed class SlidingCacheAtom<TKey, TResult> : IAsyncDisposable where TKe
         public DateTimeOffset Created { get; }
         public DateTimeOffset LastAccess { get; set; }
         public int AccessCount { get; set; }
+        public double RetentionScore { get; set; }  // refreshed by retentionScorer at cleanup time
 
         public bool IsExpired(DateTimeOffset now, TimeSpan slidingExpiration, TimeSpan absoluteExpiration)
         {

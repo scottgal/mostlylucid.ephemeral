@@ -50,6 +50,11 @@ jobs:
     # the resulting native binary runs the LoggingEmailSender path end-to-end.
     # Catches IL2026/IL2091/IL3050 regressions before they reach consumers.
     runs-on: ubuntu-latest
+    # Override the file-scope `defaults.run.working-directory: mostlylucid.ephemeral`
+    # so paths in this job resolve from repo root.
+    defaults:
+      run:
+        working-directory: .
     steps:
       - name: Checkout
         uses: actions/checkout@v4

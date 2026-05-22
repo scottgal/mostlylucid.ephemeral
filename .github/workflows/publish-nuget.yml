@@ -49,6 +49,15 @@ jobs:
       - name: Test
         run: dotnet test mostlylucid.ephemeral.sln --configuration Release --no-build --verbosity normal
 
+      # Notify package lives in a sibling tree (mostlylucid.notify/) and ships from the
+      # same tag. cd up to repo root for the restore/build/test.
+      - name: Build + test notify tree
+        run: |
+          cd ..
+          dotnet restore mostlylucid.notify/Mostlylucid.Notify.sln
+          dotnet build   mostlylucid.notify/Mostlylucid.Notify.sln --configuration Release --no-restore
+          dotnet test    mostlylucid.notify/Mostlylucid.Notify.sln --configuration Release --no-build --verbosity normal
+
       - name: Pack all packages
         run: |
           VERSION="${{ steps.version.outputs.version }}"
@@ -85,6 +94,19 @@ jobs:
             --configuration Release --no-build \
             -p:PackageVersion=$VERSION \
             --output ./nupkg
+
+      # Notify package(s) pack from the sibling tree at repo root. Pack output drops
+      # into the same ./nupkg directory inside mostlylucid.ephemeral/ so the existing
+      # push step picks them up.
+      - name: Pack notify packages
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          cd ..
+          for proj in mostlylucid.notify/src/Mostlylucid.Notify*/Mostlylucid.Notify*.csproj; do
+            dotnet pack "$proj" --configuration Release --no-build \
+              -p:PackageVersion=$VERSION \
+              --output mostlylucid.ephemeral/nupkg
+          done
 
       - name: List packages
         run: ls -la ./nupkg/

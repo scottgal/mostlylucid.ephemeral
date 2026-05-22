@@ -1,3 +1,4 @@
-2.5.1
-- Promoted from internal draft to published package.
+2.6.0
+- Initial publish-ready release of Mostlylucid.Ephemeral.Atoms.Smtp.
+- MailKit-based SMTP atom with retry, signal tracking, persistent connections.
 - AOT-compatible (no reflection, no Roslyn).

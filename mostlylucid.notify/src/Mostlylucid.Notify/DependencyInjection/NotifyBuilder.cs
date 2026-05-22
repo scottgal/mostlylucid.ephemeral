@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using Microsoft.Extensions.DependencyInjection;
 using Mostlylucid.Notify.Email;
 
@@ -40,7 +41,7 @@ public sealed class NotifyBuilder
     ///     Register a template implementation under a string key. The trimmer keeps both types
     ///     because they are explicitly referenced.
     /// </summary>
-    public NotifyBuilder AddEmailTemplate<TModel, TTemplate>(string key)
+    public NotifyBuilder AddEmailTemplate<TModel, [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TTemplate>(string key)
         where TTemplate : class, INotificationTemplate<TModel>
     {
         Services.AddSingleton<INotificationTemplate<TModel>, TTemplate>();

@@ -1,0 +1,7 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Mostlylucid.Notify/Mostlylucid.Notify.csproj" />
+  </Folder>
+  <Project Path="../mostlylucid.ephemeral/src/mostlylucid.ephemeral.atoms.smtp/mostlylucid.ephemeral.atoms.smtp.csproj" />
+  <Project Path="../mostlylucid.ephemeral/src/mostlylucid.ephemeral/mostlylucid.ephemeral.csproj" />
+</Solution>

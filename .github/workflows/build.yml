@@ -5,11 +5,13 @@ on:
     branches: [ main, develop ]
     paths:
       - 'mostlylucid.ephemeral/**'
+      - 'mostlylucid.notify/**'
       - '.github/workflows/build.yml'
   pull_request:
     branches: [ main, develop ]
     paths:
       - 'mostlylucid.ephemeral/**'
+      - 'mostlylucid.notify/**'
       - '.github/workflows/build.yml'
 
 defaults:
@@ -42,3 +44,29 @@ jobs:
 
       - name: Test
         run: dotnet test mostlylucid.ephemeral.sln --configuration Release --no-build --verbosity normal
+
+  notify-aot-smoke:
+    # Verifies the Mostlylucid.Notify tree publishes under PublishAot=true and
+    # the resulting native binary runs the LoggingEmailSender path end-to-end.
+    # Catches IL2026/IL2091/IL3050 regressions before they reach consumers.
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Build + test the Notify tree
+        run: |
+          dotnet restore mostlylucid.notify/Mostlylucid.Notify.slnx
+          dotnet build   mostlylucid.notify/Mostlylucid.Notify.slnx --configuration Release --no-restore
+          dotnet test    mostlylucid.notify/Mostlylucid.Notify.slnx --configuration Release --no-build --verbosity normal
+
+      - name: AOT publish + run the smoke binary
+        run: |
+          cd mostlylucid.notify/tests/Mostlylucid.Notify.AotSmoke
+          dotnet publish -c Release -r linux-x64 -o ./pub
+          ./pub/Mostlylucid.Notify.AotSmoke

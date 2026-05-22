@@ -213,11 +213,23 @@ public class DetectionLedger
             // Check for early exit
             if (contribution.TriggerEarlyExit && EarlyExitContribution == null) EarlyExitContribution = contribution;
 
-            // Update bot type if provided with higher confidence
-            if (!string.IsNullOrEmpty(contribution.BotType) && contribution.ConfidenceDelta > 0)
+            // Promote bot identity whenever a contribution carries one. The previous
+            // `ConfidenceDelta > 0` guard silently dropped identity from neutral
+            // contributions -- notably the VerifiedGoodBot factory which sets
+            // ConfidenceDelta=0.0 (intentional: "it's a bot but allowed") AND
+            // TriggerEarlyExit=true. The combination meant a verified friendly bot
+            // would early-exit before later contributors could supply the name, while
+            // its OWN name was rejected by this guard. Net effect: ledger.BotName
+            // stayed null for every VerifiedGoodBot, breaking the friendly-pin gate
+            // downstream (it reads botName, finds null, exits "not-applicable").
+            //
+            // Negative-delta human contributions never carry BotName (HumanContribution
+            // factory doesn't take one), so allowing >=0 is safe -- the IsNullOrEmpty
+            // guard above is sufficient.
+            if (!string.IsNullOrEmpty(contribution.BotType))
                 BotType = contribution.BotType;
 
-            if (!string.IsNullOrEmpty(contribution.BotName) && contribution.ConfidenceDelta > 0)
+            if (!string.IsNullOrEmpty(contribution.BotName))
                 BotName = contribution.BotName;
         }
 

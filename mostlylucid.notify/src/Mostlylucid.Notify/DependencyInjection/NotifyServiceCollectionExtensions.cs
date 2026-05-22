@@ -26,4 +26,14 @@ public static class NotifyServiceCollectionExtensions
         _ = provider.GetServices<NotifyBuilder.TemplateRegistration>().ToList();
         return provider;
     }
+
+    /// <summary>
+    ///     Kicks off the drain pipeline on the Ephemeral coordinator. Call ONCE during host
+    ///     startup, after Build(), passing <c>hostApplicationLifetime.ApplicationStopping</c>.
+    /// </summary>
+    public static IServiceProvider StartNotifyDrain(this IServiceProvider provider, CancellationToken applicationStopping)
+    {
+        provider.GetService<Drain.INotifyDrainStarter>()?.Start(applicationStopping);
+        return provider;
+    }
 }

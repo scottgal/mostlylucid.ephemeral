@@ -55,4 +55,40 @@ public sealed class NotifyBuilder
 
     /// <summary>Marker so the eager registry-populating singleton above is realized at startup.</summary>
     public sealed record TemplateRegistration(string Key);
+
+    public NotifyBuilder AddNotifyOutboxInMemory(int capacity = 10_000)
+    {
+        Services.AddSingleton<INotificationOutbox>(_ => new Outbox.InMemoryNotificationOutbox(capacity));
+        AddDrainHooks();
+        return this;
+    }
+
+    public NotifyBuilder AddNotifyOutboxSqlite(string connectionString)
+    {
+        Services.AddSingleton<INotificationOutbox>(sp =>
+        {
+            var outbox = new Outbox.SqliteNotificationOutbox(connectionString);
+            outbox.InitializeAsync().GetAwaiter().GetResult();
+            return outbox;
+        });
+        AddDrainHooks();
+        return this;
+    }
+
+    private void AddDrainHooks()
+    {
+        Services.AddSingleton<Drain.OutboxClaimAtom>();
+        Services.AddSingleton<Drain.OutboxFinalizeAtom>();
+        Services.AddSingleton<Drain.NotificationDrainPipeline>();
+    }
+
+    /// <summary>
+    ///     Schedules the drain pipeline on the host's existing IEphemeralCoordinator.
+    ///     Call this LAST after AddNotifyEmail + AddNotifyOutbox*. No IHostedService is added.
+    /// </summary>
+    public NotifyBuilder StartDrainOnCoordinator()
+    {
+        Services.AddSingleton<Drain.INotifyDrainStarter, Drain.EphemeralDrainStarter>();
+        return this;
+    }
 }

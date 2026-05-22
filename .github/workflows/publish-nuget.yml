@@ -14,7 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      packages: write
+      id-token: write   # required for NuGet OIDC trusted publishing
 
     steps:
       - name: Checkout
@@ -98,18 +98,29 @@ jobs:
       # Notify package(s) pack from the sibling tree at repo root. Pack output drops
       # into the same ./nupkg directory inside mostlylucid.ephemeral/ so the existing
       # push step picks them up.
+      #
+      # IMPORTANT: Notify versions independently of the ephemeral tree -- the csproj's
+      # <Version> wins, NOT the tag. The atoms.smtp + ephemeral packages ride the tag;
+      # Notify ships at its own pace (v0.1.0 first publish, bump per its own changes).
       - name: Pack notify packages
         run: |
-          VERSION="${{ steps.version.outputs.version }}"
           cd ..
           for proj in mostlylucid.notify/src/Mostlylucid.Notify*/Mostlylucid.Notify*.csproj; do
             dotnet pack "$proj" --configuration Release --no-build \
-              -p:PackageVersion=$VERSION \
               --output mostlylucid.ephemeral/nupkg
           done
 
       - name: List packages
         run: ls -la ./nupkg/
 
+      # Exchange the GitHub OIDC token for a short-lived nuget.org API key.
+      # The nuget.org account "mostlylucid" must have a Trusted Publisher policy
+      # registered for this repo + workflow file. No long-lived secret needed.
+      - name: NuGet login (OIDC trusted publishing)
+        id: nuget-login
+        uses: NuGet/login@v1
+        with:
+          user: mostlylucid
+
       - name: Push to NuGet
-        run: dotnet nuget push ./nupkg/*.nupkg --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate
+        run: dotnet nuget push ./nupkg/*.nupkg --api-key "${{ steps.nuget-login.outputs.NUGET_API_KEY }}" --source https://api.nuget.org/v3/index.json --skip-duplicate

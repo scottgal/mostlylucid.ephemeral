@@ -54,9 +54,9 @@ jobs:
       - name: Build + test notify tree
         run: |
           cd ..
-          dotnet restore mostlylucid.notify/Mostlylucid.Notify.sln
-          dotnet build   mostlylucid.notify/Mostlylucid.Notify.sln --configuration Release --no-restore
-          dotnet test    mostlylucid.notify/Mostlylucid.Notify.sln --configuration Release --no-build --verbosity normal
+          dotnet restore mostlylucid.notify/Mostlylucid.Notify.slnx
+          dotnet build   mostlylucid.notify/Mostlylucid.Notify.slnx --configuration Release --no-restore
+          dotnet test    mostlylucid.notify/Mostlylucid.Notify.slnx --configuration Release --no-build --verbosity normal
 
       - name: Pack all packages
         run: |

@@ -1,0 +1,3 @@
+2.5.1
+- Promoted from internal draft to published package.
+- AOT-compatible (no reflection, no Roslyn).

@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Data;
+using System.Diagnostics.CodeAnalysis;
 using Microsoft.Data.Sqlite;
 
 namespace Mostlylucid.Ephemeral.Sqlite;
@@ -110,8 +111,27 @@ public sealed class SqliteSingleWriter : IAsyncDisposable
 
     /// <summary>
     ///     Executes a write command with serialized access. Samples write signals.
+    ///     Uses reflection to bind anonymous-object parameters; not AOT-safe.
+    ///     Use the <see cref="WriteAsync(string, IReadOnlyDictionary{string, object?}, CancellationToken)"/> overload for AOT-compatible binding.
     /// </summary>
+    [RequiresUnreferencedCode("Reflects over parameters' public properties. Use the IReadOnlyDictionary overload for AOT-safe binding.")]
+    [RequiresDynamicCode("Reflects over parameters' public properties. Use the IReadOnlyDictionary overload for AOT-safe binding.")]
     public async Task<int> WriteAsync(string sql, object? parameters = null, CancellationToken ct = default)
+    {
+        var command = WriteCommand.ForSql(sql, parameters, ShouldSample(), _options.DefaultCommandTimeoutSeconds,
+            _instanceId, _emitSignal);
+        _signals.Raise(new SignalEvent("write.enqueue", command.Completion.Task.Id, _instanceId,
+            DateTimeOffset.UtcNow));
+        await _writeCoordinator.EnqueueAsync(command, ct);
+        var result = await command.Completion.Task.WaitAsync(ct);
+        return result.RowsAffected;
+    }
+
+    /// <summary>
+    ///     Executes a write command with serialized access. AOT-safe parameter binding via dictionary.
+    /// </summary>
+    public async Task<int> WriteAsync(string sql, IReadOnlyDictionary<string, object?> parameters,
+        CancellationToken ct = default)
     {
         var command = WriteCommand.ForSql(sql, parameters, ShouldSample(), _options.DefaultCommandTimeoutSeconds,
             _instanceId, _emitSignal);
@@ -176,8 +196,31 @@ public sealed class SqliteSingleWriter : IAsyncDisposable
 
     /// <summary>
     ///     Executes a write and invalidates related cache keys via signals.
+    ///     Uses reflection to bind anonymous-object parameters; not AOT-safe.
+    ///     Use the <see cref="WriteAndInvalidateAsync(string, IReadOnlyDictionary{string, object?}, IEnumerable{string}?, CancellationToken)"/> overload for AOT-compatible binding.
     /// </summary>
+    [RequiresUnreferencedCode("Reflects over parameters' public properties. Use the IReadOnlyDictionary overload for AOT-safe binding.")]
+    [RequiresDynamicCode("Reflects over parameters' public properties. Use the IReadOnlyDictionary overload for AOT-safe binding.")]
     public async Task<int> WriteAndInvalidateAsync(string sql, object? parameters = null,
+        IEnumerable<string>? cacheKeysToInvalidate = null, CancellationToken ct = default)
+    {
+        var result = await WriteAsync(sql, parameters, ct);
+
+        if (cacheKeysToInvalidate != null)
+            foreach (var key in cacheKeysToInvalidate)
+            {
+                _cache.Invalidate(key);
+                _signals.Raise(new SignalEvent($"cache.invalidate:{key}", EphemeralIdGenerator.NextId(), null,
+                    DateTimeOffset.UtcNow));
+            }
+
+        return result;
+    }
+
+    /// <summary>
+    ///     Executes a write and invalidates related cache keys via signals. AOT-safe parameter binding via dictionary.
+    /// </summary>
+    public async Task<int> WriteAndInvalidateAsync(string sql, IReadOnlyDictionary<string, object?> parameters,
         IEnumerable<string>? cacheKeysToInvalidate = null, CancellationToken ct = default)
     {
         var result = await WriteAsync(sql, parameters, ct);

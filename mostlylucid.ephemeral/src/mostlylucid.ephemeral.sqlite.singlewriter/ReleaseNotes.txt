@@ -1,3 +1,7 @@
+v2.6.4
+- Skip indexer properties in AddParameters; fixes TargetParameterCountException when passing objects that expose an indexer (e.g. Dictionary<TKey,TValue>).
+- Add AOT-safe IReadOnlyDictionary<string, object?> parameter overloads for WriteAsync and WriteAndInvalidateAsync.
+
 v1.0.0
 - Initial release
 - SqliteSingleWriter: serialized writes via ephemeral coordinator

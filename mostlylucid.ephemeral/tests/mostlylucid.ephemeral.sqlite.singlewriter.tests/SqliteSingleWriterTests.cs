@@ -331,6 +331,76 @@ public class SqliteSingleWriterTests
         }
     }
 
+    [Fact]
+    public async Task WriteAsync_ParametersWithIndexerProperty_DoesNotThrow()
+    {
+        // Regression test: passing an object whose type has an indexer property
+        // (e.g. IList implementations) previously threw TargetParameterCountException
+        // because GetValue was called without index arguments. Verify the indexer is
+        // skipped cleanly and any named properties bind normally.
+        var dbPath = CreateDbPath();
+        await using var writer = CreateWriter(dbPath);
+        try
+        {
+            await writer.WriteAsync("CREATE TABLE T(Id INTEGER, Name TEXT)");
+
+            // ParametersWithIndexer has an indexer plus two normal properties.
+            await writer.WriteAsync(
+                "INSERT INTO T(Id, Name) VALUES (@Id, @Name)",
+                new ParametersWithIndexer(1, "alice"));
+
+            // Verify the row landed.
+            var name = await writer.ReadAsync("test-indexer", async conn =>
+            {
+                await using var cmd = conn.CreateCommand();
+                cmd.CommandText = "SELECT Name FROM T WHERE Id = 1";
+                return (string?)await cmd.ExecuteScalarAsync();
+            });
+            Assert.Equal("alice", name);
+        }
+        finally
+        {
+            Cleanup(dbPath);
+        }
+    }
+
+    [Fact]
+    public async Task WriteAsync_DictionaryParameters_BindsCorrectly()
+    {
+        var dbPath = CreateDbPath();
+        await using var writer = CreateWriter(dbPath);
+        try
+        {
+            await writer.WriteAsync("CREATE TABLE T(Id INTEGER, Name TEXT)");
+
+            var parameters = new Dictionary<string, object?>
+            {
+                ["Id"] = 42,
+                ["Name"] = "bob"
+            };
+            await writer.WriteAsync("INSERT INTO T(Id, Name) VALUES (@Id, @Name)", parameters);
+
+            var name = await writer.ReadAsync("test-dict", async conn =>
+            {
+                await using var cmd = conn.CreateCommand();
+                cmd.CommandText = "SELECT Name FROM T WHERE Id = 42";
+                return (string?)await cmd.ExecuteScalarAsync();
+            });
+            Assert.Equal("bob", name);
+        }
+        finally
+        {
+            Cleanup(dbPath);
+        }
+    }
+
+    private sealed class ParametersWithIndexer(int id, string name)
+    {
+        public int Id { get; } = id;
+        public string Name { get; } = name;
+        public string this[int i] => i == 0 ? Name : throw new IndexOutOfRangeException();
+    }
+
     private static string CreateDbPath()
     {
         return Path.Combine(Path.GetTempPath(), $"ephemeral-sqlite-{Guid.NewGuid():N}.db");

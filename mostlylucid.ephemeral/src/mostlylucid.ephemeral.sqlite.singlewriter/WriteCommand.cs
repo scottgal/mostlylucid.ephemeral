@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using Microsoft.Data.Sqlite;
 
 namespace Mostlylucid.Ephemeral.Sqlite;
@@ -33,6 +34,21 @@ internal sealed class WriteCommand
                 cmd.CommandTimeout = commandTimeoutSeconds;
                 if (parameters != null)
                     AddParameters(cmd, parameters);
+
+                var rows = await cmd.ExecuteNonQueryAsync(ct).ConfigureAwait(false);
+                return new WriteCommandResult(rows, null);
+            }, $"write:{SqlPreview(sql)}:{instanceId}", emitSignal, signal);
+    }
+
+    public static WriteCommand ForSql(string sql, IReadOnlyDictionary<string, object?> parameters, bool emitSignal,
+        int commandTimeoutSeconds, string instanceId, Action<string>? signal)
+    {
+        return new WriteCommand(async (conn, ct) =>
+            {
+                await using var cmd = conn.CreateCommand();
+                cmd.CommandText = sql;
+                cmd.CommandTimeout = commandTimeoutSeconds;
+                AddParameters(cmd, parameters);
 
                 var rows = await cmd.ExecuteNonQueryAsync(ct).ConfigureAwait(false);
                 return new WriteCommandResult(rows, null);
@@ -134,14 +150,24 @@ internal sealed class WriteCommand
             null);
     }
 
+    [RequiresUnreferencedCode("Reflects over parameters' public properties. Use the IReadOnlyDictionary overload for AOT-safe binding.")]
+    [RequiresDynamicCode("Reflects over parameters' public properties. Use the IReadOnlyDictionary overload for AOT-safe binding.")]
     private static void AddParameters(SqliteCommand cmd, object parameters)
     {
         var props = parameters.GetType().GetProperties();
         foreach (var prop in props)
         {
+            // Skip indexer properties (e.g. this[TKey]); GetValue() without index args throws.
+            if (prop.GetIndexParameters().Length > 0) continue;
             var value = prop.GetValue(parameters);
             cmd.Parameters.AddWithValue($"@{prop.Name}", value ?? DBNull.Value);
         }
+    }
+
+    private static void AddParameters(SqliteCommand cmd, IReadOnlyDictionary<string, object?> parameters)
+    {
+        foreach (var kv in parameters)
+            cmd.Parameters.AddWithValue($"@{kv.Key}", kv.Value ?? DBNull.Value);
     }
 
     private static string SqlPreview(string sql)

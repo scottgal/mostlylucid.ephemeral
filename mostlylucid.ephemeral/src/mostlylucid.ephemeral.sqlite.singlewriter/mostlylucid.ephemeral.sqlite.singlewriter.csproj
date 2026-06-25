@@ -18,6 +18,15 @@
         <RepositoryUrl>https://github.com/scottgal/mostlylucid.atoms</RepositoryUrl>
         <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
         <Version>2.6.4</Version>
+        <!-- Lock AssemblyVersion to match what's been shipped to NuGet (2.0.0.0).
+             Without an explicit value MSBuild derives AssemblyVersion from the
+             package Version (e.g. 2.6.4.0), which doesn't match the binary
+             ALREADY published as 2.0.0.0 — downstream consumers compiled locally
+             then end up with a runtime reference at 2.6.4.0 that fails to load
+             against the cached NuGet 2.0.0.0 DLL. Locking the assembly version
+             keeps binary compatibility across patch / minor releases. -->
+        <AssemblyVersion>2.0.0.0</AssemblyVersion>
+        <FileVersion>$(Version).0</FileVersion>
     </PropertyGroup>
 
     <ItemGroup>

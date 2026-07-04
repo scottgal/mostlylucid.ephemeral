@@ -239,6 +239,18 @@ public sealed class DetectorOrchestrator
             // Run wave
             await RunWaveAsync(waveNumber, detectors, sink, sessionId, ledger, ct);
 
+            // Publish running bot-probability and confidence AFTER the wave
+            // so downstream atoms in later waves see the running score as a
+            // Model-2 hint. Same rationale as per-contribution signals: the
+            // blackboard IS the SignalSink, no separate ledger-access is
+            // needed. GeoChangeAtom already reads `risk.current_score` today.
+            var runningProb = ledger.BotProbability.ToString(
+                "F4", System.Globalization.CultureInfo.InvariantCulture);
+            var runningConf = ledger.Confidence.ToString(
+                "F4", System.Globalization.CultureInfo.InvariantCulture);
+            sink.Raise($"risk.current_score:{runningProb}", sessionId);
+            sink.Raise($"risk.current_confidence:{runningConf}", sessionId);
+
             // Signal wave complete
             sink.Raise($"detection.wave.{waveNumber}.completed", sessionId);
 
@@ -346,8 +358,30 @@ public sealed class DetectorOrchestrator
 
             var elapsed = (DateTimeOffset.UtcNow - startTime).TotalMilliseconds;
 
+            // Publish each contribution as a signal on the sink -- the
+            // blackboard IS the SignalSink, so late atoms (e.g. HeuristicLate,
+            // Similarity, AI) read prior contributions via `sink.Sense(...)`
+            // instead of needing a separate ledger-access contract. Signal
+            // shape is stable and parseable:
+            //   contribution.<detector>.<index>:<confidence>|<weight>|<botType>|<botName>
+            // Rich reason strings stay on the ledger to keep the sink small
+            // and PII-safe -- reasons can contain operator-authored prose.
+            var index = 0;
             foreach (var contribution in contributions)
+            {
                 ledger.AddContribution(contribution with { ProcessingTimeMs = elapsed });
+
+                var confidence = contribution.ConfidenceDelta.ToString(
+                    "F4", System.Globalization.CultureInfo.InvariantCulture);
+                var weight = contribution.Weight.ToString(
+                    "F4", System.Globalization.CultureInfo.InvariantCulture);
+                var botType = contribution.BotType ?? string.Empty;
+                var botName = contribution.BotName ?? string.Empty;
+                sink.Raise(
+                    $"contribution.{detector.Name}.{index}:{confidence}|{weight}|{botType}|{botName}",
+                    sessionId);
+                index++;
+            }
 
             sink.Raise($"detector.{detector.Name}.completed", sessionId);
         }

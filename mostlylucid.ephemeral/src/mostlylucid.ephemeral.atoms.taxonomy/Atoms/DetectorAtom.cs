@@ -118,6 +118,39 @@ public abstract class DetectorAtomBase : IDetectorAtom
     }
 
     /// <summary>
+    ///     Raises a signal on the sink with the atom's <see cref="Name"/>
+    ///     automatically prepended. Callers write the suffix only.
+    /// </summary>
+    /// <example>
+    ///     <code>
+    ///     Raise(sink, sessionId, "matched");       // fires "MyAtom.matched"
+    ///     Raise(sink, sessionId, "score", 0.42);   // fires "MyAtom.score:0.42"
+    ///     </code>
+    /// </example>
+    protected void Raise(SignalSink sink, string sessionId, string suffix)
+    {
+        sink.Raise($"{Name}.{suffix}", sessionId);
+    }
+
+    /// <summary>
+    ///     Raises a Model-2 hint signal (<c>Name.suffix:value</c>) on the
+    ///     sink with the atom's <see cref="Name"/> automatically prepended.
+    ///     Value is converted invariantly so numeric locales don't drift.
+    /// </summary>
+    protected void Raise(SignalSink sink, string sessionId, string suffix, object value)
+    {
+        var formatted = value switch
+        {
+            double d => d.ToString("F4", System.Globalization.CultureInfo.InvariantCulture),
+            float f => f.ToString("F4", System.Globalization.CultureInfo.InvariantCulture),
+            bool b => b ? "true" : "false",
+            IFormattable f => f.ToString(null, System.Globalization.CultureInfo.InvariantCulture),
+            _ => value?.ToString() ?? string.Empty
+        };
+        sink.Raise($"{Name}.{suffix}:{formatted}", sessionId);
+    }
+
+    /// <summary>
     ///     Creates a bot-indicating contribution.
     /// </summary>
     protected DetectionContribution Bot(

@@ -95,6 +95,12 @@ jobs:
             -p:PackageVersion=$VERSION \
             --output ./nupkg
 
+          # Atoms.Ephemeral (LLM coordinator) - versioned aligned with the family (tag)
+          dotnet pack src/Mostlylucid.Atoms.Ephemeral/Mostlylucid.Atoms.Ephemeral.csproj \
+            --configuration Release --no-build \
+            -p:PackageVersion=$VERSION \
+            --output ./nupkg
+
       # Notify package(s) pack from the sibling tree at repo root. Pack output drops
       # into the same ./nupkg directory inside mostlylucid.ephemeral/ so the existing
       # push step picks them up.

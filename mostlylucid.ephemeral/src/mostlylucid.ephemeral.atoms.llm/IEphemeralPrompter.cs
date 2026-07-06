@@ -1,4 +1,4 @@
-namespace Mostlylucid.Atoms.Ephemeral;
+namespace Mostlylucid.Ephemeral.Atoms.Llm;
 
 /// <summary>
 ///     Caller-owned prompt assembler. Pure template against the item's own

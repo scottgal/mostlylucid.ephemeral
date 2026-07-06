@@ -1,4 +1,4 @@
-namespace Mostlylucid.Atoms.Ephemeral;
+namespace Mostlylucid.Ephemeral.Atoms.Llm;
 
 /// <summary>
 ///     Caller-owned LFU walk that surfaces items needing LLM attention this tick.

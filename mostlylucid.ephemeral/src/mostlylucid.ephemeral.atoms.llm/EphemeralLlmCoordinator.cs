@@ -2,7 +2,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Mostlylucid.Common.Scheduling;
 
-namespace Mostlylucid.Atoms.Ephemeral;
+namespace Mostlylucid.Ephemeral.Atoms.Llm;
 
 /// <summary>
 ///     Tick-driven LLM work executor. Subscribes to a configurable

@@ -1,6 +1,6 @@
 using Mostlylucid.Common.Scheduling;
 
-namespace Mostlylucid.Atoms.Ephemeral;
+namespace Mostlylucid.Ephemeral.Atoms.Llm;
 
 /// <summary>
 ///     Per-coordinator-instance configuration. Each concrete caller binds its own

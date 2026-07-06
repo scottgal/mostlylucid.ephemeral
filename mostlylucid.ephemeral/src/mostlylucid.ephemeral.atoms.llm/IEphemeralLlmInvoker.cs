@@ -1,4 +1,4 @@
-namespace Mostlylucid.Atoms.Ephemeral;
+namespace Mostlylucid.Ephemeral.Atoms.Llm;
 
 /// <summary>
 ///     Caller-owned LLM-call adapter. Translates an <see cref="EphemeralPrompt"/>

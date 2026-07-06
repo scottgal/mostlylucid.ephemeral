@@ -1,6 +1,6 @@
 using Microsoft.Extensions.Hosting;
 
-namespace Mostlylucid.Atoms.Ephemeral;
+namespace Mostlylucid.Ephemeral.Atoms.Llm;
 
 /// <summary>
 ///     IHostedService whose only job is to keep an

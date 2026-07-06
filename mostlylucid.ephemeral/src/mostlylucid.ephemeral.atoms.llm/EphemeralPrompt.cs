@@ -1,4 +1,4 @@
-namespace Mostlylucid.Atoms.Ephemeral;
+namespace Mostlylucid.Ephemeral.Atoms.Llm;
 
 /// <summary>
 ///     Provider-agnostic prompt payload handed from <see cref="IEphemeralPrompter{TItem}"/>

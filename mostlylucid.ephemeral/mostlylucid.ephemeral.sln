@@ -187,7 +187,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "mostlylucid.ephemeral.atoms
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "mostlylucid.ephemeral.atoms.smtp.tests", "tests\mostlylucid.ephemeral.atoms.smtp.tests\mostlylucid.ephemeral.atoms.smtp.tests.csproj", "{9F204BFB-9B32-4E0F-ABCF-2C9B7C6FB7A1}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Mostlylucid.Atoms.Ephemeral", "src\Mostlylucid.Atoms.Ephemeral\Mostlylucid.Atoms.Ephemeral.csproj", "{9DDE82DE-7334-46B2-8B7D-45435C60D90D}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Mostlylucid.Ephemeral.Atoms.Llm", "src\mostlylucid.ephemeral.atoms.llm\Mostlylucid.Ephemeral.Atoms.Llm.csproj", "{9DDE82DE-7334-46B2-8B7D-45435C60D90D}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

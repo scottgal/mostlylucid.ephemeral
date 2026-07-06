@@ -6,11 +6,11 @@
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
 
-        <PackageId>Mostlylucid.Atoms.Ephemeral</PackageId>
+        <PackageId>Mostlylucid.Ephemeral.Atoms.Llm</PackageId>
         <!-- Local default only; the publish workflow overrides with the ephemeral
              family tag version (-p:PackageVersion), so this ships aligned with the
              rest of the ephemeral packages. -->
-        <Version>2.7.0</Version>
+        <Version>2.8.0</Version>
         <Authors>Scott Galloway</Authors>
         <Description>Ephemeral LLM coordinator atom: a prompt / pick / invoke / writeback pipeline that drives scheduling-coordinated LLM calls. Depends only on Mostlylucid.Common scheduling and the Microsoft.Extensions abstractions.</Description>
         <PackageTags>llm;coordinator;ephemeral;atom;scheduling;ai</PackageTags>

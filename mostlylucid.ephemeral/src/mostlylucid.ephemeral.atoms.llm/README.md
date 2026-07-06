@@ -1,4 +1,4 @@
-# Mostlylucid.Atoms.Ephemeral
+# Mostlylucid.Ephemeral.Atoms.Llm
 
 An **ephemeral LLM coordinator** atom: a small `prompt → pick → invoke → writeback`
 pipeline for running scheduling-coordinated LLM calls off ephemeral signals.

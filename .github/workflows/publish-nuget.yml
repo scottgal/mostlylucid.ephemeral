@@ -95,8 +95,10 @@ jobs:
             -p:PackageVersion=$VERSION \
             --output ./nupkg
 
-          # Atoms.Ephemeral (LLM coordinator) - versioned aligned with the family (tag)
-          dotnet pack src/Mostlylucid.Atoms.Ephemeral/Mostlylucid.Atoms.Ephemeral.csproj \
+          # Ephemeral.Atoms.Llm (LLM coordinator) - versioned aligned with the family (tag)
+          # Renamed from Mostlylucid.Atoms.Ephemeral in v2.8.0 to fit the family
+          # naming convention (Mostlylucid.Ephemeral.Atoms.*).
+          dotnet pack src/mostlylucid.ephemeral.atoms.llm/Mostlylucid.Ephemeral.Atoms.Llm.csproj \
             --configuration Release --no-build \
             -p:PackageVersion=$VERSION \
             --output ./nupkg

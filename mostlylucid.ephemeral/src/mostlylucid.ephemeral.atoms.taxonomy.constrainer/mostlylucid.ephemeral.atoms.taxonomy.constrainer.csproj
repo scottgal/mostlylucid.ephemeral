@@ -7,7 +7,7 @@
         <Nullable>enable</Nullable>
 
         <PackageId>Mostlylucid.Ephemeral.Atoms.Taxonomy.Constrainer</PackageId>
-        <Version>2.0.0</Version>
+        <Version>2.9.0</Version>
         <Authors>Scott Galloway</Authors>
         <Description>Deterministic constrainer atom that validates or selects proposals.</Description>
         <PackageTags>async;signals;atoms;taxonomy;constrainer</PackageTags>

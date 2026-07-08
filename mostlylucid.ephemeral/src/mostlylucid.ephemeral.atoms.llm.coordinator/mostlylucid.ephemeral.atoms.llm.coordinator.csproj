@@ -6,26 +6,29 @@
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
 
-        <PackageId>Mostlylucid.Ephemeral.Atoms.Llm</PackageId>
+        <PackageId>Mostlylucid.Ephemeral.Atoms.Llm.Coordinator</PackageId>
         <!-- Local default only; the publish workflow overrides with the ephemeral
              family tag version (-p:PackageVersion). -->
         <Version>2.9.0</Version>
         <Authors>Scott Galloway</Authors>
-        <Description>Meta-package for the Ephemeral LLM coordinator atom. References Mostlylucid.Ephemeral.Atoms.Llm.Abstractions (contracts) and Mostlylucid.Ephemeral.Atoms.Llm.Coordinator (runtime). Install this to get the full prompt / pick / invoke / writeback pipeline; reference .Abstractions alone if you only implement the contracts (net8.0/net9.0/net10.0).</Description>
-        <PackageTags>llm;coordinator;ephemeral;atom;scheduling;ai;metapackage</PackageTags>
+        <Description>Ephemeral LLM coordinator runtime: a tick-driven prompt / pick / invoke / writeback pipeline (EphemeralLlmCoordinator + AddEphemeralLlmCoordinator DI) built on the Llm.Abstractions contracts and Mostlylucid.Common scheduling.</Description>
+        <PackageTags>llm;coordinator;ephemeral;atom;scheduling;ai</PackageTags>
         <PackageLicenseExpression>Unlicense</PackageLicenseExpression>
         <PackageReadmeFile>README.md</PackageReadmeFile>
         <PackageIcon>icon.png</PackageIcon>
         <RepositoryUrl>https://github.com/scottgal/mostlylucid.atoms</RepositoryUrl>
-
-        <!-- Meta-package: ships dependencies only, no lib output. -->
-        <IncludeBuildOutput>false</IncludeBuildOutput>
-        <NoWarn>$(NoWarn);NU5128</NoWarn>
     </PropertyGroup>
 
     <ItemGroup>
         <ProjectReference Include="..\mostlylucid.ephemeral.atoms.llm.abstractions\mostlylucid.ephemeral.atoms.llm.abstractions.csproj" />
-        <ProjectReference Include="..\mostlylucid.ephemeral.atoms.llm.coordinator\mostlylucid.ephemeral.atoms.llm.coordinator.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+        <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" />
+        <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
+        <PackageReference Include="Microsoft.Extensions.Options" />
+        <PackageReference Include="Mostlylucid.Common" />
     </ItemGroup>
 
     <ItemGroup>

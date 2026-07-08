@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFrameworks>net8.0;net9.0;net10.0</TargetFrameworks>
+        <LangVersion>latest</LangVersion>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+
+        <PackageId>Mostlylucid.Ephemeral.Atoms.Llm.Abstractions</PackageId>
+        <!-- Local default only; the publish workflow overrides with the ephemeral
+             family tag version (-p:PackageVersion). -->
+        <Version>2.9.0</Version>
+        <Authors>Scott Galloway</Authors>
+        <Description>Provider-agnostic contracts for the Ephemeral LLM coordinator: IEphemeralPrompter / IEphemeralPicker / IEphemeralLlmInvoker / IEphemeralWriteback plus the EphemeralPrompt payload. Zero dependencies, multi-targets net8.0/net9.0/net10.0 so any consumer can implement the contracts without pulling the coordinator runtime.</Description>
+        <PackageTags>llm;coordinator;ephemeral;atom;abstractions;contracts;ai</PackageTags>
+        <PackageLicenseExpression>Unlicense</PackageLicenseExpression>
+        <PackageReadmeFile>README.md</PackageReadmeFile>
+        <PackageIcon>icon.png</PackageIcon>
+        <RepositoryUrl>https://github.com/scottgal/mostlylucid.atoms</RepositoryUrl>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <None Include="README.md" Pack="true" PackagePath="\" />
+        <None Include="icon.png" Pack="true" PackagePath="\" />
+    </ItemGroup>
+
+</Project>

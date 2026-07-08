@@ -89,19 +89,32 @@ jobs:
             -p:PackageVersion=$VERSION \
             --output ./nupkg
 
+          # Attributes package (not covered by the atoms.* / patterns.* globs).
+          # Was previously only packed by the manual publish-all.yml, which is why it
+          # lagged the family at 2.6.4 until 2.9.0. Keep it on the tag from here on.
+          dotnet pack src/mostlylucid.ephemeral.attributes/mostlylucid.ephemeral.attributes.csproj \
+            --configuration Release --no-build \
+            -p:PackageVersion=$VERSION \
+            --output ./nupkg
+
+          # Logging package (same story as attributes - previously skewed at 2.6.4).
+          dotnet pack src/mostlylucid.ephemeral.logging/mostlylucid.ephemeral.logging.csproj \
+            --configuration Release --no-build \
+            -p:PackageVersion=$VERSION \
+            --output ./nupkg
+
           # Complete bundle
           dotnet pack src/mostlylucid.ephemeral.complete/mostlylucid.ephemeral.complete.csproj \
             --configuration Release --no-build \
             -p:PackageVersion=$VERSION \
             --output ./nupkg
 
-          # Ephemeral.Atoms.Llm (LLM coordinator) - versioned aligned with the family (tag)
-          # Renamed from Mostlylucid.Atoms.Ephemeral in v2.8.0 to fit the family
-          # naming convention (Mostlylucid.Ephemeral.Atoms.*).
-          dotnet pack src/mostlylucid.ephemeral.atoms.llm/Mostlylucid.Ephemeral.Atoms.Llm.csproj \
-            --configuration Release --no-build \
-            -p:PackageVersion=$VERSION \
-            --output ./nupkg
+          # Ephemeral.Atoms.Llm trio (LLM coordinator) is covered by the atoms.* glob
+          # above, which packs all three of the 2.9.0 split:
+          #   - Mostlylucid.Ephemeral.Atoms.Llm.Abstractions (contracts, net8/9/10)
+          #   - Mostlylucid.Ephemeral.Atoms.Llm.Coordinator   (runtime, net10)
+          #   - Mostlylucid.Ephemeral.Atoms.Llm               (meta -> both)
+          # Renamed from Mostlylucid.Atoms.Ephemeral in v2.8.0; split in v2.9.0.
 
       # Notify package(s) pack from the sibling tree at repo root. Pack output drops
       # into the same ./nupkg directory inside mostlylucid.ephemeral/ so the existing

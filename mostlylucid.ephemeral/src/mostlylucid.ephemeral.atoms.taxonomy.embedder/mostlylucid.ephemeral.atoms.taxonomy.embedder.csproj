@@ -7,7 +7,7 @@
         <Nullable>enable</Nullable>
 
         <PackageId>Mostlylucid.Ephemeral.Atoms.Taxonomy.Embedder</PackageId>
-        <Version>2.0.0</Version>
+        <Version>2.9.0</Version>
         <Authors>Scott Galloway</Authors>
         <Description>Deterministic embedder atom that produces embeddings for extracted units.</Description>
         <PackageTags>async;signals;atoms;taxonomy;embedder</PackageTags>

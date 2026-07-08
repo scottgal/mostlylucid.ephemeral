@@ -1,6 +1,8 @@
-# Mostlylucid.Atoms
+# Mostlylucid.Ephemeral
 
 A collection of small, focused .NET libraries for common async patterns.
+
+(If I have an applicaton building secret sauce it's the execution primitives and data flow encoded in ephemeral).
 
 ## Packages
 

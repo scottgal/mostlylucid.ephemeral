@@ -1,33 +1,48 @@
 <Project>
     <PropertyGroup>
         <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+        <!-- Let central versions override transitive dependencies too, so the
+             SQLitePCLRaw security pin below applies even when pulled transitively. -->
+        <CentralPackageTransitivePinningEnabled>true</CentralPackageTransitivePinningEnabled>
     </PropertyGroup>
 
+    <!-- Kept in lockstep with ../mostlylucid.ephemeral/Directory.Packages.props: Notify
+         project-references the ephemeral core + smtp atom, so mismatched versions cause
+         NU1605 downgrade errors. -->
     <ItemGroup Label="Microsoft Extensions">
-        <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.1" />
-        <PackageVersion Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="10.0.1" />
-        <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.1" />
+        <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.9" />
+        <PackageVersion Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="10.0.9" />
+        <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.9" />
     </ItemGroup>
 
     <ItemGroup Label="Data Providers">
-        <PackageVersion Include="Microsoft.Data.Sqlite" Version="10.0.1" />
+        <PackageVersion Include="Microsoft.Data.Sqlite" Version="10.0.9" />
+    </ItemGroup>
+
+    <ItemGroup Label="Security transitive pins">
+        <!-- Microsoft.Data.Sqlite pulls SQLitePCLRaw.lib.e_sqlite3 2.1.11 (GHSA-2m69-gcr7-jv3q,
+             HIGH). 2.1.x has no patched release, so pin the whole SQLitePCLRaw 3.x stack. -->
+        <PackageVersion Include="SQLitePCLRaw.core" Version="3.0.3" />
+        <PackageVersion Include="SQLitePCLRaw.bundle_e_sqlite3" Version="3.0.3" />
+        <PackageVersion Include="SQLitePCLRaw.provider.e_sqlite3" Version="3.0.3" />
+        <PackageVersion Include="SQLitePCLRaw.lib.e_sqlite3" Version="3.53.3" />
     </ItemGroup>
 
     <ItemGroup Label="Testing">
-        <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.0.1" />
+        <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.7.0" />
         <PackageVersion Include="xunit" Version="2.9.3" />
         <PackageVersion Include="xunit.runner.visualstudio" Version="3.1.5" />
-        <PackageVersion Include="coverlet.collector" Version="6.0.4" />
+        <PackageVersion Include="coverlet.collector" Version="10.0.1" />
     </ItemGroup>
 
     <ItemGroup Label="Third Party">
         <PackageVersion Include="Dapper" Version="2.1.79" />
-        <PackageVersion Include="Polly" Version="8.6.6" />
-        <PackageVersion Include="RazorSlices" Version="0.10.1" />
-        <PackageVersion Include="MailKit" Version="4.14.1" />
+        <PackageVersion Include="Polly" Version="8.7.0" />
+        <PackageVersion Include="RazorSlices" Version="0.11.1" />
+        <PackageVersion Include="MailKit" Version="4.17.0" />
     </ItemGroup>
 
     <ItemGroup Label="Build Tools">
-        <PackageVersion Include="Microsoft.SourceLink.GitHub" Version="8.0.0" />
+        <PackageVersion Include="Microsoft.SourceLink.GitHub" Version="10.0.300" />
     </ItemGroup>
 </Project>

@@ -7,7 +7,7 @@
         <Nullable>enable</Nullable>
 
         <PackageId>Mostlylucid.Ephemeral.Atoms.Data.Postgres</PackageId>
-        <Version>2.0.0</Version>
+        <Version>2.9.0</Version>
         <Authors>Scott Galloway</Authors>
         <Description>PostgreSQL data storage atom for signal-driven persistence. Key-value storage with native JSONB support.</Description>
         <PackageTags>async;data;storage;postgres;postgresql;database;persistence;signals;atom</PackageTags>

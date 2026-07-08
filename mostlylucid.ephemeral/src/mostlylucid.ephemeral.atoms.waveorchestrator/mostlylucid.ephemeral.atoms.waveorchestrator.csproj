@@ -7,7 +7,7 @@
         <Nullable>enable</Nullable>
 
         <PackageId>Mostlylucid.Ephemeral.Atoms.WaveOrchestrator</PackageId>
-        <Version>2.0.0</Version>
+        <Version>2.9.0</Version>
         <Authors>Scott Galloway</Authors>
         <Description>Wave-based parallel orchestrator with circuit breaker, early exit, and per-wave parallelism control. Execute workers in configurable waves for optimal resource usage and fast-path optimization.</Description>
         <PackageTags>async;wave;orchestrator;circuit-breaker;parallel;coordination;atom</PackageTags>

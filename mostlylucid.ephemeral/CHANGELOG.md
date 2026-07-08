@@ -5,6 +5,63 @@ All notable changes to Mostlylucid.Ephemeral will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.9.0] - 2026-07-08
+
+Family-wide version alignment: every `Mostlylucid.Ephemeral.*` package now ships at a
+single version per tag, with self-consistent inter-package dependencies. There are **no
+breaking API changes since 2.6.4** — see [BREAKING_CHANGES_2.6.4_to_2.9.0.md](BREAKING_CHANGES_2.6.4_to_2.9.0.md).
+
+### Changed
+- **Split `Mostlylucid.Ephemeral.Atoms.Llm`** into three packages, keeping the original
+  package ID as a source-compatible meta (no consumer code changes required):
+  - `Mostlylucid.Ephemeral.Atoms.Llm.Abstractions` — provider-agnostic contracts
+    (`IEphemeralPrompter` / `IEphemeralPicker` / `IEphemeralLlmInvoker` /
+    `IEphemeralWriteback` + `EphemeralPrompt`). Zero dependencies, multi-targets
+    net8.0/net9.0/net10.0 so any consumer can implement the contracts.
+  - `Mostlylucid.Ephemeral.Atoms.Llm.Coordinator` — the runtime (`EphemeralLlmCoordinator`
+    + `AddEphemeralLlmCoordinator` DI), net10.0, depends on `Mostlylucid.Common`.
+  - `Mostlylucid.Ephemeral.Atoms.Llm` — meta-package referencing both.
+- **`mostlylucid.ephemeral.complete`** now composes the family via project references and
+  always pins its dependencies to the release version. Previously its `InternalPackageVersion`
+  was stuck at `2.3.0` and two references (`Atoms.Volatile`, `Patterns.Telemetry`) were
+  hardcoded to `2.3.0-alpha1`.
+
+### Fixed
+- **`mostlylucid.ephemeral.attributes`** and **`mostlylucid.ephemeral.logging`** were
+  stranded at `2.6.4` because the tag-triggered publish workflow never packed them. They now
+  ride every tag with the rest of the family.
+
+### Security
+- Pinned the **SQLitePCLRaw** stack to the patched 3.x releases (`bundle_e_sqlite3` /
+  `core` / `provider.e_sqlite3` 3.0.3, `lib.e_sqlite3` 3.53.3), resolving
+  [GHSA-2m69-gcr7-jv3q](https://github.com/advisories/GHSA-2m69-gcr7-jv3q) (HIGH), which was
+  pulled transitively via `Microsoft.Data.Sqlite`. Central transitive pinning is now enabled.
+
+### Dependencies
+- Bumped to latest stable: `Microsoft.Extensions.*` / `System.*` 10.0.9, `Npgsql` 10.0.3,
+  `MailKit` 4.17.0, `Cronos` 0.13.0, `Spectre.Console` 0.57.2, `YamlDotNet` 18.1.0,
+  `Microsoft.NET.Test.Sdk` 18.7.0, `coverlet.collector` 10.0.1, `Microsoft.SourceLink.GitHub`
+  10.0.300.
+- Held `SixLabors.ImageSharp` at `3.1.12` and `SixLabors.ImageSharp.Drawing` at `2.1.7` —
+  4.0 / 3.0 require a paid Six Labors license, incompatible with this FOSS package. These are
+  the newest free-licensed releases and carry no known vulnerabilities.
+
+## [2.8.1] - 2026-07-06
+
+### Fixed
+- Publish workflow path corrected for the renamed `Mostlylucid.Ephemeral.Atoms.Llm` package.
+
+## [2.8.0] - 2026-07-06
+
+### Changed
+- **Renamed `Mostlylucid.Atoms.Ephemeral` → `Mostlylucid.Ephemeral.Atoms.Llm`** to fit the
+  family naming convention (`Mostlylucid.Ephemeral.Atoms.*`). The old package ID is retired
+  at 2.7.0; consumers should move to the new ID.
+
+### Added
+- `Raise(...)` helper overloads on `DetectorAtomBase` (Taxonomy) that auto-prepend the atom
+  `Name` to emitted signals.
+
 ## [2.7.0] - 2026-07-04
 
 ### Added

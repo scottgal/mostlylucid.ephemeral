@@ -7,7 +7,7 @@
         <Nullable>enable</Nullable>
 
         <PackageId>Mostlylucid.Ephemeral.Atoms.Taxonomy.Coordinator</PackageId>
-        <Version>2.0.0</Version>
+        <Version>2.9.0</Version>
         <Authors>Scott Galloway</Authors>
         <Description>Deterministic coordinator atom that plans and orchestrates work.</Description>
         <PackageTags>async;signals;atoms;taxonomy;coordinator</PackageTags>

@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using Mostlylucid.Ephemeral.Atoms.SlidingCache;
 using Xunit;
 
@@ -5,6 +6,101 @@ namespace Mostlylucid.Ephemeral.Tests;
 
 public class SlidingCacheAtomTests
 {
+    [Fact]
+    public async Task ColdEviction_InvokesOnEvict_WithKeyAndValue()
+    {
+        var evicted = new ConcurrentBag<(string key, string value)>();
+
+        // maxSize=1; retention pins "keep" high so "evictme" is the cold casualty (deterministic).
+        await using var cache = new SlidingCacheAtom<string, string>(
+            (key, _) => Task.FromResult($"val:{key}"),
+            maxSize: 1,
+            retentionScorer: (key, _) => key == "keep" ? 100.0 : 0.0,
+            onEvict: (key, value, _) =>
+            {
+                evicted.Add((key, value));
+                return ValueTask.CompletedTask;
+            });
+
+        await cache.GetOrComputeAsync("keep");
+        await cache.GetOrComputeAsync("evictme"); // count 2 > maxSize 1 → cold eviction of "evictme"
+
+        Assert.Contains(("evictme", "val:evictme"), evicted);
+        Assert.False(cache.TryGet("evictme", out _), "evicted entry must be gone");
+        Assert.True(cache.TryGet("keep", out _), "pinned entry must survive");
+    }
+
+    [Fact]
+    public async Task Dispose_FlushesRemainingLiveEntries_ThroughOnEvict()
+    {
+        var flushed = new ConcurrentBag<(string key, string value)>();
+
+        var cache = new SlidingCacheAtom<string, string>(
+            (key, _) => Task.FromResult($"val:{key}"),
+            maxSize: 10,
+            onEvict: (key, value, _) =>
+            {
+                flushed.Add((key, value));
+                return ValueTask.CompletedTask;
+            });
+
+        await cache.GetOrComputeAsync("a");
+        await cache.GetOrComputeAsync("b");
+
+        await cache.DisposeAsync(); // graceful shutdown must not silently drop live entries
+
+        Assert.Contains(("a", "val:a"), flushed);
+        Assert.Contains(("b", "val:b"), flushed);
+    }
+
+    [Fact]
+    public async Task ExpiredEviction_InvokesOnEvict_WithKeyAndValue()
+    {
+        // Coverage for the sibling removal site (expiry sweep) wired alongside cold eviction.
+        var evicted = new ConcurrentBag<(string key, string value)>();
+
+        await using var cache = new SlidingCacheAtom<string, string>(
+            (key, _) => Task.FromResult($"val:{key}"),
+            slidingExpiration: TimeSpan.FromMilliseconds(50),
+            absoluteExpiration: TimeSpan.FromMilliseconds(50),
+            maxSize: 10,
+            cleanupInterval: TimeSpan.FromMilliseconds(40),
+            onEvict: (key, value, _) =>
+            {
+                evicted.Add((key, value));
+                return ValueTask.CompletedTask;
+            });
+
+        await cache.GetOrComputeAsync("ephemeral");
+        await Task.Delay(300); // let it expire and the cleanup loop sweep it
+
+        Assert.Contains(("ephemeral", "val:ephemeral"), evicted);
+    }
+
+    [Fact]
+    public async Task OnEvictThrowing_IsIsolated_DoesNotBubbleAndOtherEntriesStillFlush()
+    {
+        var flushed = new ConcurrentBag<string>();
+
+        var cache = new SlidingCacheAtom<string, string>(
+            (key, _) => Task.FromResult($"val:{key}"),
+            maxSize: 10,
+            onEvict: (key, _, _) =>
+            {
+                if (key == "bad") throw new InvalidOperationException("persist failed");
+                flushed.Add(key);
+                return ValueTask.CompletedTask;
+            });
+
+        await cache.GetOrComputeAsync("bad");
+        await cache.GetOrComputeAsync("good");
+
+        // A throwing callback must not bubble out of disposal, and must not stop the others.
+        await cache.DisposeAsync();
+
+        Assert.Contains("good", flushed);
+    }
+
     [Fact]
     public async Task SlidingExpiration_IsResetOnAccess()
     {

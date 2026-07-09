@@ -20,6 +20,7 @@ public sealed class SlidingCacheAtom<TKey, TResult> : IAsyncDisposable where TKe
     private readonly Func<TKey, CancellationToken, Task<TResult>> _factory;
     private readonly int _maxSize;
     private readonly Func<TKey, TResult, double>? _retentionScorer;
+    private readonly Func<TKey, TResult, CancellationToken, ValueTask>? _onEvict;
     private readonly int _sampleRate;
     private readonly SignalSink _signals;
     private readonly TimeSpan _slidingExpiration;
@@ -42,6 +43,17 @@ public sealed class SlidingCacheAtom<TKey, TResult> : IAsyncDisposable where TKe
     ///     lowest priority are removed first. Exceptions are swallowed; the existing score is kept.
     /// </param>
     /// <param name="cleanupInterval">How often the background cleanup loop runs (default: 30 seconds)</param>
+    /// <param name="onEvict">
+    ///     Optional death hook — the mirror of <paramref name="factory"/>. Invoked once with an entry's
+    ///     key and value at the moment it leaves the cache (expiry sweep or size-pressure eviction), and
+    ///     for every remaining entry on <see cref="DisposeAsync"/> (graceful flush). This is the ONE point
+    ///     at which the evicted value is still reachable — the cache is the source of truth, and eviction
+    ///     destroys it, so a downstream listener can't query for it after the fact. Use it to escalate the
+    ///     dying value up-tier (e.g. persist a summary). Callbacks run AFTER the cleanup lock is released,
+    ///     so a slow callback back-pressures eviction without wedging the cache; exceptions are swallowed
+    ///     (surfaced as a <c>cache.evict.callback.error</c> signal) so one failure never stops eviction.
+    ///     Not fired on explicit <see cref="Invalidate"/> / <see cref="Clear"/> (deliberate management, not death).
+    /// </param>
     public SlidingCacheAtom(
         Func<TKey, CancellationToken, Task<TResult>> factory,
         TimeSpan? slidingExpiration = null,
@@ -51,7 +63,8 @@ public sealed class SlidingCacheAtom<TKey, TResult> : IAsyncDisposable where TKe
         int sampleRate = 1,
         SignalSink? signals = null,
         Func<TKey, TResult, double>? retentionScorer = null,
-        TimeSpan? cleanupInterval = null)
+        TimeSpan? cleanupInterval = null,
+        Func<TKey, TResult, CancellationToken, ValueTask>? onEvict = null)
     {
         _factory = factory ?? throw new ArgumentNullException(nameof(factory));
         _slidingExpiration = slidingExpiration ?? TimeSpan.FromMinutes(5);
@@ -59,6 +72,7 @@ public sealed class SlidingCacheAtom<TKey, TResult> : IAsyncDisposable where TKe
         _maxSize = maxSize;
         _sampleRate = Math.Max(1, sampleRate);
         _retentionScorer = retentionScorer;
+        _onEvict = onEvict;
         _cleanupInterval = cleanupInterval ?? TimeSpan.FromSeconds(30);
 
         _signals = signals ?? new SignalSink(maxSize * 2, TimeSpan.FromMinutes(5));
@@ -84,6 +98,18 @@ public sealed class SlidingCacheAtom<TKey, TResult> : IAsyncDisposable where TKe
         }
         catch
         {
+        }
+
+        // Graceful flush: once the cleanup loop has stopped, hand every remaining live
+        // entry to the death hook so a shutdown never silently drops an un-persisted value.
+        if (_onEvict != null && !_cache.IsEmpty)
+        {
+            var remaining = new List<(TKey Key, TResult Value)>();
+            foreach (var kvp in _cache)
+                if (_cache.TryRemove(kvp.Key, out var removed))
+                    remaining.Add((kvp.Key, removed.Value));
+            if (remaining.Count > 0)
+                await InvokeEvictionCallbacksAsync(remaining, CancellationToken.None).ConfigureAwait(false);
         }
 
         _cts.Dispose();
@@ -250,6 +276,8 @@ public sealed class SlidingCacheAtom<TKey, TResult> : IAsyncDisposable where TKe
 
     private async Task TriggerCleanupAsync()
     {
+        List<(TKey Key, TResult Value)>? evicted = null;
+
         if (!await _cleanupLock.WaitAsync(0).ConfigureAwait(false))
             return; // Another cleanup in progress
 
@@ -264,8 +292,11 @@ public sealed class SlidingCacheAtom<TKey, TResult> : IAsyncDisposable where TKe
                 .ToList();
 
             foreach (var key in expired)
-                if (_cache.TryRemove(key, out _))
+                if (_cache.TryRemove(key, out var removed))
+                {
                     EmitSignal($"cache.evict.expired:{key}");
+                    if (_onEvict != null) (evicted ??= new List<(TKey, TResult)>()).Add((key, removed.Value));
+                }
 
             // Second pass: if still over size, remove lowest-priority entries
             if (_cache.Count > _maxSize)
@@ -287,14 +318,35 @@ public sealed class SlidingCacheAtom<TKey, TResult> : IAsyncDisposable where TKe
                     .ToList();
 
                 foreach (var key in toRemove)
-                    if (_cache.TryRemove(key, out _))
+                    if (_cache.TryRemove(key, out var removed))
+                    {
                         EmitSignal($"cache.evict.cold:{key}");
+                        if (_onEvict != null) (evicted ??= new List<(TKey, TResult)>()).Add((key, removed.Value));
+                    }
             }
         }
         finally
         {
             _cleanupLock.Release();
         }
+
+        // Death hooks fire AFTER the lock is released: a slow callback back-pressures
+        // eviction (it is awaited) without wedging cleanup, and one failure never stops the rest.
+        if (evicted != null && _onEvict != null)
+            await InvokeEvictionCallbacksAsync(evicted, _cts.Token).ConfigureAwait(false);
+    }
+
+    private async Task InvokeEvictionCallbacksAsync(IReadOnlyList<(TKey Key, TResult Value)> evicted, CancellationToken ct)
+    {
+        foreach (var (key, value) in evicted)
+            try
+            {
+                await _onEvict!(key, value, ct).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                EmitSignal($"cache.evict.callback.error:{key}:{ex.GetType().Name}");
+            }
     }
 
     private async Task RunCleanupLoopAsync()

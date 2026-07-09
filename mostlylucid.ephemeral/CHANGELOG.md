@@ -5,6 +5,32 @@ All notable changes to Mostlylucid.Ephemeral will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.9.1] - 2026-07-09
+
+Additive, non-breaking. One new optional hook on `SlidingCacheAtom`.
+
+### Added
+- **`SlidingCacheAtom<TKey,TResult>` eviction hook — `onEvict`.** New optional ctor parameter
+  `Func<TKey, TResult, CancellationToken, ValueTask>? onEvict = null`, the mirror of `factory`:
+  `factory` computes a value at birth, `onEvict` receives `(key, value)` at death. It fires once
+  per entry when the entry leaves the cache — expiry sweep (`cache.evict.expired`) or
+  size-pressure eviction (`cache.evict.cold`) — and for every remaining live entry on
+  `DisposeAsync` (graceful shutdown flush). This is the ONE point at which an evicted value is
+  still reachable: the cache is the source of truth and eviction destroys it, so a signal
+  listener can't query for the value after the fact (per `SIGNALS_PATTERN.md`, eviction signals
+  stay key-only notifications — the callback is the loss-free durable-handoff channel). Enables
+  escalate-on-eviction (persist a summary of a dying entry) without the cache knowing anything
+  about persistence.
+  - Callbacks run **after** the internal cleanup lock is released, so a slow callback
+    back-pressures eviction (it is awaited) without wedging the cache.
+  - Per-callback exceptions are isolated: swallowed and surfaced as a
+    `cache.evict.callback.error:<key>:<ExceptionType>` signal, so one failed hand-off never
+    stops the rest of an eviction batch.
+  - **Not** fired on explicit `Invalidate` / `Clear` (deliberate cache management, not entry
+    death). The existing key-only eviction signals are unchanged.
+  - Backward compatible: defaults to `null` (no behavior change for existing callers) and is
+    appended at the end of the ctor, so every positional/named call site keeps compiling.
+
 ## [2.9.0] - 2026-07-08
 
 Family-wide version alignment: every `Mostlylucid.Ephemeral.*` package now ships at a

@@ -221,4 +221,46 @@ public class SlidingCacheAtomTests
         // k1 should be expired and swept
         Assert.False(cache.TryGet("k1", out _), "Expired entry should be evicted by cleanup loop");
     }
+
+    [Fact]
+    public async Task TryGetEntryStats_ReportsAccessCountAndLastAccess_ForALiveEntry()
+    {
+        // Consumers that want to rank/prioritize by "how hot is this entry" (e.g. a
+        // materializer deciding what to warm first) must read the SAME AccessCount/LastAccess
+        // this atom already tracks internally, rather than maintaining a second counter that
+        // can drift from the real access pattern. This is the read-only surface for that.
+        await using var cache = new SlidingCacheAtom<string, string>((key, _) => Task.FromResult($"val:{key}"));
+
+        await cache.GetOrComputeAsync("a"); // AccessCount 1 (creation)
+        await cache.GetOrComputeAsync("a"); // AccessCount 2 (hit)
+        await cache.GetOrComputeAsync("a"); // AccessCount 3 (hit)
+
+        Assert.True(cache.TryGetEntryStats("a", out var stats));
+        Assert.Equal(3, stats.AccessCount);
+        Assert.True(stats.LastAccess <= DateTimeOffset.UtcNow);
+        Assert.True(stats.LastAccess >= stats.Created);
+    }
+
+    [Fact]
+    public async Task TryGetEntryStats_ReadingDoesNotItselfCountAsAnAccess()
+    {
+        // A read-only introspection accessor must not perturb the very stats it reports --
+        // otherwise ranking consumers would inflate AccessCount just by asking.
+        await using var cache = new SlidingCacheAtom<string, string>((key, _) => Task.FromResult($"val:{key}"));
+        await cache.GetOrComputeAsync("a");
+
+        cache.TryGetEntryStats("a", out var first);
+        cache.TryGetEntryStats("a", out var second);
+
+        Assert.Equal(first.AccessCount, second.AccessCount);
+    }
+
+    [Fact]
+    public async Task TryGetEntryStats_ReturnsFalse_ForAnUnknownKey()
+    {
+        await using var cache = new SlidingCacheAtom<string, string>((key, _) => Task.FromResult($"val:{key}"));
+
+        Assert.False(cache.TryGetEntryStats("missing", out var stats));
+        Assert.Equal(default, stats);
+    }
 }

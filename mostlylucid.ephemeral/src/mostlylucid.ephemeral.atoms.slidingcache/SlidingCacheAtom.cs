@@ -194,6 +194,26 @@ public sealed class SlidingCacheAtom<TKey, TResult> : IAsyncDisposable where TKe
     }
 
     /// <summary>
+    ///     Reads the existing per-key access tracking (AccessCount/LastAccess/Created) for a
+    ///     live entry, WITHOUT touching sliding expiration or incrementing AccessCount itself
+    ///     (unlike <see cref="TryGet"/>, which is a real access). This is the single source for
+    ///     consumers that want to rank/prioritize entries by hotness (e.g. deciding what to warm
+    ///     first under a budget) — they should read this instead of maintaining a second counter
+    ///     that can drift from what the cache actually tracks.
+    /// </summary>
+    public bool TryGetEntryStats(TKey key, out CacheEntryStats stats)
+    {
+        if (_cache.TryGetValue(key, out var entry))
+        {
+            stats = new CacheEntryStats(entry.AccessCount, entry.LastAccess, entry.Created);
+            return true;
+        }
+
+        stats = default;
+        return false;
+    }
+
+    /// <summary>
     ///     Gets cache statistics.
     /// </summary>
     public CacheStats GetStats()
@@ -420,3 +440,11 @@ public readonly record struct CacheStats(
     int ExpiredEntries,
     int HotEntries,
     int MaxSize);
+
+/// <summary>
+///     Per-key access tracking snapshot, as read by <see cref="SlidingCacheAtom{TKey,TResult}.TryGetEntryStats"/>.
+/// </summary>
+public readonly record struct CacheEntryStats(
+    int AccessCount,
+    DateTimeOffset LastAccess,
+    DateTimeOffset Created);
